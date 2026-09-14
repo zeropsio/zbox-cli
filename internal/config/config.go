@@ -1,4 +1,4 @@
-// Package config persists the CLI state: the Zerops token and API URL plus the ids of the sandbox pool created by `zbox setup`.
+// Package config persists the CLI state: the Zerops token and API URL, the Zerops ids of the workspace created by `zbox setup`, and the workspace API URL and key every orchestrator call needs.
 package config
 
 import (
@@ -12,9 +12,12 @@ const (
 	DefaultApiUrl    = "https://api.app-futon.zerops.dev"
 	DefaultGuiUrl    = "https://gui-3.app-futon.zerops.dev"
 	DefaultBinaryUrl = "https://grg.zerops.dev/57fhv-s3/zbox"
+	DefaultImageUrl  = "https://grg.zerops.dev/57fhv-s3/zbox-base.tar.gz"
 
-	EnvConfigPath = "ZBOX_CONFIG"
-	EnvToken      = "ZBOX_TOKEN"
+	EnvConfigPath   = "ZBOX_CONFIG"
+	EnvToken        = "ZBOX_TOKEN"
+	EnvWorkspaceUrl = "ZBOX_WORKSPACE_URL"
+	EnvWorkspaceKey = "ZBOX_API_KEY"
 )
 
 type Config struct {
@@ -24,8 +27,12 @@ type Config struct {
 	ClientId    string `json:"clientId,omitempty"`
 	ProjectId   string `json:"projectId,omitempty"`
 	ProjectName string `json:"projectName,omitempty"`
-	ServiceId   string `json:"serviceId,omitempty"`
-	ZboxUrl     string `json:"zboxUrl,omitempty"`
+	// ServiceId keeps its spelling from before the workspace rename so an existing assignment survives it.
+	ServiceId string `json:"serviceId,omitempty"`
+	// WorkspaceUrl is the API host of the workspace, the first of the two subdomains the service publishes. The ingress host comes from GET /workspace.
+	WorkspaceUrl string `json:"workspaceUrl,omitempty"`
+	// ApiKey is the workspace API key, the generated sensitive env of the service and the whole authority on the orchestrator API.
+	ApiKey string `json:"apiKey,omitempty"`
 }
 
 func Path() (string, error) {
@@ -96,13 +103,31 @@ func (c Config) EffectiveToken() string {
 	return c.Token
 }
 
-// One Zerops service is one sandbox pool, so the pool is identified by the project and service it runs in.
-func (c Config) HasSandboxPool() bool {
-	return c.ProjectId != "" && c.ServiceId != "" && c.ZboxUrl != ""
+// EffectiveWorkspace lets the environment point one run at any workspace, for scripts and for sandboxes that hold the key of their own workspace.
+func (c Config) EffectiveWorkspace() (url, key string) {
+	url, key = c.WorkspaceUrl, c.ApiKey
+	if v := os.Getenv(EnvWorkspaceUrl); v != "" {
+		url = v
+	}
+	if v := os.Getenv(EnvWorkspaceKey); v != "" {
+		key = v
+	}
+	return url, key
 }
 
-// ForgetSandboxPool drops the assignment of a pool whose project is gone, so the next `zbox setup` starts from scratch.
-func (c *Config) ForgetSandboxPool() error {
-	c.ProjectId, c.ProjectName, c.ServiceId, c.ZboxUrl = "", "", "", ""
+// HasWorkspace says whether an orchestrator can be called at all. The Zerops ids are optional: a workspace assigned with `zbox workspace use` has none.
+func (c Config) HasWorkspace() bool {
+	url, key := c.EffectiveWorkspace()
+	return url != "" && key != ""
+}
+
+// HasZeropsWorkspace says whether the workspace was created by this CLI, which is what teardown and status need.
+func (c Config) HasZeropsWorkspace() bool {
+	return c.ProjectId != "" && c.ServiceId != ""
+}
+
+// ForgetWorkspace drops the assignment, so the next `zbox setup` starts from scratch.
+func (c *Config) ForgetWorkspace() error {
+	c.ProjectId, c.ProjectName, c.ServiceId, c.WorkspaceUrl, c.ApiKey = "", "", "", "", ""
 	return c.Save()
 }

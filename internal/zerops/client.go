@@ -1,4 +1,4 @@
-// Package zerops wraps the public Zerops SDK for the handful of calls the CLI makes.
+// Package zerops wraps the public Zerops SDK for the handful of calls the CLI makes: login check, import, processes, service envs.
 package zerops
 
 import (
@@ -30,7 +30,7 @@ func New(apiUrl, token string) *Client {
 	return &Client{sdk: sdk.AuthorizeSdk(h, token)}
 }
 
-// IsNotFound recognises the answer the public API gives for a project or service that is gone, which for the CLI means a pool deleted outside of it.
+// IsNotFound recognises the answer the public API gives for a project or service that is gone, which for the CLI means a workspace deleted outside of it.
 // The match is on the error code because the API answers these with HTTP 400 today, even though the ACL middleware that raises them was meant to answer 404. The status is checked too, so a fix on the API side keeps working.
 func IsNotFound(err error) bool {
 	return apiError.HasErrorCode(err, errorCode.ProjectNotFound) ||
@@ -92,7 +92,7 @@ func (c *Client) ImportProject(ctx context.Context, clientId, yaml string) (Impo
 	return importResult(out), nil
 }
 
-// ImportServiceStack adds one service to an existing project, which is how a pool is created next to whatever else the project already runs.
+// ImportServiceStack adds one service to an existing project, which is how a workspace is created next to whatever else the project already runs.
 func (c *Client) ImportServiceStack(ctx context.Context, projectId, yaml string) (ImportResult, error) {
 	pid, err := uuid.NewProjectIdFromString(projectId)
 	if err != nil {

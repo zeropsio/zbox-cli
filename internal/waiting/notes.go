@@ -18,7 +18,7 @@ var notes = []string{
 	"`zbox ls` lists the sandboxes, `zbox shell <id>` opens a shell in one.",
 	"`zbox exec <id> -- <command>` runs one command and exits with its exit code.",
 	"Every command takes --json. Scripts and agents get the API objects, not the text.",
-	"The web app and the CLI drive the same workspace. Use whichever is closer.",
+	"The console at the workspace URL and the CLI drive the same workspace. Use whichever is closer.",
 	"The default base is being added to the workspace now. Every sandbox after this starts in seconds.",
 	"`zbox teardown` deletes the whole Zerops project: the workspace, the sandboxes, everything in it.",
 }

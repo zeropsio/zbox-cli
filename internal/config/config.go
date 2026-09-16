@@ -1,18 +1,21 @@
-// Package config persists the CLI state: the Zerops token and API URL, the Zerops ids of the workspace created by `zbox setup`, and the workspace API URL and key every orchestrator call needs.
+// Package config persists the CLI state: the Zerops token and API URL, the workspace in use (its Zerops ids when `zbox setup` created it, and the API URL and key every orchestrator call needs) and the other known workspaces `zbox switch` moves between.
 package config
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
-	DefaultApiUrl    = "https://api.app-futon.zerops.dev"
-	DefaultGuiUrl    = "https://gui-3.app-futon.zerops.dev"
-	DefaultBinaryUrl = "https://grg.zerops.dev/57fhv-s3/zbox"
-	DefaultImageUrl  = "https://grg.zerops.dev/57fhv-s3/zbox-base.tar.gz"
+	DefaultApiUrl   = "https://api.app-futon.zerops.dev"
+	DefaultImageUrl = "https://grg.zerops.dev/57fhv-s3/zbox-base.tar.gz"
+	// DefaultGuiUrl is the Zerops GUI dev server on this machine, the development default until the zbox hand-over is deployed; the config's guiUrl or --gui-url point elsewhere.
+	DefaultGuiUrl = "http://localhost:1111"
 
 	EnvConfigPath   = "ZBOX_CONFIG"
 	EnvToken        = "ZBOX_TOKEN"
@@ -21,7 +24,8 @@ const (
 )
 
 type Config struct {
-	ApiUrl      string `json:"apiUrl"`
+	ApiUrl string `json:"apiUrl"`
+	// GuiUrl is the Zerops GUI origin the browser hand-offs open. Empty means derived from ApiUrl.
 	GuiUrl      string `json:"guiUrl,omitempty"`
 	Token       string `json:"token,omitempty"`
 	ClientId    string `json:"clientId,omitempty"`
@@ -33,6 +37,35 @@ type Config struct {
 	WorkspaceUrl string `json:"workspaceUrl,omitempty"`
 	// ApiKey is the workspace API key, the generated sensitive env of the service and the whole authority on the orchestrator API.
 	ApiKey string `json:"apiKey,omitempty"`
+	// Workspaces are the known workspaces, the current one included. The flat fields above stay the current one so every reader is unchanged; `zbox switch` copies another entry into them.
+	Workspaces []Workspace `json:"workspaces,omitempty"`
+}
+
+// Workspace is one saved assignment, addressed by its name in `zbox switch`.
+type Workspace struct {
+	Name         string `json:"name"`
+	ProjectId    string `json:"projectId,omitempty"`
+	ProjectName  string `json:"projectName,omitempty"`
+	ServiceId    string `json:"serviceId,omitempty"`
+	WorkspaceUrl string `json:"workspaceUrl"`
+	ApiKey       string `json:"apiKey"`
+}
+
+// Host is the API host without the scheme, what the table shows and what `zbox switch` matches on.
+func (w Workspace) Host() string {
+	if u, err := url.Parse(w.WorkspaceUrl); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return w.WorkspaceUrl
+}
+
+// DefaultName names a workspace assigned without a name after the first label of its API host, `zbox-c-8080` for `https://zbox-c-8080.app-futon.zerops.dev`.
+func DefaultName(workspaceUrl string) string {
+	host := Workspace{WorkspaceUrl: workspaceUrl}.Host()
+	if i := strings.Index(host, "."); i > 0 {
+		return host[:i]
+	}
+	return host
 }
 
 func Path() (string, error) {
@@ -69,6 +102,14 @@ func Load() (Config, error) {
 	if c.ApiUrl == "" {
 		c.ApiUrl = DefaultApiUrl
 	}
+	// A config from before the list carries only the flat fields: it becomes the one known workspace, named after its project or host.
+	if c.WorkspaceUrl != "" && c.find(c.WorkspaceUrl) < 0 {
+		name := c.ProjectName
+		if name == "" {
+			name = DefaultName(c.WorkspaceUrl)
+		}
+		c.Workspaces = append(c.Workspaces, Workspace{Name: name, ProjectId: c.ProjectId, ProjectName: c.ProjectName, ServiceId: c.ServiceId, WorkspaceUrl: c.WorkspaceUrl, ApiKey: c.ApiKey})
+	}
 	return c, nil
 }
 
@@ -87,10 +128,10 @@ func (c Config) Save() error {
 	return os.WriteFile(p, data, 0o600)
 }
 
-// EffectiveGuiUrl is where the browser login hand-off sends the user. It is stored rather than only a flag, so an install pointed at a locally running GUI stays pointed at it.
+// EffectiveGuiUrl is the Zerops GUI origin for the browser hand-offs: the stored value, otherwise the development default.
 func (c Config) EffectiveGuiUrl() string {
 	if c.GuiUrl != "" {
-		return c.GuiUrl
+		return strings.TrimSuffix(c.GuiUrl, "/")
 	}
 	return DefaultGuiUrl
 }
@@ -126,8 +167,105 @@ func (c Config) HasZeropsWorkspace() bool {
 	return c.ProjectId != "" && c.ServiceId != ""
 }
 
-// ForgetWorkspace drops the assignment, so the next `zbox setup` starts from scratch.
+// Current is the workspace in use, as an entry of the list.
+func (c Config) Current() (Workspace, bool) {
+	if c.WorkspaceUrl == "" {
+		return Workspace{}, false
+	}
+	if i := c.find(c.WorkspaceUrl); i >= 0 {
+		return c.Workspaces[i], true
+	}
+	return Workspace{Name: DefaultName(c.WorkspaceUrl), ProjectId: c.ProjectId, ProjectName: c.ProjectName, ServiceId: c.ServiceId, WorkspaceUrl: c.WorkspaceUrl, ApiKey: c.ApiKey}, true
+}
+
+// find returns the index of the entry with the URL, -1 when unknown.
+func (c Config) find(workspaceUrl string) int {
+	for i, w := range c.Workspaces {
+		if w.WorkspaceUrl == workspaceUrl {
+			return i
+		}
+	}
+	return -1
+}
+
+// Lookup resolves what the user typed: a name, an API URL or host, a host prefix, or a service id.
+func (c Config) Lookup(ref string) (Workspace, error) {
+	ref = strings.TrimSuffix(ref, "/")
+	for _, w := range c.Workspaces {
+		if w.Name == ref || w.WorkspaceUrl == ref || w.Host() == ref || (w.ServiceId != "" && w.ServiceId == ref) {
+			return w, nil
+		}
+	}
+	var hits []Workspace
+	for _, w := range c.Workspaces {
+		if strings.HasPrefix(w.Host(), ref) || strings.HasPrefix(w.Name, ref) {
+			hits = append(hits, w)
+		}
+	}
+	switch len(hits) {
+	case 1:
+		return hits[0], nil
+	case 0:
+		return Workspace{}, fmt.Errorf("no known workspace matches %q, `zbox workspace ls` lists them", ref)
+	default:
+		names := make([]string, len(hits))
+		for i, w := range hits {
+			names[i] = w.Name
+		}
+		return Workspace{}, fmt.Errorf("%q matches several workspaces: %s", ref, strings.Join(names, ", "))
+	}
+}
+
+// Remember stores w in the list without switching to it, unless nothing is current yet. A name already used by another workspace is refused rather than silently reassigned.
+func (c *Config) Remember(w Workspace) error {
+	if w.Name == "" {
+		w.Name = DefaultName(w.WorkspaceUrl)
+	}
+	for _, known := range c.Workspaces {
+		if known.Name == w.Name && known.WorkspaceUrl != w.WorkspaceUrl {
+			return fmt.Errorf("the name %s already belongs to workspace %s, pick another with --name or forget that one first", w.Name, known.Host())
+		}
+	}
+	if i := c.find(w.WorkspaceUrl); i >= 0 {
+		c.Workspaces[i] = w
+	} else {
+		c.Workspaces = append(c.Workspaces, w)
+	}
+	if c.WorkspaceUrl == "" || c.WorkspaceUrl == w.WorkspaceUrl {
+		c.setCurrent(w)
+	}
+	return c.Save()
+}
+
+// Assign remembers w and makes it the current workspace.
+func (c *Config) Assign(w Workspace) error {
+	if err := c.Remember(w); err != nil {
+		return err
+	}
+	c.setCurrent(w)
+	return c.Save()
+}
+
+func (c *Config) setCurrent(w Workspace) {
+	c.ProjectId, c.ProjectName, c.ServiceId, c.WorkspaceUrl, c.ApiKey = w.ProjectId, w.ProjectName, w.ServiceId, w.WorkspaceUrl, w.ApiKey
+}
+
+// ForgetWorkspace drops the current workspace from the list and leaves none in use, `zbox switch` picks the next one.
 func (c *Config) ForgetWorkspace() error {
+	if i := c.find(c.WorkspaceUrl); i >= 0 {
+		c.Workspaces = append(c.Workspaces[:i], c.Workspaces[i+1:]...)
+	}
 	c.ProjectId, c.ProjectName, c.ServiceId, c.WorkspaceUrl, c.ApiKey = "", "", "", "", ""
 	return c.Save()
+}
+
+// Others lists the known workspaces that are not the current one, for the hint after a teardown or forget.
+func (c Config) Others() []string {
+	var names []string
+	for _, w := range c.Workspaces {
+		if w.WorkspaceUrl != c.WorkspaceUrl {
+			names = append(names, w.Name)
+		}
+	}
+	return names
 }

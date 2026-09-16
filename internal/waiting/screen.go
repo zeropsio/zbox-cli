@@ -45,6 +45,7 @@ type Screen struct {
 	floor   float64
 	drawn   int
 	stopped bool
+	paused  bool
 	done    chan struct{}
 }
 
@@ -100,6 +101,39 @@ func (s *Screen) Step(text string, floor int) {
 	s.draw()
 }
 
+// Pause wipes the frame and gives the terminal to the caller for a while, for a step that has to print and read, such as the browser hand-over. Resume takes it back.
+func (s *Screen) Pause() {
+	if !s.tty {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped || s.paused {
+		return
+	}
+	s.paused = true
+	if s.drawn > 0 {
+		fmt.Fprintf(s.out, "\033[%dA\033[J", s.drawn)
+		s.drawn = 0
+	}
+	fmt.Fprint(s.out, showCurso)
+}
+
+func (s *Screen) Resume() {
+	if !s.tty {
+		return
+	}
+	s.mu.Lock()
+	if s.stopped || !s.paused {
+		s.mu.Unlock()
+		return
+	}
+	s.paused = false
+	fmt.Fprint(s.out, hideCurso)
+	s.mu.Unlock()
+	s.draw()
+}
+
 // Stop wipes the frame and gives the cursor back. It is safe to call twice, the caller defers it and the happy path calls it before printing the result.
 func (s *Screen) Stop() {
 	if !s.tty {
@@ -122,7 +156,7 @@ func (s *Screen) Stop() {
 func (s *Screen) draw() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.stopped {
+	if s.stopped || s.paused {
 		return
 	}
 	width, height := s.size()

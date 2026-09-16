@@ -23,11 +23,10 @@ import (
 )
 
 var (
-	flagApiUrl    string
-	flagGuiUrl    string
-	flagBinaryUrl string
-	flagImageUrl  string
-	flagJson      bool
+	flagApiUrl   string
+	flagGuiUrl   string
+	flagImageUrl string
+	flagJson     bool
 )
 
 var rootCmd = &cobra.Command{
@@ -61,12 +60,10 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.BoolVar(&flagJson, "json", false, "print the API objects as JSON instead of text, for scripts and agents")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL")
-	pf.StringVar(&flagGuiUrl, "gui-url", "", "zbox web app URL used for browser login, overrides guiUrl from the config")
-	pf.StringVar(&flagBinaryUrl, "binary-url", config.DefaultBinaryUrl, "download URL of the orchestrator binary used by setup")
+	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
+	pf.StringVar(&flagImageUrl, "image-url", config.DefaultImageUrl, "download URL of the saved default sandbox image loaded by the import YAML")
 	_ = pf.MarkHidden("public-api-url")
 	_ = pf.MarkHidden("gui-url")
-	pf.StringVar(&flagImageUrl, "image-url", config.DefaultImageUrl, "download URL of the saved default sandbox image loaded by the import YAML")
-	_ = pf.MarkHidden("binary-url")
 	_ = pf.MarkHidden("image-url")
 }
 
@@ -77,6 +74,9 @@ func loadConfig() (config.Config, error) {
 	}
 	if flagApiUrl != "" {
 		c.ApiUrl = flagApiUrl
+	}
+	if flagGuiUrl != "" {
+		c.GuiUrl = flagGuiUrl
 	}
 	return c, nil
 }

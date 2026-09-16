@@ -52,8 +52,9 @@ var setupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if c.HasWorkspace() {
-			return fmt.Errorf("a workspace is already assigned (%s), run `zbox teardown` or `zbox workspace forget` first", c.WorkspaceUrl)
+		// Several workspaces are fine, they are told apart by name; the new one becomes the current one.
+		if w, err := c.Lookup(flagSetupName); err == nil && w.Name == flagSetupName {
+			return fmt.Errorf("a workspace named %s is already known (%s), pick another --name or run `zbox teardown` or `zbox workspace forget` on it first", w.Name, w.Host())
 		}
 		return createWorkspace(cmd.Context(), &c)
 	},
@@ -72,7 +73,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, BinaryUrl: flagBinaryUrl, ImageUrl: flagImageUrl})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, ImageUrl: flagImageUrl})
 		if err != nil {
 			return err
 		}
@@ -88,7 +89,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, BinaryUrl: flagBinaryUrl, ImageUrl: flagImageUrl})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, ImageUrl: flagImageUrl})
 		if err != nil {
 			return err
 		}
@@ -101,9 +102,11 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		}
 		c.ClientId = user.ClientId
 	}
+	// The ids are stored before the URL is known, so a setup that fails from here on can still be torn down. A `zbox switch` in between loses that partial state, the list only keeps workspaces with a URL.
 	c.ProjectId = res.ProjectId
 	c.ProjectName = res.ProjectName
 	c.ServiceId = res.ServiceId
+	c.WorkspaceUrl, c.ApiKey = "", ""
 	if err := c.Save(); err != nil {
 		return err
 	}
@@ -118,16 +121,24 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	c.WorkspaceUrl = strings.TrimSpace(strings.Split(subdomain, "\n")[0])
-	c.ApiKey, err = waitForEnv(ctx, zc, res.ServiceId, apiKeyEnv)
+	workspaceUrl := strings.TrimSpace(strings.Split(subdomain, "\n")[0])
+	apiKey, err := waitForEnv(ctx, zc, res.ServiceId, apiKeyEnv)
 	if err != nil {
 		return err
 	}
-	// The env list gives a generated secret away only as its generator placeholder, a reveal needs sudo mode, which a PAT does not have. Storing the placeholder would fail every later call with a bare 401.
-	if strings.HasPrefix(c.ApiKey, "<@") {
-		return fmt.Errorf("the %s env of the service is a generated secret the public API does not reveal to a token, the key has to be minted by the CLI and passed in the import", apiKeyEnv)
-	}
-	if err := c.Save(); err != nil {
+	// The env list gives a generated secret away only as its generator placeholder, a reveal needs sudo mode, which a token does not have. The Zerops GUI reveals it for the user and hands it over on the loopback.
+	if strings.HasPrefix(apiKey, "<@") {
+		screen.Pause()
+		fmt.Println("The workspace API key is a generated secret, the Zerops GUI hands it over. Confirm there.")
+		w, err := authorizeWorkspace(ctx, c, zc, res.ServiceId, flagSetupName, func(s string) { fmt.Println(s) })
+		if err != nil {
+			return err
+		}
+		if err := c.Assign(w); err != nil {
+			return err
+		}
+		screen.Resume()
+	} else if err := c.Assign(config.Workspace{Name: flagSetupName, ProjectId: res.ProjectId, ProjectName: res.ProjectName, ServiceId: res.ServiceId, WorkspaceUrl: workspaceUrl, ApiKey: apiKey}); err != nil {
 		return err
 	}
 	screen.Step("Waiting for the orchestrator to answer", stepPing)
@@ -141,7 +152,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		return err
 	}
 	screen.Stop()
-	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\nCreate your first sandbox with `zbox new`.\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
+	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\nCreate your first sandbox with `zbox new`, open the console with `zbox open`, or find the workspace in the Zerops GUI under zbox.\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
 	return nil
 }
 
@@ -187,6 +198,7 @@ var teardownCmd = &cobra.Command{
 			return err
 		}
 		fmt.Println("Project deleted.")
+		printOthers(c)
 		return nil
 	},
 }
@@ -270,6 +282,13 @@ func forgetGoneWorkspace(c *config.Config, err error, message string) error {
 	}
 	fmt.Println(message)
 	return nil
+}
+
+// printOthers names the remaining workspaces after the current one is gone, so the reader knows a switch is one command away.
+func printOthers(c config.Config) {
+	if others := c.Others(); len(others) > 0 {
+		fmt.Printf("Other workspaces: %s. Switch with `zbox switch <name>`.\n", strings.Join(others, ", "))
+	}
 }
 
 func printProcess(p zerops.ProcessState) {

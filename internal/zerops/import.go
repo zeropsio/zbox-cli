@@ -5,8 +5,8 @@ import (
 	"text/template"
 )
 
-// The docker service downloads the orchestrator binary on every start, so no code deploy is needed. The download lands in a temp file that is renamed over the path: on a restart /var/www/zbox is the running binary and writing onto it fails (curl exit 23, wget "Text file busy"), a rename works.
-// The default sandbox image is loaded from a saved tarball as an init command rather than pulled by the orchestrator, so the service reaching ACTIVE can serve `POST /base zbox-base:latest` right away.
+// The orchestrator is a zstart package mounted into every docker VM at /opt/zerops/bin/zerops-zbox-orchestrator, so nothing is downloaded or deployed: a new orchestrator build reaches the workspace with the platform.
+// The default sandbox image is loaded from a saved tarball as an init command rather than pulled by the orchestrator, so the service reaching ACTIVE can serve `POST /base zbox-base:latest` right away. The load is skipped when the image is already there, so a restart does not fetch the tarball again.
 // Two http ports with subdomain access give two hosts in zeropsSubdomain: the API host first, the ingress host second. The orchestrator reads both itself.
 // The workspace API key is a generated secret env of the service (apiKey), which the orchestrator reads from its own environment. It is not mapped in the start line: Zerops runs the start line through exec, so a leading assignment is taken for the program.
 // The service runs as user zerops with only /var/www writable, and the orchestrator keeps its sqlite file and session outputs under /var/lib/zbox, hence the first init command.
@@ -41,17 +41,14 @@ const importTemplate = `{{with .ProjectName}}project:
                 httpSupport: true
             initCommands:
               - sudo mkdir -p /var/lib/zbox && sudo chown zerops:zerops /var/lib/zbox
-              - (command -v curl >/dev/null && curl -fsSL -o /var/www/zbox.new {{.BinaryUrl}}) || wget -qO /var/www/zbox.new {{.BinaryUrl}}
-              - chmod +x /var/www/zbox.new && mv -f /var/www/zbox.new /var/www/zbox
-              - /var/www/zbox migrate
-              - ((command -v curl >/dev/null && curl -fsSL {{.ImageUrl}}) || wget -qO- {{.ImageUrl}}) | docker load
-            start: /var/www/zbox run
+              - /opt/zerops/bin/zerops-zbox-orchestrator migrate
+              - docker image inspect zbox-base:latest >/dev/null 2>&1 || ((command -v curl >/dev/null && curl -fsSL {{.ImageUrl}}) || wget -qO- {{.ImageUrl}}) | docker load
+            start: /opt/zerops/bin/zerops-zbox-orchestrator run
 `
 
 type ImportParams struct {
 	ProjectName string
 	Hostname    string
-	BinaryUrl   string
 	ImageUrl    string
 }
 

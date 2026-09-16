@@ -69,6 +69,44 @@ func (c *Client) UserInfo(ctx context.Context) (User, error) {
 	return u, nil
 }
 
+// RecipeSource marks the imported service as a zbox workspace. It rides in the request body, not the YAML, and the public API returns it on every service stack, which is how the Zerops GUI lists workspaces (`zeropsSetup` is not returned).
+const RecipeSource = "zeropsio/zbox"
+
+// WorkspaceStack is a workspace service of the account. In v0 every docker service is one.
+type WorkspaceStack struct {
+	ServiceId   string
+	Hostname    string
+	ProjectId   string
+	ProjectName string
+	Status      string
+}
+
+// Workspaces lists the docker services of the organisation, which is what a workspace is in v0. The `recipeSource` marker is sent on import but the search index does not carry it, so it is not filtered on.
+func (c *Client) Workspaces(ctx context.Context, clientId string) ([]WorkspaceStack, error) {
+	resp, err := c.sdk.PostServiceStackSearch(ctx, body.EsFilter{Search: body.EsFilterSearch{
+		{Name: types.NewString("clientId"), Operator: types.NewString("eq"), Value: types.NewString(clientId)},
+		{Name: types.NewString("serviceStackTypeId"), Operator: types.NewString("eq"), Value: types.NewString("docker")},
+	}})
+	if err != nil {
+		return nil, err
+	}
+	out, err := resp.Output()
+	if err != nil {
+		return nil, err
+	}
+	stacks := make([]WorkspaceStack, 0, len(out.Items))
+	for _, item := range out.Items {
+		stacks = append(stacks, WorkspaceStack{
+			ServiceId:   string(item.Id),
+			Hostname:    item.Name.Native(),
+			ProjectId:   string(item.ProjectId),
+			ProjectName: item.Project.Name.Native(),
+			Status:      item.Status.Native(),
+		})
+	}
+	return stacks, nil
+}
+
 type ImportResult struct {
 	ProjectId   string
 	ProjectName string
@@ -81,7 +119,7 @@ func (c *Client) ImportProject(ctx context.Context, clientId, yaml string) (Impo
 	if err != nil {
 		return ImportResult{}, err
 	}
-	resp, err := c.sdk.PostClientProjectImport(ctx, path.ClientId{Id: cid}, body.ProjectImport{Yaml: types.NewText(yaml)})
+	resp, err := c.sdk.PostClientProjectImport(ctx, path.ClientId{Id: cid}, body.ProjectImport{Yaml: types.NewText(yaml), RecipeSource: types.NewTextNull(RecipeSource)})
 	if err != nil {
 		return ImportResult{}, err
 	}
@@ -98,7 +136,7 @@ func (c *Client) ImportServiceStack(ctx context.Context, projectId, yaml string)
 	if err != nil {
 		return ImportResult{}, err
 	}
-	resp, err := c.sdk.PostProjectServiceStackImport(ctx, path.ProjectId{Id: pid}, body.ServiceStackImport{Yaml: types.NewText(yaml)})
+	resp, err := c.sdk.PostProjectServiceStackImport(ctx, path.ProjectId{Id: pid}, body.ServiceStackImport{Yaml: types.NewText(yaml), RecipeSource: types.NewTextNull(RecipeSource)})
 	if err != nil {
 		return ImportResult{}, err
 	}

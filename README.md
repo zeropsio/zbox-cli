@@ -5,10 +5,14 @@ Agent sandboxes on Zerops. The CLI creates a sandbox workspace in your Zerops ac
 ```sh
 go build -o zbox .
 
-zbox login                    # browser login, or: zbox login --token <PAT>
+zbox login                    # through the Zerops GUI, or: zbox login --token <PAT>, or --email
 zbox setup                    # creates the Zerops project with the workspace and its default base
 zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname)
-zbox workspace use <url> --api-key <key>   # or point at a workspace someone else created
+zbox workspace use <url> --api-key <key>   # or point at a workspace someone else created (--name names it)
+zbox workspace ls             # the workspaces of the account, the ones with a stored key are named
+zbox workspace authorize <service-id>      # fetch the key of one through the Zerops GUI and store it
+zbox switch <name>            # make a stored workspace the current one
+zbox open                     # the console the workspace serves, signed in with the workspace key
 
 zbox base add ubuntu:24.04    # any OCI image becomes a base
 zbox new mybox -p 3000        # sandbox from the only base, port 3000 guarded by the workspace API key

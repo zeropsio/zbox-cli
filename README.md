@@ -20,6 +20,8 @@ zbox new mybox -p 3000/public --base ubuntu --network project_internet --idle-tt
 zbox ls
 zbox get <id>                 # one URL per declared port: https://3000-<id>-<ingress-host>
 zbox port open <id> 8080/ticket
+zbox connector login claude   # browser login in a helper sandbox, the credential stays in the workspace
+zbox new --integration claude # the sandbox talks to a proxied endpoint, never sees the credential
 zbox exec <id> -- claude --version
 zbox shell <id>
 zbox park <id>                # disk and memory kept, zero RAM; a request wakes it
@@ -27,12 +29,12 @@ zbox fork <id> --count 3
 zbox snapshot create <id> before-refactor && zbox snapshot restore <snapshot-id>
 zbox events --follow
 zbox rm <id>
-zbox teardown                 # deletes the Zerops project
+zbox teardown                 # deletes the workspace service, the Zerops project stays
 ```
 
 Every command takes `--json` and prints the API objects as they are. Mutations wait for their operation unless `--no-wait`.
 
-Also there: `template`, `policy`, `credential` (tickets and tokens for preview ports), `integration` and `attach` (credential proxy), `webhook`, `session`, `process`, `file`, `ssh`, `lineage`, `export`, `import`, `metrics`, `quarantine`.
+Also there: `template`, `policy`, `credential` (tickets and tokens for preview ports), `connector` (claude, github, codex logins), `integration` and `attach` (credential proxy), `webhook`, `session`, `process`, `file`, `ssh`, `lineage`, `export`, `import`, `metrics`, `quarantine`.
 
 State lives in `~/.config/zbox/config.json` (override with `ZBOX_CONFIG`). `ZBOX_TOKEN` overrides the stored Zerops token, `ZBOX_WORKSPACE_URL` and `ZBOX_API_KEY` the workspace.
 

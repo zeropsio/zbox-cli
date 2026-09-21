@@ -303,7 +303,22 @@ func runOperation(cmd *cobra.Command, ws *api.Workspace, past string, start func
 			return err
 		}
 	}
-	return emit(op, func() { fmt.Printf("%s %s (operation %s)\n", str(op.SandboxId), verb(op, past), op.Id) })
+	return emit(op, func() { fmt.Printf("%s %s%s (operation %s)\n", str(op.SandboxId), verb(op, past), bootNote(op), op.Id) })
+}
+
+// bootNote reads the receipt of a finished boot (CREATE, WAKE, FORK, RESTORE): the result is a free object in the contract, resumedMemory says whether the guest resumed from a memory image instead of cold booting.
+func bootNote(op *api.BaseOperation) string {
+	if op == nil || op.Result == nil {
+		return ""
+	}
+	resumed, ok := (*op.Result)["resumedMemory"].(bool)
+	if !ok {
+		return ""
+	}
+	if resumed {
+		return ", resumed from memory"
+	}
+	return ", cold boot"
 }
 
 // runSpawn handles fork and restore, which answer with a bulk operation and the new rows. The wait is on the parent operation, then the children are re-read.
@@ -315,8 +330,10 @@ func runSpawn(cmd *cobra.Command, ws *api.Workspace, start func() (*api.Response
 	if err != nil {
 		return err
 	}
+	notes := map[string]string{}
 	if !flagNoWait {
-		if _, err := ws.WaitOperation(cmd.Context(), spawn.Operation.Id); err != nil {
+		parent, err := ws.WaitOperation(cmd.Context(), spawn.Operation.Id)
+		if err != nil {
 			return err
 		}
 		for i := range spawn.Sandboxes {
@@ -325,14 +342,36 @@ func runSpawn(cmd *cobra.Command, ws *api.Workspace, start func() (*api.Response
 				return err
 			}
 			spawn.Sandboxes[i] = *s
+			notes[s.Id] = bootNote(childOf(cmd, ws, parent, s.Id))
 		}
 	}
 	return emit(spawn, func() {
 		for _, s := range spawn.Sandboxes {
 			printSandbox(&s)
+			if n := notes[s.Id]; n != "" {
+				fmt.Println("Boot:", strings.TrimPrefix(n, ", "))
+			}
 			fmt.Println()
 		}
 	})
+}
+
+// childOf finds the boot operation of one spawned row: the child of the bulk operation that names the sandbox, or the operation itself when it is the sandbox's own (a single create). Nothing found leaves the receipt out, the rows are already printed.
+func childOf(cmd *cobra.Command, ws *api.Workspace, parent *api.BaseOperation, sandboxId string) *api.BaseOperation {
+	if parent.SandboxId != nil && *parent.SandboxId == sandboxId {
+		return parent
+	}
+	sid := api.SandboxId(sandboxId)
+	ops, err := ws.Operations(cmd.Context(), api.GetOperationListParams{SandboxId: &sid})
+	if err != nil {
+		return nil
+	}
+	for i := range ops {
+		if ops[i].ParentId != nil && *ops[i].ParentId == parent.Id {
+			return &ops[i]
+		}
+	}
+	return nil
 }
 
 // afterInFlight turns an operationInFlight answer into a wait on that operation, so a park right after a wake queues instead of failing. The caller retries once when it returns nil.

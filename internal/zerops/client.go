@@ -72,37 +72,44 @@ func (c *Client) UserInfo(ctx context.Context) (User, error) {
 // RecipeSource marks the imported service as a zbox workspace. It rides in the request body, not the YAML, and the public API returns it on every service stack, which is how the Zerops GUI lists workspaces (`zeropsSetup` is not returned).
 const RecipeSource = "zeropsio/zbox"
 
-// WorkspaceStack is a workspace service of the account. In v0 every docker service is one.
+// WorkspaceStack is a workspace service of the account: a Sandbox Workspace service (zbox@1), or one of the docker services the v0 workspaces were.
 type WorkspaceStack struct {
 	ServiceId   string
 	Hostname    string
 	ProjectId   string
 	ProjectName string
 	Status      string
+	Type        string
 }
 
-// Workspaces lists the docker services of the organisation, which is what a workspace is in v0. The `recipeSource` marker is sent on import but the search index does not carry it, so it is not filtered on.
+// workspaceTypes are the service stack type ids a workspace can be: sandbox_workspace is the Sandbox Workspace service (zbox@1 is only its import alias), docker the type the v0 workspaces were imported as before it existed.
+var workspaceTypes = []string{"sandbox_workspace", "docker"}
+
+// Workspaces lists the workspace services of the organisation, one search per type. The `recipeSource` marker is sent on import but the search index does not carry it, so it is not filtered on.
 func (c *Client) Workspaces(ctx context.Context, clientId string) ([]WorkspaceStack, error) {
-	resp, err := c.sdk.PostServiceStackSearch(ctx, body.EsFilter{Search: body.EsFilterSearch{
-		{Name: types.NewString("clientId"), Operator: types.NewString("eq"), Value: types.NewString(clientId)},
-		{Name: types.NewString("serviceStackTypeId"), Operator: types.NewString("eq"), Value: types.NewString("docker")},
-	}})
-	if err != nil {
-		return nil, err
-	}
-	out, err := resp.Output()
-	if err != nil {
-		return nil, err
-	}
-	stacks := make([]WorkspaceStack, 0, len(out.Items))
-	for _, item := range out.Items {
-		stacks = append(stacks, WorkspaceStack{
-			ServiceId:   string(item.Id),
-			Hostname:    item.Name.Native(),
-			ProjectId:   string(item.ProjectId),
-			ProjectName: item.Project.Name.Native(),
-			Status:      item.Status.Native(),
-		})
+	var stacks []WorkspaceStack
+	for _, typ := range workspaceTypes {
+		resp, err := c.sdk.PostServiceStackSearch(ctx, body.EsFilter{Search: body.EsFilterSearch{
+			{Name: types.NewString("clientId"), Operator: types.NewString("eq"), Value: types.NewString(clientId)},
+			{Name: types.NewString("serviceStackTypeId"), Operator: types.NewString("eq"), Value: types.NewString(typ)},
+		}})
+		if err != nil {
+			return nil, err
+		}
+		out, err := resp.Output()
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range out.Items {
+			stacks = append(stacks, WorkspaceStack{
+				ServiceId:   string(item.Id),
+				Hostname:    item.Name.Native(),
+				ProjectId:   string(item.ProjectId),
+				ProjectName: item.Project.Name.Native(),
+				Status:      item.Status.Native(),
+				Type:        typ,
+			})
+		}
 	}
 	return stacks, nil
 }
@@ -164,6 +171,23 @@ func (c *Client) DeleteProject(ctx context.Context, projectId string) (string, e
 		return "", err
 	}
 	resp, err := c.sdk.DeleteProject(ctx, path.ProjectId{Id: pid})
+	if err != nil {
+		return "", err
+	}
+	out, err := resp.Output()
+	if err != nil {
+		return "", err
+	}
+	return out.Id.Native(), nil
+}
+
+// DeleteServiceStack deletes one service and answers the id of the Zerops process doing it. The project around it stays.
+func (c *Client) DeleteServiceStack(ctx context.Context, serviceId string) (string, error) {
+	sid, err := uuid.NewServiceStackIdFromString(serviceId)
+	if err != nil {
+		return "", err
+	}
+	resp, err := c.sdk.DeleteServiceStack(ctx, path.ServiceStackId{Id: sid})
 	if err != nil {
 		return "", err
 	}

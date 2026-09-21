@@ -19,25 +19,17 @@ import (
 
 const (
 	defaultHostname = "zbox"
-	// DefaultBaseImage is the image every workspace gets as its first base, the same one the import YAML loads into the service with prepare-image.
-	defaultBaseImage = "zbox-base:latest"
-	// The service env the workspace API key is generated into.
-	apiKeyEnv = "apiKey"
-)
-
-// Percentages the stages of the setup are worth. They are rough weights of a wait dominated by the build and the base, and they only ever pull the estimate forward.
-const (
-	stepImport    = 3
-	stepProcesses = 12
-	stepUrl       = 60
-	stepPing      = 70
-	stepBase      = 85
+	// defaultBaseImage is the image every workspace gets as its first base, pulled by the orchestrator from the tarball URL.
+	defaultBaseImage = config.DefaultBaseImage
+	// The service env the Sandbox Workspace controller generates the workspace API key into at service create.
+	apiKeyEnv = "ZBOX_WORKSPACE_API_KEY"
+	// How long the key env gets to show up before the GUI hand-over is used instead; the subdomain env is already there by then.
+	keyEnvTimeout = 30 * time.Second
 )
 
 var (
 	flagSetupName      string
 	flagSetupProjectId string
-	flagSetupEstimate  time.Duration
 	flagSetupImage     string
 	flagTeardownYes    bool
 	setupPingTimeout   = 5 * time.Minute
@@ -66,20 +58,20 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	// Everything from here on goes through the screen, a direct print would land in the middle of the frame it redraws.
-	screen := waiting.New(flagSetupEstimate)
+	// The screen prints the stages and, on a TTY, a note about workspaces every few seconds, so the minutes of the build do not look like a hang.
+	screen := waiting.New()
 	defer screen.Stop()
 
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, ImageUrl: flagImageUrl})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Creating the workspace %s in project %s.\n", flagSetupName, flagSetupProjectId)
 		screen.Start()
-		screen.Step("Creating the workspace", stepImport)
+		screen.Step("Creating the workspace")
 		res, err = zc.ImportServiceStack(ctx, flagSetupProjectId, yaml)
 		if err != nil {
 			return err
@@ -89,13 +81,13 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, ImageUrl: flagImageUrl})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Creating project %s in %s.\n", flagSetupName, user.Account)
 		screen.Start()
-		screen.Step("Creating the project", stepImport)
+		screen.Step("Creating the project")
 		res, err = zc.ImportProject(ctx, user.ClientId, yaml)
 		if err != nil {
 			return err
@@ -110,26 +102,26 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
-	screen.Step("Building and starting the workspace", stepProcesses)
+	screen.Step("Building and starting the workspace")
 	// The Zerops processes behind the import are not shown, their names describe the plumbing rather than anything the reader can act on, and a failure is reported as an error anyway.
 	if err := zc.WaitProcesses(ctx, res.Processes, func(zerops.ProcessState) {}); err != nil {
 		return err
 	}
-	screen.Step("Reading the URL and the API key of the workspace", stepUrl)
+	screen.Step("Reading the URL and the API key of the workspace")
 	// The service publishes the API host first and the ingress host second. Only the API host is stored, the other comes from GET /workspace.
-	subdomain, err := waitForEnv(ctx, zc, res.ServiceId, "zeropsSubdomain")
+	subdomain, err := waitForEnv(ctx, zc, res.ServiceId, "zeropsSubdomain", envTimeout)
 	if err != nil {
 		return err
 	}
 	workspaceUrl := strings.TrimSpace(strings.Split(subdomain, "\n")[0])
-	apiKey, err := waitForEnv(ctx, zc, res.ServiceId, apiKeyEnv)
-	if err != nil {
+	// The key is a sensitive generated env. A personal access token is always in sudo mode, so the env list gives the value in clear and it is stored as read; a read-only project role gets the literal REDACTED instead, and a row that never appears or a generator placeholder means the same: the Zerops GUI reveals it for the user and hands it over on the loopback.
+	apiKey, err := waitForEnv(ctx, zc, res.ServiceId, apiKeyEnv, keyEnvTimeout)
+	if err != nil && !errors.Is(err, errEnvMissing) {
 		return err
 	}
-	// The env list gives a generated secret away only as its generator placeholder, a reveal needs sudo mode, which a token does not have. The Zerops GUI reveals it for the user and hands it over on the loopback.
-	if strings.HasPrefix(apiKey, "<@") {
+	if !keyReadable(apiKey) {
 		screen.Pause()
-		fmt.Println("The workspace API key is a generated secret, the Zerops GUI hands it over. Confirm there.")
+		fmt.Printf("The workspace API key (%s) is a generated secret, the Zerops GUI hands it over. Confirm there.\n", apiKeyEnv)
 		w, err := authorizeWorkspace(ctx, c, zc, res.ServiceId, flagSetupName, func(s string) { fmt.Println(s) })
 		if err != nil {
 			return err
@@ -141,12 +133,12 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	} else if err := c.Assign(config.Workspace{Name: flagSetupName, ProjectId: res.ProjectId, ProjectName: res.ProjectName, ServiceId: res.ServiceId, WorkspaceUrl: workspaceUrl, ApiKey: apiKey}); err != nil {
 		return err
 	}
-	screen.Step("Waiting for the orchestrator to answer", stepPing)
+	screen.Step("Waiting for the orchestrator to answer")
 	ws := api.New(c.WorkspaceUrl, c.ApiKey)
 	if err := waitForPing(ctx, ws); err != nil {
 		return err
 	}
-	screen.Step("Adding the default base image", stepBase)
+	screen.Step("Adding the default base image")
 	base, err := ensureBase(ctx, ws, flagSetupImage)
 	if err != nil {
 		return err
@@ -158,37 +150,39 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 
 var teardownCmd = &cobra.Command{
 	Use:   "teardown",
-	Short: "Delete the Zerops project that hosts the workspace",
+	Short: "Delete the workspace service, the Zerops project stays",
+	Long:  "Deletes the Zerops service of the current workspace with everything in it (sandboxes, bases, snapshots) and forgets it here. The project is left as it is, other services in it are not touched; an empty project created by `zbox setup` can be deleted in the Zerops GUI.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		if c.ProjectId == "" {
-			return errors.New("nothing to tear down, the assigned workspace was not created by this CLI")
+		if c.ServiceId == "" {
+			return errors.New("nothing to tear down, the current workspace has no Zerops service id (assigned with `zbox workspace use`); `zbox workspace forget` drops it here")
 		}
 		zc, err := zeropsClient(c)
 		if err != nil {
 			return err
 		}
 		if !flagTeardownYes {
-			fmt.Printf("Delete project %s (%s) and the whole workspace in it? [y/N] ", c.ProjectName, c.ProjectId)
+			fmt.Printf("Delete the workspace service %s in project %s with every sandbox in it? The project stays. [y/N] ", currentLabel(c), c.ProjectName)
 			answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 			if strings.ToLower(strings.TrimSpace(answer)) != "y" {
 				return errors.New("aborted")
 			}
 		}
-		processId, err := zc.DeleteProject(ctx, c.ProjectId)
+		processId, err := zc.DeleteServiceStack(ctx, c.ServiceId)
 		if err != nil {
-			// Someone already deleted the project elsewhere, so dropping the assignment is the whole job.
+			// Someone already deleted the service elsewhere, so dropping the assignment is the whole job.
 			if !zerops.IsNotFound(err) {
 				return err
 			}
 			if err := c.ForgetWorkspace(); err != nil {
 				return err
 			}
-			fmt.Println("Project was already gone, workspace unassigned.")
+			fmt.Println("The workspace service was already gone, workspace forgotten.")
+			printOthers(c)
 			return nil
 		}
 		if err := zc.WaitProcesses(ctx, []string{processId}, printProcess); err != nil {
@@ -197,10 +191,18 @@ var teardownCmd = &cobra.Command{
 		if err := c.ForgetWorkspace(); err != nil {
 			return err
 		}
-		fmt.Println("Project deleted.")
+		fmt.Printf("Workspace service deleted, project %s stays.\n", c.ProjectName)
 		printOthers(c)
 		return nil
 	},
+}
+
+// currentLabel names the current workspace for messages: the service id, with the workspace name when it has one. A setup that stopped before the URL was known has only the ids.
+func currentLabel(c config.Config) string {
+	if w, ok := c.Current(); ok && w.Name != "" {
+		return fmt.Sprintf("%s (%s)", w.Name, c.ServiceId)
+	}
+	return c.ServiceId
 }
 
 var statusCmd = &cobra.Command{
@@ -299,8 +301,18 @@ func printProcess(p zerops.ProcessState) {
 	fmt.Println(line)
 }
 
-func waitForEnv(ctx context.Context, zc *zerops.Client, serviceId, key string) (string, error) {
-	deadline := time.Now().Add(2 * time.Minute)
+// keyReadable says whether an env value read with the token is the key itself: not empty, not the generator placeholder of a secret env, not the REDACTED a read-only role gets for a sensitive env.
+func keyReadable(v string) bool {
+	return v != "" && v != "REDACTED" && !strings.HasPrefix(v, "<@")
+}
+
+// errEnvMissing is the timeout of waitForEnv, so a caller with a fallback can tell it from an API failure.
+var errEnvMissing = errors.New("service variable did not appear")
+
+const envTimeout = 2 * time.Minute
+
+func waitForEnv(ctx context.Context, zc *zerops.Client, serviceId, key string, timeout time.Duration) (string, error) {
+	deadline := time.Now().Add(timeout)
 	for {
 		value, found, err := zc.ServiceEnv(ctx, serviceId, key)
 		if err != nil {
@@ -310,7 +322,7 @@ func waitForEnv(ctx context.Context, zc *zerops.Client, serviceId, key string) (
 			return value, nil
 		}
 		if time.Now().After(deadline) {
-			return "", fmt.Errorf("service variable %s did not appear", key)
+			return "", fmt.Errorf("%w: %s", errEnvMissing, key)
 		}
 		select {
 		case <-ctx.Done():
@@ -329,7 +341,7 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 			return nil
 		}
 		if api.IsCode(err, "unauthorized") {
-			return errors.New("the orchestrator rejected the workspace API key, check the apiKey env of the service")
+			return fmt.Errorf("the orchestrator rejected the workspace API key, check the %s env of the service", apiKeyEnv)
 		}
 		if time.Now().After(deadline) {
 			return errors.New("the orchestrator did not come up in time, check the service log in the Zerops GUI")
@@ -390,7 +402,6 @@ func waitForBase(ctx context.Context, ws *api.Workspace, digest string, timeout 
 func init() {
 	setupCmd.Flags().StringVar(&flagSetupName, "name", defaultHostname, "name of the Zerops project to create, or hostname of the workspace service when --project-id is given")
 	setupCmd.Flags().StringVar(&flagSetupProjectId, "project-id", "", "create the workspace in this existing project instead of creating a new one")
-	setupCmd.Flags().DurationVar(&flagSetupEstimate, "estimate", 3*time.Minute, "how long the setup is expected to take, the progress estimate is measured against it")
 	setupCmd.Flags().StringVar(&flagSetupImage, "image", defaultBaseImage, "image registered as the first base of the workspace")
 	teardownCmd.Flags().BoolVarP(&flagTeardownYes, "yes", "y", false, "skip the confirmation")
 	rootCmd.AddCommand(setupCmd, teardownCmd, statusCmd)

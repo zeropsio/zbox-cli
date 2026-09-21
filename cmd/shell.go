@@ -37,78 +37,81 @@ var shellCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ctx := cmd.Context()
-		fd := int(os.Stdin.Fd())
-		cols, rows := 80, 24
-		if term.IsTerminal(fd) {
-			if w, h, err := term.GetSize(fd); err == nil {
-				cols, rows = w, h
-			}
-			state, err := term.MakeRaw(fd)
-			if err != nil {
-				return err
-			}
-			defer term.Restore(fd, state)
-		}
-
-		// Stdin is read once for the whole command and handed to whichever connection is current, so a reconnect does not lose keystrokes typed meanwhile.
-		input := make(chan []byte, 16)
-		go func() {
-			defer close(input)
-			buf := make([]byte, 4096)
-			for {
-				n, err := os.Stdin.Read(buf)
-				if n > 0 {
-					input <- append([]byte(nil), buf[:n]...)
-				}
-				if err != nil {
-					return
-				}
-			}
-		}()
-		winch := make(chan os.Signal, 1)
-		signal.Notify(winch, syscall.SIGWINCH)
-		defer signal.Stop(winch)
-
-		sessionId, ticket := flagShellSession, flagShellTicket
-		deadline := time.Time{}
-		for {
-			conn, err := ws.Shell(ctx, args[0], cols, rows, sessionId, ticket)
-			if err != nil {
-				// A resume that cannot be dialled is retried while the ticket is good, a first dial fails for real.
-				if deadline.IsZero() || time.Now().After(deadline) || ctx.Err() != nil {
-					return err
-				}
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			// The first frame names the session and its ticket, the handle for a reconnect. A refused open or resume comes as a 4000 close with the API error as its reason.
-			id, t, err := readSessionFrame(conn)
-			if err != nil {
-				conn.Close()
-				if !deadline.IsZero() && sessionGone(err) {
-					// The resume found the session gone: the shell exited during the drop.
-					return nil
-				}
-				return err
-			}
-			if !deadline.IsZero() {
-				fmt.Fprintf(os.Stderr, "\r\nresumed session %s\r\n", id)
-			}
-			sessionId, ticket = id, t
-			closed, err := runShell(ctx, conn, fd, input, winch)
-			conn.Close()
-			if closed || ctx.Err() != nil || err == nil || ticket == "" {
-				return err
-			}
-			// A drop, not an exit: resume the same session while the ticket is good.
-			if deadline.IsZero() {
-				deadline = time.Now().Add(shellReconnectWindow)
-			} else if time.Now().After(deadline) {
-				return fmt.Errorf("session %s could not be resumed: %w", sessionId, err)
-			}
-		}
+		return attachShell(cmd.Context(), ws, args[0], flagShellSession, flagShellTicket)
 	},
+}
+
+// attachShell puts the terminal in raw mode and pumps the PTY of the sandbox until the shell exits. With a session id and ticket it resumes that session instead of opening a new one, the path `zbox connector login` takes for the session the orchestrator hands it.
+func attachShell(ctx context.Context, ws *api.Workspace, sandboxId, sessionId, ticket string) error {
+	fd := int(os.Stdin.Fd())
+	cols, rows := 80, 24
+	if term.IsTerminal(fd) {
+		if w, h, err := term.GetSize(fd); err == nil {
+			cols, rows = w, h
+		}
+		state, err := term.MakeRaw(fd)
+		if err != nil {
+			return err
+		}
+		defer term.Restore(fd, state)
+	}
+
+	// Stdin is read once for the whole command and handed to whichever connection is current, so a reconnect does not lose keystrokes typed meanwhile.
+	input := make(chan []byte, 16)
+	go func() {
+		defer close(input)
+		buf := make([]byte, 4096)
+		for {
+			n, err := os.Stdin.Read(buf)
+			if n > 0 {
+				input <- append([]byte(nil), buf[:n]...)
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	winch := make(chan os.Signal, 1)
+	signal.Notify(winch, syscall.SIGWINCH)
+	defer signal.Stop(winch)
+
+	deadline := time.Time{}
+	for {
+		conn, err := ws.Shell(ctx, sandboxId, cols, rows, sessionId, ticket)
+		if err != nil {
+			// A resume that cannot be dialled is retried while the ticket is good, a first dial fails for real.
+			if deadline.IsZero() || time.Now().After(deadline) || ctx.Err() != nil {
+				return err
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		// The first frame names the session and its ticket, the handle for a reconnect. A refused open or resume comes as a 4000 close with the API error as its reason.
+		id, t, err := readSessionFrame(conn)
+		if err != nil {
+			conn.Close()
+			if !deadline.IsZero() && sessionGone(err) {
+				// The resume found the session gone: the shell exited during the drop.
+				return nil
+			}
+			return err
+		}
+		if !deadline.IsZero() {
+			fmt.Fprintf(os.Stderr, "\r\nresumed session %s\r\n", id)
+		}
+		sessionId, ticket = id, t
+		closed, err := runShell(ctx, conn, fd, input, winch)
+		conn.Close()
+		if closed || ctx.Err() != nil || err == nil || ticket == "" {
+			return err
+		}
+		// A drop, not an exit: resume the same session while the ticket is good.
+		if deadline.IsZero() {
+			deadline = time.Now().Add(shellReconnectWindow)
+		} else if time.Now().After(deadline) {
+			return fmt.Errorf("session %s could not be resumed: %w", sessionId, err)
+		}
+	}
 }
 
 // sessionGone recognises the close the server sends when a resume names a session that has ended, which after a drop means the shell exited.

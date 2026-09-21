@@ -452,6 +452,29 @@ func (c *Workspace) Detach(ctx context.Context, sandboxId, name string) error {
 	return done(c.gen.DeleteSandboxIntegrationAttachment(ctx, sandboxId, name))
 }
 
+// Connectors are the fixed catalogue of provider logins (claude, github, codex) whose credential lives in a Workspace env and is injected by the credential proxy.
+func (c *Workspace) Connectors(ctx context.Context) ([]BaseConnector, error) {
+	return items[BaseConnector](c.gen.GetConnectorList(ctx))
+}
+
+func (c *Workspace) Connector(ctx context.Context, name string) (*BaseConnector, error) {
+	return ok[BaseConnector](c.gen.GetConnector(ctx, name))
+}
+
+func (c *Workspace) SetConnectorCredential(ctx context.Context, name string, body RequestPutConnectorCredential) (*BaseConnector, error) {
+	return ok[BaseConnector](c.gen.PutConnectorCredential(ctx, name, body))
+}
+
+// ClearConnectorCredential blanks the env, the connector's integrations stay.
+func (c *Workspace) ClearConnectorCredential(ctx context.Context, name string) (*BaseConnector, error) {
+	return ok[BaseConnector](c.gen.DeleteConnectorCredential(ctx, name))
+}
+
+// ConnectorLogin starts the provider's login command in a helper sandbox and answers the detached PTY session to attach to.
+func (c *Workspace) ConnectorLogin(ctx context.Context, name string) (*ResponseConnectorLogin, error) {
+	return ok[ResponseConnectorLogin](c.gen.PostConnectorLogin(ctx, name))
+}
+
 func (c *Workspace) CreateWebhook(ctx context.Context, body RequestPostWebhook) (*ResponseWebhookCreated, error) {
 	return ok[ResponseWebhookCreated](c.gen.PostWebhook(ctx, body))
 }

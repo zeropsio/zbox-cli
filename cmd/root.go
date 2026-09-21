@@ -23,10 +23,9 @@ import (
 )
 
 var (
-	flagApiUrl   string
-	flagGuiUrl   string
-	flagImageUrl string
-	flagJson     bool
+	flagApiUrl string
+	flagGuiUrl string
+	flagJson   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -61,10 +60,8 @@ func init() {
 	pf.BoolVar(&flagJson, "json", false, "print the API objects as JSON instead of text, for scripts and agents")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL")
 	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
-	pf.StringVar(&flagImageUrl, "image-url", config.DefaultImageUrl, "download URL of the saved default sandbox image loaded by the import YAML")
 	_ = pf.MarkHidden("public-api-url")
 	_ = pf.MarkHidden("gui-url")
-	_ = pf.MarkHidden("image-url")
 }
 
 func loadConfig() (config.Config, error) {

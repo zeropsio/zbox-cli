@@ -16,6 +16,8 @@ var (
 	flagTemplateBase      string
 	flagTemplateName      string
 	flagTemplateWarm      bool
+	flagTemplateMemory    string
+	flagTemplateCpus      int
 	flagTemplatePolicy    string
 )
 
@@ -156,6 +158,15 @@ var templateCreateCmd = &cobra.Command{
 		if flagTemplateWarm {
 			req.Warm = &flagTemplateWarm
 		}
+		// The size is the one the memory image is taken at and the default of every sandbox spawned from the template; a spawn that names another size cold boots from the base instead.
+		req.Cpus = optionalInt(flagTemplateCpus)
+		if flagTemplateMemory != "" {
+			n, err := parseBytes(flagTemplateMemory)
+			if err != nil {
+				return err
+			}
+			req.MemoryBytes = &n
+		}
 		if flagTemplatePolicy != "" {
 			req.Policy = &api.BaseTemplatePolicy{}
 			if err := readJson(flagTemplatePolicy, req.Policy); err != nil {
@@ -188,9 +199,9 @@ var templateLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("DIGEST\tNAME\tBASE\tSTATUS\tWARM\tAGE", func(w io.Writer) {
+			table("DIGEST\tNAME\tBASE\tSTATUS\tWARM\tSIZE\tAGE", func(w io.Writer) {
 				for _, t := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\n", short(t.Digest), dash(str(t.Name)), short(t.BaseDigest), t.Status, t.HasMemory, age(t.Created))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\t%s\n", short(t.Digest), dash(str(t.Name)), short(t.BaseDigest), t.Status, t.HasMemory, templateSize(t), age(t.Created))
 				}
 			})
 		})
@@ -288,10 +299,18 @@ func printTemplate(t *api.BaseTemplate) {
 	if t.FailedReason != nil {
 		pairs = append(pairs, "Reason", *t.FailedReason)
 	}
-	pairs = append(pairs, "Warm", strconv.FormatBool(t.HasMemory), "Created", when(t.Created))
+	pairs = append(pairs, "Warm", strconv.FormatBool(t.HasMemory), "Size", templateSize(*t), "Created", when(t.Created))
 	fields(pairs...)
+	if t.HasMemory {
+		fmt.Println("A sandbox spawned at this size resumes from the memory image, another size cold boots from the base.")
+	}
 	fmt.Println("Policy:")
 	_ = printJson(t.Policy)
+}
+
+// templateSize is the cpu count and memory the template's memory image is taken at, the default of its spawns.
+func templateSize(t api.BaseTemplate) string {
+	return fmt.Sprintf("%d cpu, %s", t.Cpus, bytesString(t.MemoryBytes))
 }
 
 func init() {
@@ -302,6 +321,8 @@ func init() {
 	templateCreateCmd.Flags().StringVar(&flagTemplateBase, "base", "", "base the template is built on: digest, prefix or image ref")
 	templateCreateCmd.Flags().StringVar(&flagTemplateName, "name", "", "template name")
 	templateCreateCmd.Flags().BoolVar(&flagTemplateWarm, "warm", false, "boot the base once and snapshot its memory so spawns resume instead of cold booting")
+	templateCreateCmd.Flags().StringVar(&flagTemplateMemory, "memory", "", "memory the image is taken at and the default of spawns, for example 1g; the workspace default when omitted")
+	templateCreateCmd.Flags().IntVar(&flagTemplateCpus, "cpus", 0, "cpu count of the image and the default of spawns")
 	templateCreateCmd.Flags().StringVarP(&flagTemplatePolicy, "policy", "f", "", "JSON file with the template policy, - for stdin")
 	templateCreateCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the build started")
 	templateSetCmd.Flags().StringVar(&flagTemplateName, "name", "", "new name")

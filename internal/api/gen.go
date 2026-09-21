@@ -41,6 +41,24 @@ func (e BaseBaseStatus) Valid() bool {
 	}
 }
 
+// Defines values for BaseConnectorStatus.
+const (
+	BaseConnectorStatusCONNECTED    BaseConnectorStatus = "CONNECTED"
+	BaseConnectorStatusDISCONNECTED BaseConnectorStatus = "DISCONNECTED"
+)
+
+// Valid indicates whether the value is a known member of the BaseConnectorStatus enum.
+func (e BaseConnectorStatus) Valid() bool {
+	switch e {
+	case BaseConnectorStatusCONNECTED:
+		return true
+	case BaseConnectorStatusDISCONNECTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BaseDomainFilterEnforcement.
 const (
 	BaseDomainFilterEnforcementADVISORY BaseDomainFilterEnforcement = "ADVISORY"
@@ -797,6 +815,24 @@ func (e ResponseBaseStatus) Valid() bool {
 	}
 }
 
+// Defines values for ResponseConnectorStatus.
+const (
+	ResponseConnectorStatusCONNECTED    ResponseConnectorStatus = "CONNECTED"
+	ResponseConnectorStatusDISCONNECTED ResponseConnectorStatus = "DISCONNECTED"
+)
+
+// Valid indicates whether the value is a known member of the ResponseConnectorStatus enum.
+func (e ResponseConnectorStatus) Valid() bool {
+	switch e {
+	case ResponseConnectorStatusCONNECTED:
+		return true
+	case ResponseConnectorStatusDISCONNECTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ResponseExportKind.
 const (
 	ResponseExportKindFULL        ResponseExportKind = "FULL"
@@ -1310,6 +1346,34 @@ type BaseBase struct {
 // BaseBaseStatus defines model for BaseBase.Status.
 type BaseBaseStatus string
 
+// BaseConnector defines model for BaseConnector.
+type BaseConnector struct {
+	// CredentialEnv The Workspace environment variable the credential lives in.
+	CredentialEnv string `json:"credentialEnv"`
+
+	// CredentialKind OAUTH_TOKEN or API_KEY, what the stored credential is. Null while disconnected.
+	CredentialKind *string `json:"credentialKind,omitempty"`
+
+	// GuestEnv Environment variables a sandbox receives when it attaches the connector's integrations at create.
+	GuestEnv []string `json:"guestEnv"`
+
+	// Integrations The integrations the connector manages, created when it connects.
+	Integrations []string `json:"integrations"`
+
+	// LoginAvailable Whether the connector can obtain its credential through a browser login in a helper sandbox.
+	LoginAvailable bool `json:"loginAvailable"`
+
+	// Name The connector and the name of its main integration: claude, github, codex.
+	Name string `json:"name"`
+
+	// Status CONNECTED when the Workspace env holds a credential for the connector.
+	Status BaseConnectorStatus `json:"status"`
+	Title  string              `json:"title"`
+}
+
+// BaseConnectorStatus CONNECTED when the Workspace env holds a credential for the connector.
+type BaseConnectorStatus string
+
 // BaseDomainFilter defines model for BaseDomainFilter.
 type BaseDomainFilter struct {
 	Enforcement BaseDomainFilterEnforcement `json:"enforcement"`
@@ -1715,15 +1779,19 @@ type BaseSnapshotSchedule struct {
 // BaseTemplate defines model for BaseTemplate.
 type BaseTemplate struct {
 	BaseDigest   string  `json:"baseDigest"`
+	Cpus         int     `json:"cpus"`
 	Created      string  `json:"created"`
 	Digest       string  `json:"digest"`
 	FailedReason *string `json:"failedReason,omitempty"`
 
 	// HasMemory A warmed template carries the identity-free memory snapshot, design §5.1 step 3.
-	HasMemory bool               `json:"hasMemory"`
-	Name      *string            `json:"name,omitempty"`
-	Policy    BaseTemplatePolicy `json:"policy"`
-	Status    BaseTemplateStatus `json:"status"`
+	HasMemory bool `json:"hasMemory"`
+
+	// MemoryBytes The memory image is taken at this size, a sandbox spawned from the template takes it as its default and resumes only when it matches.
+	MemoryBytes int64              `json:"memoryBytes"`
+	Name        *string            `json:"name,omitempty"`
+	Policy      BaseTemplatePolicy `json:"policy"`
+	Status      BaseTemplateStatus `json:"status"`
 }
 
 // BaseTemplateStatus defines model for BaseTemplate.Status.
@@ -1935,9 +2003,13 @@ type RequestPostSshKey struct {
 
 // RequestPostTemplate defines model for RequestPostTemplate.
 type RequestPostTemplate struct {
-	BaseDigest string              `json:"baseDigest"`
-	Name       *string             `json:"name,omitempty"`
-	Policy     *BaseTemplatePolicy `json:"policy,omitempty"`
+	BaseDigest string `json:"baseDigest"`
+	Cpus       *int   `json:"cpus,omitempty"`
+
+	// MemoryBytes Size of the warmed memory image and the default of sandboxes spawned from the template, the Workspace default when absent.
+	MemoryBytes *int64              `json:"memoryBytes,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+	Policy      *BaseTemplatePolicy `json:"policy,omitempty"`
 
 	// Warm Boot the base once and snapshot its memory so spawns resume instead of cold booting, design §5.1 step 3.
 	Warm *bool `json:"warm,omitempty"`
@@ -1948,6 +2020,15 @@ type RequestPostWebhook struct {
 	Enabled *bool    `json:"enabled,omitempty"`
 	Events  []string `json:"events"`
 	Url     string   `json:"url"`
+}
+
+// RequestPutConnectorCredential defines model for RequestPutConnectorCredential.
+type RequestPutConnectorCredential struct {
+	// Kind OAUTH_TOKEN or API_KEY. Detected from the value when omitted.
+	Kind *string `json:"kind,omitempty"`
+
+	// Value The credential as issued by the provider: an OAuth token from the provider's CLI login, an API key or a fine-grained token.
+	Value string `json:"value"`
 }
 
 // RequestPutIntegration defines model for RequestPutIntegration.
@@ -2030,6 +2111,50 @@ type ResponseBaseStatus string
 // ResponseBaseList defines model for ResponseBaseList.
 type ResponseBaseList struct {
 	Items []BaseBase `json:"items"`
+}
+
+// ResponseConnector defines model for ResponseConnector.
+type ResponseConnector struct {
+	// CredentialEnv The Workspace environment variable the credential lives in.
+	CredentialEnv string `json:"credentialEnv"`
+
+	// CredentialKind OAUTH_TOKEN or API_KEY, what the stored credential is. Null while disconnected.
+	CredentialKind *string `json:"credentialKind,omitempty"`
+
+	// GuestEnv Environment variables a sandbox receives when it attaches the connector's integrations at create.
+	GuestEnv []string `json:"guestEnv"`
+
+	// Integrations The integrations the connector manages, created when it connects.
+	Integrations []string `json:"integrations"`
+
+	// LoginAvailable Whether the connector can obtain its credential through a browser login in a helper sandbox.
+	LoginAvailable bool `json:"loginAvailable"`
+
+	// Name The connector and the name of its main integration: claude, github, codex.
+	Name string `json:"name"`
+
+	// Status CONNECTED when the Workspace env holds a credential for the connector.
+	Status ResponseConnectorStatus `json:"status"`
+	Title  string                  `json:"title"`
+}
+
+// ResponseConnectorStatus CONNECTED when the Workspace env holds a credential for the connector.
+type ResponseConnectorStatus string
+
+// ResponseConnectorList defines model for ResponseConnectorList.
+type ResponseConnectorList struct {
+	Items []BaseConnector `json:"items"`
+}
+
+// ResponseConnectorLogin defines model for ResponseConnectorLogin.
+type ResponseConnectorLogin struct {
+	// Command The login command running in the session, for display.
+	Command string `json:"command"`
+
+	// SandboxId The helper sandbox, terminated once the credential is harvested or the login is abandoned.
+	SandboxId     string `json:"sandboxId"`
+	SessionId     string `json:"sessionId"`
+	SessionTicket string `json:"sessionTicket"`
 }
 
 // ResponseDownload defines model for ResponseDownload.
@@ -2309,15 +2434,19 @@ type ResponseSuccess struct {
 // ResponseTemplate defines model for ResponseTemplate.
 type ResponseTemplate struct {
 	BaseDigest   string  `json:"baseDigest"`
+	Cpus         int     `json:"cpus"`
 	Created      string  `json:"created"`
 	Digest       string  `json:"digest"`
 	FailedReason *string `json:"failedReason,omitempty"`
 
 	// HasMemory A warmed template carries the identity-free memory snapshot, design §5.1 step 3.
-	HasMemory bool                   `json:"hasMemory"`
-	Name      *string                `json:"name,omitempty"`
-	Policy    BaseTemplatePolicy     `json:"policy"`
-	Status    ResponseTemplateStatus `json:"status"`
+	HasMemory bool `json:"hasMemory"`
+
+	// MemoryBytes The memory image is taken at this size, a sandbox spawned from the template takes it as its default and resumes only when it matches.
+	MemoryBytes int64                  `json:"memoryBytes"`
+	Name        *string                `json:"name,omitempty"`
+	Policy      BaseTemplatePolicy     `json:"policy"`
+	Status      ResponseTemplateStatus `json:"status"`
 }
 
 // ResponseTemplateStatus defines model for ResponseTemplate.Status.
@@ -2631,6 +2760,9 @@ type GetWebhookDeliveryListParamsStatus string
 // PostBaseJSONRequestBody defines body for PostBase for application/json ContentType.
 type PostBaseJSONRequestBody = RequestPostBase
 
+// PutConnectorCredentialJSONRequestBody defines body for PutConnectorCredential for application/json ContentType.
+type PutConnectorCredentialJSONRequestBody = RequestPutConnectorCredential
+
 // PostImportJSONRequestBody defines body for PostImport for application/json ContentType.
 type PostImportJSONRequestBody = RequestPostImport
 
@@ -2787,6 +2919,26 @@ type ClientInterface interface {
 
 	// GetBase performs a GET /api/rest/base/{digest} (the `GetBase` operationId) request.
 	GetBase(ctx context.Context, digest Digest, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetConnectorList performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
+	GetConnectorList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetConnector performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
+	GetConnector(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteConnectorCredential performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
+	DeleteConnectorCredential(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutConnectorCredentialWithBody performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
+	// with any type of body and a specified content type.
+	PutConnectorCredentialWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutConnectorCredential performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
+	// Takes a body of the `application/json` content type.
+	PutConnectorCredential(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostConnectorLogin performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
+	PostConnectorLogin(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetEventList performs a GET /api/rest/event-list (the `GetEventList` operationId) request.
 	GetEventList(ctx context.Context, params *GetEventListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3161,6 +3313,86 @@ func (c *Client) DeleteBase(ctx context.Context, digest Digest, reqEditors ...Re
 // GetBase performs a GET /api/rest/base/{digest} (the `GetBase` operationId) request.
 func (c *Client) GetBase(ctx context.Context, digest Digest, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBaseRequest(c.Server, digest)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetConnectorList performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
+func (c *Client) GetConnectorList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetConnectorListRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetConnector performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
+func (c *Client) GetConnector(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetConnectorRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteConnectorCredential performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
+func (c *Client) DeleteConnectorCredential(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteConnectorCredentialRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutConnectorCredentialWithBody performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PutConnectorCredentialWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutConnectorCredentialRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutConnectorCredential performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) PutConnectorCredential(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutConnectorCredentialRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PostConnectorLogin performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
+func (c *Client) PostConnectorLogin(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostConnectorLoginRequest(c.Server, name)
 	if err != nil {
 		return nil, err
 	}
@@ -4527,6 +4759,182 @@ func NewGetBaseRequest(server string, digest Digest) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetConnectorListRequest constructs an http.Request for the GetConnectorList method
+func NewGetConnectorListRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/connector-list")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetConnectorRequest constructs an http.Request for the GetConnector method
+func NewGetConnectorRequest(server string, name Name) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/connector/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteConnectorCredentialRequest constructs an http.Request for the DeleteConnectorCredential method
+func NewDeleteConnectorCredentialRequest(server string, name Name) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/connector/%s/credential", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutConnectorCredentialRequest calls the generic PutConnectorCredential builder with application/json body
+func NewPutConnectorCredentialRequest(server string, name Name, body PutConnectorCredentialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutConnectorCredentialRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutConnectorCredentialRequestWithBody constructs an http.Request for the PutConnectorCredential method, with any body, and a specified content type
+func NewPutConnectorCredentialRequestWithBody(server string, name Name, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/connector/%s/credential", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostConnectorLoginRequest constructs an http.Request for the PostConnectorLogin method
+func NewPostConnectorLoginRequest(server string, name Name) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "name", name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/connector/%s/login", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7854,6 +8262,36 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetBaseWithResponse(ctx context.Context, digest Digest, reqEditors ...RequestEditorFn) (*GetBaseResponse, error)
 
+	// GetConnectorListWithResponse performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetConnectorListWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConnectorListResponse, error)
+
+	// GetConnectorWithResponse performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetConnectorWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error)
+
+	// DeleteConnectorCredentialWithResponse performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteConnectorCredentialWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error)
+
+	// PutConnectorCredentialWithBodyWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
+
+	// PutConnectorCredentialWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PutConnectorCredentialWithResponse(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
+
+	// PostConnectorLoginWithResponse performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PostConnectorLoginWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error)
+
 	// GetEventListWithResponse performs a GET /api/rest/event-list (the `GetEventList` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -8569,6 +9007,337 @@ func (r GetBaseResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetBaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetConnectorListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseConnectorList
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetConnectorListResponse) GetJSON200() *ResponseConnectorList {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetConnectorListResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetConnectorListResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetConnectorListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetConnectorListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetConnectorListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetConnectorListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetConnectorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseConnector
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetConnectorResponse) GetJSON200() *ResponseConnector {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetConnectorResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetConnectorResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetConnectorResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetConnectorResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetConnectorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetConnectorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetConnectorResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteConnectorCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseConnector
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeleteConnectorCredentialResponse) GetJSON200() *ResponseConnector {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteConnectorCredentialResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteConnectorCredentialResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteConnectorCredentialResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteConnectorCredentialResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteConnectorCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteConnectorCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteConnectorCredentialResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PutConnectorCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseConnector
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON200() *ResponseConnector {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PutConnectorCredentialResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PutConnectorCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutConnectorCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PutConnectorCredentialResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PostConnectorLoginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseConnectorLogin
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+	// JSON504 the response for an HTTP 504 `application/json` response
+	JSON504 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON200() *ResponseConnectorLogin {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetJSON504 returns the response for an HTTP 504 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON504() *Error {
+	return r.JSON504
+}
+
+// GetBody returns the raw response body bytes
+func (r PostConnectorLoginResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PostConnectorLoginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostConnectorLoginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostConnectorLoginResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -13385,6 +14154,72 @@ func (c *ClientWithResponses) GetBaseWithResponse(ctx context.Context, digest Di
 	return ParseGetBaseResponse(rsp)
 }
 
+// GetConnectorListWithResponse performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetConnectorListWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConnectorListResponse, error) {
+	rsp, err := c.GetConnectorList(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetConnectorListResponse(rsp)
+}
+
+// GetConnectorWithResponse performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetConnectorWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error) {
+	rsp, err := c.GetConnector(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetConnectorResponse(rsp)
+}
+
+// DeleteConnectorCredentialWithResponse performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteConnectorCredentialWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error) {
+	rsp, err := c.DeleteConnectorCredential(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteConnectorCredentialResponse(rsp)
+}
+
+// PutConnectorCredentialWithBodyWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
+	rsp, err := c.PutConnectorCredentialWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutConnectorCredentialResponse(rsp)
+}
+
+// PutConnectorCredentialWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutConnectorCredentialWithResponse(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
+	rsp, err := c.PutConnectorCredential(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutConnectorCredentialResponse(rsp)
+}
+
+// PostConnectorLoginWithResponse performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostConnectorLoginWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error) {
+	rsp, err := c.PostConnectorLogin(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostConnectorLoginResponse(rsp)
+}
+
 // GetEventListWithResponse performs a GET /api/rest/event-list (the `GetEventList` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -14579,6 +15414,262 @@ func ParseGetBaseResponse(rsp *http.Response) (*GetBaseResponse, error) {
 			return nil, err
 		}
 		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetConnectorListResponse parses an HTTP response from a GetConnectorListWithResponse call
+func ParseGetConnectorListResponse(rsp *http.Response) (*GetConnectorListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetConnectorListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConnectorList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetConnectorResponse parses an HTTP response from a GetConnectorWithResponse call
+func ParseGetConnectorResponse(rsp *http.Response) (*GetConnectorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetConnectorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConnector
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteConnectorCredentialResponse parses an HTTP response from a DeleteConnectorCredentialWithResponse call
+func ParseDeleteConnectorCredentialResponse(rsp *http.Response) (*DeleteConnectorCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteConnectorCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConnector
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutConnectorCredentialResponse parses an HTTP response from a PutConnectorCredentialWithResponse call
+func ParsePutConnectorCredentialResponse(rsp *http.Response) (*PutConnectorCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutConnectorCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConnector
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostConnectorLoginResponse parses an HTTP response from a PostConnectorLoginWithResponse call
+func ParsePostConnectorLoginResponse(rsp *http.Response) (*PostConnectorLoginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostConnectorLoginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseConnectorLogin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 504:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON504 = &dest
 
 	}
 

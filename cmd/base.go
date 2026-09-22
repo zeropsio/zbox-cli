@@ -285,6 +285,8 @@ func waitForTemplate(cmd *cobra.Command, ws *api.Workspace, digest string) (*api
 		switch t.Status {
 		case api.BaseTemplateStatusREADY:
 			return t, nil
+		case api.BaseTemplateStatusDELETED:
+			return t, fmt.Errorf("template %s was deleted", short(digest))
 		case api.BaseTemplateStatusFAILED:
 			return t, fmt.Errorf("template %s failed: %s", short(digest), dash(str(t.FailedReason)))
 		}

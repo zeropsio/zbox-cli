@@ -8,6 +8,7 @@ go build -o zbox .
 zbox login                    # through the Zerops GUI, or: zbox login --token <PAT>, or --email
 zbox setup                    # creates the Zerops project with the workspace and its default base
 zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname)
+zbox setup --template dev:4g:2  # also builds a warm template named dev (4 GB, 2 cpus) before the workspace starts
 zbox workspace use <url> --api-key <key>   # or point at a workspace someone else created (--name names it)
 zbox workspace ls             # the workspaces of the account, the ones with a stored key are named
 zbox workspace authorize <service-id>      # fetch the key of one through the Zerops GUI and store it

@@ -58,7 +58,7 @@ func (e exitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
 func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.BoolVar(&flagJson, "json", false, "print the API objects as JSON instead of text, for scripts and agents")
-	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL")
+	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL, stored by `zbox login`")
 	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
 	_ = pf.MarkHidden("public-api-url")
 	_ = pf.MarkHidden("gui-url")

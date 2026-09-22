@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,8 +17,11 @@ var (
 	flagOpSandbox string
 	flagOpStatus  string
 	flagOpKind    string
+	flagOpLimit   int
+	flagOpAll     bool
 	flagEvSandbox string
 	flagEvAfter   int64
+	flagEvBefore  int64
 	flagEvLimit   int
 	flagEvFollow  bool
 )
@@ -40,14 +44,15 @@ var opCmd = &cobra.Command{
 
 var opLsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "List operations",
+	Short: "List operations, newest first",
+	Long:  "The list is the newest 100 operations unless --limit says otherwise; --all pages back through every operation the workspace remembers.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
 		p := api.GetOperationListParams{SandboxId: optional(flagOpSandbox), Status: upperPtr[api.GetOperationListParamsStatus](flagOpStatus), Kind: upperPtr[api.GetOperationListParamsKind](flagOpKind)}
-		list, err := ws.Operations(cmd.Context(), p)
+		list, err := listOperations(cmd, ws, p)
 		if err != nil {
 			return err
 		}
@@ -59,6 +64,34 @@ var opLsCmd = &cobra.Command{
 			})
 		})
 	},
+}
+
+// opPageMax is the largest page GET /operation-list answers.
+const opPageMax = 1000
+
+// listOperations reads the newest operations: the server's default page with no --limit, otherwise as many as asked for, paging back with beforeId when that is more than one page or --all.
+func listOperations(cmd *cobra.Command, ws *api.Workspace, p api.GetOperationListParams) ([]api.BaseOperation, error) {
+	if flagOpLimit <= 0 && !flagOpAll {
+		return ws.Operations(cmd.Context(), p)
+	}
+	var list []api.BaseOperation
+	for flagOpAll || len(list) < flagOpLimit {
+		page := opPageMax
+		if !flagOpAll {
+			page = min(page, flagOpLimit-len(list))
+		}
+		p.Limit = &page
+		ops, err := ws.Operations(cmd.Context(), p)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, ops...)
+		if len(ops) < page {
+			break
+		}
+		p.BeforeId = &ops[len(ops)-1].Id
+	}
+	return list, nil
 }
 
 var opGetCmd = &cobra.Command{
@@ -112,8 +145,8 @@ func printOperation(op *api.BaseOperation) {
 
 var eventsCmd = &cobra.Command{
 	Use:   "events",
-	Short: "List the event log, or follow it live with --follow",
-	Long:  "Without --follow the list is one long poll: it returns what is newer than --after, waiting up to 30 seconds for something new. With --follow the WebSocket stream is printed until interrupted.",
+	Short: "Show the newest events, or follow the log live with --follow",
+	Long:  "With no cursor the newest events are printed, the latest at the bottom; --before continues with the ones older than an id. With --after the list is one long poll: it returns what is newer than the id, oldest first, waiting up to 30 seconds for something new. With --follow the WebSocket stream is printed until interrupted. --json prints the list in the order the API answers it, which is newest first unless --after is given.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -133,14 +166,27 @@ var eventsCmd = &cobra.Command{
 			})
 		}
 		p := api.GetEventListParams{AfterId: after, SandboxId: optional(flagEvSandbox), Limit: optionalInt(flagEvLimit)}
+		if after != nil && flagEvBefore > 0 {
+			return fmt.Errorf("--after and --before are two directions, give one")
+		}
 		if after != nil {
 			p.WaitSeconds = optionalInt(30)
+		} else {
+			newest := true
+			p.NewestFirst = &newest
+			if flagEvBefore > 0 {
+				p.BeforeId = &flagEvBefore
+			}
 		}
 		list, err := ws.Events(cmd.Context(), p)
 		if err != nil {
 			return err
 		}
 		return emit(list, func() {
+			// Newest first is turned around, so the text reads like a log whichever way it was asked for.
+			if after == nil {
+				slices.Reverse(list)
+			}
 			for _, ev := range list {
 				fmt.Println(eventLine(ev))
 			}
@@ -174,10 +220,13 @@ func init() {
 	opLsCmd.Flags().StringVar(&flagOpSandbox, "sandbox", "", "only operations on this sandbox")
 	opLsCmd.Flags().StringVar(&flagOpStatus, "status", "", "only operations in this status: pending, running, finished, failed")
 	opLsCmd.Flags().StringVar(&flagOpKind, "kind", "", "only operations of this kind, for example wake or fork")
+	opLsCmd.Flags().IntVar(&flagOpLimit, "limit", 0, "at most this many, the newest 100 when omitted")
+	opLsCmd.Flags().BoolVar(&flagOpAll, "all", false, "every operation, paged from the newest back")
 	opCmd.AddCommand(opLsCmd, opGetCmd, opWaitCmd)
 
 	eventsCmd.Flags().StringVar(&flagEvSandbox, "sandbox", "", "only events of this sandbox")
-	eventsCmd.Flags().Int64Var(&flagEvAfter, "after", 0, "only events with a greater id, the workspace-wide cursor")
+	eventsCmd.Flags().Int64Var(&flagEvAfter, "after", 0, "only events with a greater id, oldest first, the workspace-wide cursor")
+	eventsCmd.Flags().Int64Var(&flagEvBefore, "before", 0, "only events with a smaller id, to page back from the newest")
 	eventsCmd.Flags().IntVar(&flagEvLimit, "limit", 0, "at most this many")
 	eventsCmd.Flags().BoolVarP(&flagEvFollow, "follow", "f", false, "stream events as they happen")
 	rootCmd.AddCommand(opCmd, eventsCmd)

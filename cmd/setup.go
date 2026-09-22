@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ var (
 	flagSetupName      string
 	flagSetupProjectId string
 	flagSetupImage     string
+	flagSetupTemplates []string
 	flagTeardownYes    bool
 	setupPingTimeout   = 5 * time.Minute
 	setupBaseTimeout   = 15 * time.Minute
@@ -58,6 +60,10 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
+	templates, err := importTemplates(flagSetupTemplates)
+	if err != nil {
+		return err
+	}
 	// The screen prints the stages and, on a TTY, a note about workspaces every few seconds, so the minutes of the build do not look like a hang.
 	screen := waiting.New()
 	defer screen.Stop()
@@ -65,7 +71,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Image: flagSetupImage, Templates: templates})
 		if err != nil {
 			return err
 		}
@@ -81,7 +87,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, Image: flagSetupImage, Templates: templates})
 		if err != nil {
 			return err
 		}
@@ -138,7 +144,8 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err := waitForPing(ctx, ws); err != nil {
 		return err
 	}
-	screen.Step("Adding the default base image")
+	// The init commands of the service registered the base already (`base ensure`), so this finds it READY; against an orchestrator from before those commands it registers it.
+	screen.Step("Checking the default base image")
 	base, err := ensureBase(ctx, ws, flagSetupImage)
 	if err != nil {
 		return err
@@ -354,6 +361,34 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 	}
 }
 
+// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import.
+func importTemplates(specs []string) ([]zerops.ImportTemplate, error) {
+	var out []zerops.ImportTemplate
+	for _, spec := range specs {
+		parts := strings.Split(spec, ":")
+		if len(parts) > 3 || parts[0] == "" {
+			return nil, fmt.Errorf("--template %q: use name[:memory[:cpus]], for example dev:4g:2", spec)
+		}
+		t := zerops.ImportTemplate{Name: parts[0]}
+		if len(parts) > 1 && parts[1] != "" {
+			n, err := parseBytes(parts[1])
+			if err != nil {
+				return nil, fmt.Errorf("--template %q: %w", spec, err)
+			}
+			t.MemoryBytes = n
+		}
+		if len(parts) > 2 && parts[2] != "" {
+			n, err := strconv.Atoi(parts[2])
+			if err != nil || n < 1 {
+				return nil, fmt.Errorf("--template %q: %q is not a cpu count", spec, parts[2])
+			}
+			t.Cpus = n
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
 // ensureBase registers the image as a base unless one already exists for it, and waits until it is READY. A workspace with no base cannot serve `zbox new`.
 func ensureBase(ctx context.Context, ws *api.Workspace, imageRef string) (*api.BaseBase, error) {
 	bases, err := ws.Bases(ctx)
@@ -385,6 +420,8 @@ func waitForBase(ctx context.Context, ws *api.Workspace, digest string, timeout 
 		switch base.Status {
 		case api.BaseBaseStatusREADY:
 			return base, nil
+		case api.BaseBaseStatusDELETED:
+			return base, fmt.Errorf("base %s was deleted", short(digest))
 		case api.BaseBaseStatusFAILED:
 			return base, fmt.Errorf("base %s failed: %s", short(digest), dash(str(base.FailedReason)))
 		}
@@ -403,6 +440,7 @@ func init() {
 	setupCmd.Flags().StringVar(&flagSetupName, "name", defaultHostname, "name of the Zerops project to create, or hostname of the workspace service when --project-id is given")
 	setupCmd.Flags().StringVar(&flagSetupProjectId, "project-id", "", "create the workspace in this existing project instead of creating a new one")
 	setupCmd.Flags().StringVar(&flagSetupImage, "image", defaultBaseImage, "image registered as the first base of the workspace")
+	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", nil, "warm template built from the image before the workspace starts, as name[:memory[:cpus]] (dev:4g:2); repeatable, each adds up to a minute to the setup")
 	teardownCmd.Flags().BoolVarP(&flagTeardownYes, "yes", "y", false, "skip the confirmation")
 	rootCmd.AddCommand(setupCmd, teardownCmd, statusCmd)
 }

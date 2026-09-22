@@ -19,6 +19,7 @@ import (
 
 // Defines values for BaseBaseStatus.
 const (
+	BaseBaseStatusDELETED    BaseBaseStatus = "DELETED"
 	BaseBaseStatusFAILED     BaseBaseStatus = "FAILED"
 	BaseBaseStatusFLATTENING BaseBaseStatus = "FLATTENING"
 	BaseBaseStatusPULLING    BaseBaseStatus = "PULLING"
@@ -28,6 +29,8 @@ const (
 // Valid indicates whether the value is a known member of the BaseBaseStatus enum.
 func (e BaseBaseStatus) Valid() bool {
 	switch e {
+	case BaseBaseStatusDELETED:
+		return true
 	case BaseBaseStatusFAILED:
 		return true
 	case BaseBaseStatusFLATTENING:
@@ -674,6 +677,7 @@ func (e BaseSnapshotKind) Valid() bool {
 // Defines values for BaseTemplateStatus.
 const (
 	BaseTemplateStatusBUILDING BaseTemplateStatus = "BUILDING"
+	BaseTemplateStatusDELETED  BaseTemplateStatus = "DELETED"
 	BaseTemplateStatusFAILED   BaseTemplateStatus = "FAILED"
 	BaseTemplateStatusREADY    BaseTemplateStatus = "READY"
 )
@@ -682,6 +686,8 @@ const (
 func (e BaseTemplateStatus) Valid() bool {
 	switch e {
 	case BaseTemplateStatusBUILDING:
+		return true
+	case BaseTemplateStatusDELETED:
 		return true
 	case BaseTemplateStatusFAILED:
 		return true
@@ -793,6 +799,7 @@ func (e RequestPutWorkspacePolicyDomainFilterEnforcement) Valid() bool {
 
 // Defines values for ResponseBaseStatus.
 const (
+	ResponseBaseStatusDELETED    ResponseBaseStatus = "DELETED"
 	ResponseBaseStatusFAILED     ResponseBaseStatus = "FAILED"
 	ResponseBaseStatusFLATTENING ResponseBaseStatus = "FLATTENING"
 	ResponseBaseStatusPULLING    ResponseBaseStatus = "PULLING"
@@ -802,6 +809,8 @@ const (
 // Valid indicates whether the value is a known member of the ResponseBaseStatus enum.
 func (e ResponseBaseStatus) Valid() bool {
 	switch e {
+	case ResponseBaseStatusDELETED:
+		return true
 	case ResponseBaseStatusFAILED:
 		return true
 	case ResponseBaseStatusFLATTENING:
@@ -1076,6 +1085,7 @@ func (e ResponseSnapshotKind) Valid() bool {
 // Defines values for ResponseTemplateStatus.
 const (
 	ResponseTemplateStatusBUILDING ResponseTemplateStatus = "BUILDING"
+	ResponseTemplateStatusDELETED  ResponseTemplateStatus = "DELETED"
 	ResponseTemplateStatusFAILED   ResponseTemplateStatus = "FAILED"
 	ResponseTemplateStatusREADY    ResponseTemplateStatus = "READY"
 )
@@ -1084,6 +1094,8 @@ const (
 func (e ResponseTemplateStatus) Valid() bool {
 	switch e {
 	case ResponseTemplateStatusBUILDING:
+		return true
+	case ResponseTemplateStatusDELETED:
 		return true
 	case ResponseTemplateStatusFAILED:
 		return true
@@ -1096,15 +1108,12 @@ func (e ResponseTemplateStatus) Valid() bool {
 
 // Defines values for ResponseWorkspaceSubstrate.
 const (
-	DOCKER      ResponseWorkspaceSubstrate = "DOCKER"
 	FIRECRACKER ResponseWorkspaceSubstrate = "FIRECRACKER"
 )
 
 // Valid indicates whether the value is a known member of the ResponseWorkspaceSubstrate enum.
 func (e ResponseWorkspaceSubstrate) Valid() bool {
 	switch e {
-	case DOCKER:
-		return true
 	case FIRECRACKER:
 		return true
 	default:
@@ -1340,10 +1349,12 @@ type BaseBase struct {
 	Labels         map[string]interface{} `json:"labels"`
 	LaunchContract BaseLaunchContract     `json:"launchContract"`
 	SizeBytes      *int64                 `json:"sizeBytes,omitempty"`
-	Status         BaseBaseStatus         `json:"status"`
+
+	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
+	Status BaseBaseStatus `json:"status"`
 }
 
-// BaseBaseStatus defines model for BaseBase.Status.
+// BaseBaseStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 type BaseBaseStatus string
 
 // BaseConnector defines model for BaseConnector.
@@ -1791,10 +1802,12 @@ type BaseTemplate struct {
 	MemoryBytes int64              `json:"memoryBytes"`
 	Name        *string            `json:"name,omitempty"`
 	Policy      BaseTemplatePolicy `json:"policy"`
-	Status      BaseTemplateStatus `json:"status"`
+
+	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
+	Status BaseTemplateStatus `json:"status"`
 }
 
-// BaseTemplateStatus defines model for BaseTemplate.Status.
+// BaseTemplateStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 type BaseTemplateStatus string
 
 // BaseTemplatePolicy defines model for BaseTemplatePolicy.
@@ -2102,10 +2115,12 @@ type ResponseBase struct {
 	Labels         map[string]interface{} `json:"labels"`
 	LaunchContract BaseLaunchContract     `json:"launchContract"`
 	SizeBytes      *int64                 `json:"sizeBytes,omitempty"`
-	Status         ResponseBaseStatus     `json:"status"`
+
+	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
+	Status ResponseBaseStatus `json:"status"`
 }
 
-// ResponseBaseStatus defines model for ResponseBase.Status.
+// ResponseBaseStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 type ResponseBaseStatus string
 
 // ResponseBaseList defines model for ResponseBaseList.
@@ -2443,13 +2458,15 @@ type ResponseTemplate struct {
 	HasMemory bool `json:"hasMemory"`
 
 	// MemoryBytes The memory image is taken at this size, a sandbox spawned from the template takes it as its default and resumes only when it matches.
-	MemoryBytes int64                  `json:"memoryBytes"`
-	Name        *string                `json:"name,omitempty"`
-	Policy      BaseTemplatePolicy     `json:"policy"`
-	Status      ResponseTemplateStatus `json:"status"`
+	MemoryBytes int64              `json:"memoryBytes"`
+	Name        *string            `json:"name,omitempty"`
+	Policy      BaseTemplatePolicy `json:"policy"`
+
+	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
+	Status ResponseTemplateStatus `json:"status"`
 }
 
-// ResponseTemplateStatus defines model for ResponseTemplate.Status.
+// ResponseTemplateStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 type ResponseTemplateStatus string
 
 // ResponseTemplateList defines model for ResponseTemplateList.
@@ -2512,6 +2529,12 @@ type AfterSeq = int
 // ApiKey The Workspace API key for clients that cannot set the Authorization header on a WebSocket upgrade.
 type ApiKey = string
 
+// BeforeId Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.
+type BeforeId = string
+
+// BeforeSeq Backwards cursor: return the newest events with a smaller seq, newest first. Implies newestFirst.
+type BeforeSeq = int
+
 // Cols defines model for cols.
 type Cols = int
 
@@ -2541,6 +2564,9 @@ type Mode = string
 
 // Name defines model for name.
 type Name = string
+
+// NewestFirst Answer the newest events first instead of the oldest. waitSeconds is ignored in this order.
+type NewestFirst = bool
 
 // ParentId defines model for parentId.
 type ParentId = string
@@ -2577,9 +2603,15 @@ type PostBaseParams struct {
 // GetEventListParams defines parameters for GetEventList.
 type GetEventListParams struct {
 	// AfterId Workspace-wide cursor: return events with a greater id.
-	AfterId   *AfterId   `form:"afterId,omitempty" json:"afterId,omitempty"`
-	SandboxId *SandboxId `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
-	Limit     *Limit     `form:"limit,omitempty" json:"limit,omitempty"`
+	AfterId *AfterId `form:"afterId,omitempty" json:"afterId,omitempty"`
+
+	// BeforeId Backwards cursor: return the newest events with a smaller id, newest first. Implies newestFirst.
+	BeforeId *int64 `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+
+	// NewestFirst Answer the newest events first instead of the oldest. waitSeconds is ignored in this order.
+	NewestFirst *NewestFirst `form:"newestFirst,omitempty" json:"newestFirst,omitempty"`
+	SandboxId   *SandboxId   `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
+	Limit       *Limit       `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// WaitSeconds Long poll: hold the request up to this long when nothing is newer than the cursor.
 	WaitSeconds *WaitSeconds `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
@@ -2614,6 +2646,12 @@ type GetOperationListParams struct {
 	SandboxId *SandboxId                    `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
 	Status    *GetOperationListParamsStatus `form:"status,omitempty" json:"status,omitempty"`
 	Kind      *GetOperationListParamsKind   `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// BeforeId Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.
+	BeforeId *BeforeId `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+
+	// Limit Page size, 100 when omitted and 1000 at most. The list is ordered newest first.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetOperationListParamsStatus defines parameters for GetOperationList.
@@ -2645,9 +2683,15 @@ type DeleteSandboxParams struct {
 // GetSandboxEventListParams defines parameters for GetSandboxEventList.
 type GetSandboxEventListParams struct {
 	// AfterSeq Per-sandbox cursor: return events with a greater seq.
-	AfterSeq    *AfterSeq `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
-	Limit       *Limit    `form:"limit,omitempty" json:"limit,omitempty"`
-	WaitSeconds *int      `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
+	AfterSeq *AfterSeq `form:"afterSeq,omitempty" json:"afterSeq,omitempty"`
+
+	// BeforeSeq Backwards cursor: return the newest events with a smaller seq, newest first. Implies newestFirst.
+	BeforeSeq *BeforeSeq `form:"beforeSeq,omitempty" json:"beforeSeq,omitempty"`
+
+	// NewestFirst Answer the newest events first instead of the oldest. waitSeconds is ignored in this order.
+	NewestFirst *NewestFirst `form:"newestFirst,omitempty" json:"newestFirst,omitempty"`
+	Limit       *Limit       `form:"limit,omitempty" json:"limit,omitempty"`
+	WaitSeconds *int         `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
 }
 
 // DeleteSandboxFileParams defines parameters for DeleteSandboxFile.
@@ -4982,6 +5026,30 @@ func NewGetEventListRequest(server string, params *GetEventListParams) (*http.Re
 
 		}
 
+		if params.BeforeId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "beforeId", *params.BeforeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int64"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.NewestFirst != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "newestFirst", *params.NewestFirst, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.SandboxId != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sandboxId", *params.SandboxId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -5699,6 +5767,30 @@ func NewGetOperationListRequest(server string, params *GetOperationListParams) (
 
 		}
 
+		if params.BeforeId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "beforeId", *params.BeforeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -6132,6 +6224,30 @@ func NewGetSandboxEventListRequest(server string, id Id, params *GetSandboxEvent
 		if params.AfterSeq != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "afterSeq", *params.AfterSeq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.BeforeSeq != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "beforeSeq", *params.BeforeSeq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.NewestFirst != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "newestFirst", *params.NewestFirst, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

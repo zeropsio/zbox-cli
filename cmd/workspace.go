@@ -129,7 +129,7 @@ var workspaceForgetCmd = &cobra.Command{
 var workspaceLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List the workspaces of the Zerops account, with the ones this machine holds a key for",
-	Long:  "Every Sandbox Workspace service (zbox@1) of the organisation is a workspace, and so is every docker service the v0 workspaces were imported as before it. A row with a name has its key stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
+	Long:  "Every Sandbox Workspace service (zbox@1) of the organisation is a workspace. A row with a name has its key stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
@@ -160,13 +160,15 @@ var workspaceLsCmd = &cobra.Command{
 					byService[w.ServiceId] = w
 				}
 			}
-			table("  NAME\tHOSTNAME\tPROJECT\tSTATUS\tTYPE\tSERVICE ID\tKEY", func(w io.Writer) {
+			listed := map[string]bool{}
+			table("  NAME\tHOSTNAME\tPROJECT\tSTATUS\tSERVICE ID\tKEY", func(w io.Writer) {
 				for _, st := range stacks {
 					known, ok := byService[st.ServiceId]
-					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\t%s\t%s\n", mark(c, known.WorkspaceUrl), dash(known.Name), st.Hostname, st.ProjectName, st.Status, st.Type, st.ServiceId, map[bool]string{true: "stored", false: "-"}[ok])
+					listed[st.ServiceId] = true
+					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\t%s\n", mark(c, known.WorkspaceUrl), dash(known.Name), st.Hostname, st.ProjectName, st.Status, st.ServiceId, map[bool]string{true: "stored", false: "-"}[ok])
 				}
 				for _, ws := range c.Workspaces {
-					if _, inAccount := byService[ws.ServiceId]; ws.ServiceId != "" && inAccount {
+					if listed[ws.ServiceId] {
 						continue
 					}
 					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\tstored\n", mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), "not in this account", dash(ws.ServiceId))

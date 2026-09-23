@@ -1805,6 +1805,9 @@ type BaseTemplate struct {
 
 	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 	Status BaseTemplateStatus `json:"status"`
+
+	// Warmup Shell command run in the guest before its memory is captured, under the image's launch environment: what it loads is resident in every spawn. Nothing listens and nothing has an identity, the image stays free of both.
+	Warmup *string `json:"warmup,omitempty"`
 }
 
 // BaseTemplateStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
@@ -2052,6 +2055,9 @@ type RequestPostTemplate struct {
 
 	// Warm Boot the base once and snapshot its memory so spawns resume instead of cold booting, design §5.1 step 3.
 	Warm *bool `json:"warm,omitempty"`
+
+	// Warmup Shell command run in the guest before its memory is captured, for example `node -e "require('http')"` or `claude --version`, so the runtime it loads is resident in every spawn. Only with warm.
+	Warmup *string `json:"warmup,omitempty"`
 }
 
 // RequestPostWebhook defines model for RequestPostWebhook.
@@ -2490,6 +2496,9 @@ type ResponseTemplate struct {
 
 	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 	Status ResponseTemplateStatus `json:"status"`
+
+	// Warmup Shell command run in the guest before its memory is captured, under the image's launch environment: what it loads is resident in every spawn. Nothing listens and nothing has an identity, the image stays free of both.
+	Warmup *string `json:"warmup,omitempty"`
 }
 
 // ResponseTemplateStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.

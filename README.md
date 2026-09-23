@@ -10,6 +10,7 @@ zbox setup                    # creates the Zerops project with the workspace an
 zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname)
 zbox setup --template dev:4g:2  # builds only a warm template named dev (4 GB, 2 cpus); the default builds dev:4g:2 and big:16g:4
 zbox setup --cpu 2 --ram 8 --disk 50  # a small workspace VM instead of the default 24 cpu, 128 GB, 250 GB
+zbox setup --warmup dev='claude --version'  # the dev template runs this before its memory is captured, so claude is resident in every spawn
 zbox workspace use <url> --api-key <key>   # or point at a workspace someone else created (--name names it)
 zbox workspace ls             # the workspaces of the account, the ones with a stored key are named
 zbox workspace authorize <service-id>      # fetch the key of one through the Zerops GUI and store it
@@ -19,6 +20,7 @@ zbox open                     # the console the workspace serves, signed in with
 zbox base add ubuntu:24.04    # any OCI image becomes a base
 zbox new mybox -p 3000        # sandbox from the only base, port 3000 guarded by the workspace API key
 zbox new mybox -p 3000/public --base ubuntu --network project_internet --idle-ttl 30m
+zbox template create --name node --base ubuntu --warm --warmup "node -e \"require('http')\""  # warm template, the runtime loaded before the snapshot
 zbox ls
 zbox get <id>                 # one URL per declared port: https://3000-<id>-<ingress-host>
 zbox port open <id> 8080/ticket

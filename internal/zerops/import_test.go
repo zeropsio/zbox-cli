@@ -31,6 +31,15 @@ func TestRenderImport(t *testing.T) {
 	if strings.Contains(out, "project:") || !strings.HasPrefix(out, "services:") {
 		t.Errorf("service-stack import must start at services:\n%s", out)
 	}
+	// A warm-up goes single-quoted for the shell into a double-quoted scalar, so a quote, a hash or a colon inside it reaches the orchestrator as typed.
+	out, err = RenderImport(ImportParams{Hostname: "zbox", Cpu: 2, Ram: 8, Disk: 50, Image: "ubuntu:26.04", Templates: []ImportTemplate{{Name: "dev", Cpus: 2, Warmup: `node -e "require('http')" # x: y`}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `              - "/opt/zerops/bin/zerops-zbox-orchestrator template ensure --name dev --base ubuntu:26.04 --cpus 2 --warmup 'node -e \"require('\\''http'\\'')\" # x: y'"
+            start:`; !strings.Contains(out, want) {
+		t.Errorf("missing %q in:\n%s", want, out)
+	}
 }
 
 // Image and template names land unquoted in a command line, anything a shell or YAML would read into is refused, and so is a size under the driver floor.
@@ -48,6 +57,7 @@ func TestRenderImportRefuses(t *testing.T) {
 		sized("alpine #x"),
 		sized("alpine", ImportTemplate{Name: "a b"}),
 		sized("alpine", ImportTemplate{Name: "$(id)"}),
+		sized("alpine", ImportTemplate{Name: "dev", Warmup: "claude --version\nid"}),
 		{Hostname: "zbox", Cpu: 1, Ram: 8, Disk: 50, Image: "alpine"},
 		{Hostname: "zbox", Cpu: 2, Ram: 1, Disk: 50, Image: "alpine"},
 		{Hostname: "zbox", Cpu: 2, Ram: 8, Disk: 9, Image: "alpine"},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strings"
 	"text/template"
 )
 
@@ -48,7 +49,7 @@ const importTemplate = `{{with .ProjectName}}project:
               - /opt/zerops/bin/zerops-zbox-orchestrator host prepare
               - /opt/zerops/bin/zerops-zbox-orchestrator base ensure {{.Image}}
 {{- range .Templates}}
-              - /opt/zerops/bin/zerops-zbox-orchestrator template ensure --name {{.Name}} --base {{$.Image}}{{if .MemoryBytes}} --memory {{.MemoryBytes}}{{end}}{{if .Cpus}} --cpus {{.Cpus}}{{end}}
+              - {{.Line $.Image}}
 {{- end}}
             start: /opt/zerops/bin/zerops-zbox-orchestrator run
 `
@@ -66,11 +67,33 @@ type ImportParams struct {
 	Templates []ImportTemplate
 }
 
-// ImportTemplate is one `template ensure` line. Zero MemoryBytes or Cpus leave the sandbox default.
+// ImportTemplate is one `template ensure` line. Zero MemoryBytes or Cpus leave the sandbox default. Warmup is the shell command run in the build guest before its memory is captured, empty for none.
 type ImportTemplate struct {
 	Name        string
 	MemoryBytes int64
 	Cpus        int
+	Warmup      string
+}
+
+// Line is the init command of the template: a plain YAML scalar without a warm-up, a double-quoted one with it, since the shell-quoted command may hold anything a plain scalar would read into.
+func (t ImportTemplate) Line(image string) string {
+	line := "/opt/zerops/bin/zerops-zbox-orchestrator template ensure --name " + t.Name + " --base " + image
+	if t.MemoryBytes != 0 {
+		line += fmt.Sprintf(" --memory %d", t.MemoryBytes)
+	}
+	if t.Cpus != 0 {
+		line += fmt.Sprintf(" --cpus %d", t.Cpus)
+	}
+	if t.Warmup == "" {
+		return line
+	}
+	line += " --warmup " + shellQuote(t.Warmup)
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(line) + `"`
+}
+
+// shellQuote wraps a command in single quotes for the shell the init command runs through, the only quoting that keeps every other character literal.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // The values land unquoted in a command line inside the YAML, so they are held to what neither YAML nor a shell reads anything into.
@@ -89,6 +112,10 @@ func RenderImport(p ImportParams) (string, error) {
 	for _, t := range p.Templates {
 		if !importName.MatchString(t.Name) {
 			return "", fmt.Errorf("template name %q cannot go into the workspace yaml, use letters, digits, dots, dashes and underscores", t.Name)
+		}
+		// The warm-up is quoted, so it may hold anything printable; a control character or a newline would end the command line or the scalar early.
+		if strings.ContainsFunc(t.Warmup, func(r rune) bool { return r < ' ' || r == 0x7f }) {
+			return "", fmt.Errorf("warm-up of template %q holds a control character, keep it one line", t.Name)
 		}
 	}
 	t, err := template.New("import").Parse(importTemplate)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ var (
 	flagSetupProjectId string
 	flagSetupImage     string
 	flagSetupTemplates []string
+	flagSetupWarmups   []string
 	flagSetupCpu       int
 	flagSetupRam       int
 	flagSetupDisk      int
@@ -67,7 +69,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	templates, err := importTemplates(flagSetupTemplates)
+	templates, err := importTemplates(flagSetupTemplates, flagSetupWarmups)
 	if err != nil {
 		return err
 	}
@@ -375,9 +377,12 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 // defaultTemplates are the warm templates of a workspace when --template says nothing: `dev` is the everyday size, `big` the one the experts VM of the demo spawns with `zbox new --template big`.
 var defaultTemplates = []string{"dev:4g:2", "big:16g:4"}
 
-// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import. A single `none` asks for no template at all.
-func importTemplates(specs []string) ([]zerops.ImportTemplate, error) {
+// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import, and the --warmup values, name=command, onto the template of that name. A single `none` asks for no template at all.
+func importTemplates(specs []string, warmups []string) ([]zerops.ImportTemplate, error) {
 	if len(specs) == 1 && specs[0] == "none" {
+		if len(warmups) > 0 {
+			return nil, fmt.Errorf("--warmup names a template and --template none builds none")
+		}
 		return nil, nil
 	}
 	var out []zerops.ImportTemplate
@@ -402,6 +407,20 @@ func importTemplates(specs []string) ([]zerops.ImportTemplate, error) {
 			t.Cpus = n
 		}
 		out = append(out, t)
+	}
+	for _, spec := range warmups {
+		name, command, ok := strings.Cut(spec, "=")
+		if !ok || name == "" || command == "" {
+			return nil, fmt.Errorf("--warmup %q: use name=command, for example dev='claude --version'", spec)
+		}
+		i := slices.IndexFunc(out, func(t zerops.ImportTemplate) bool { return t.Name == name })
+		if i < 0 {
+			return nil, fmt.Errorf("--warmup %q: no --template named %q", spec, name)
+		}
+		if out[i].Warmup != "" {
+			return nil, fmt.Errorf("--warmup %q: template %q already has one", spec, name)
+		}
+		out[i].Warmup = command
 	}
 	return out, nil
 }
@@ -458,6 +477,7 @@ func init() {
 	setupCmd.Flags().StringVar(&flagSetupProjectId, "project-id", "", "create the workspace in this existing project instead of creating a new one")
 	setupCmd.Flags().StringVar(&flagSetupImage, "image", defaultBaseImage, "image registered as the first base of the workspace")
 	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", defaultTemplates, "warm template built from the image before the workspace starts, as name[:memory[:cpus]]; repeatable, the first replaces the defaults, a single none builds no template, each adds up to a minute to the setup")
+	setupCmd.Flags().StringArrayVar(&flagSetupWarmups, "warmup", nil, "shell command a template runs in its guest before the memory is captured, as name=command (for example dev='claude --version'), so what it loads is resident in every spawn; repeatable, one per template name")
 	setupCmd.Flags().IntVar(&flagSetupCpu, "cpu", defaultCpu, "dedicated cpus of the workspace VM (min 2)")
 	setupCmd.Flags().IntVar(&flagSetupRam, "ram", defaultRam, "RAM of the workspace VM in GB (min 2), the sandboxes take theirs from it")
 	setupCmd.Flags().IntVar(&flagSetupDisk, "disk", defaultDisk, "disk of the workspace VM in GB (min 10), one pool for bases, sandboxes and snapshots")

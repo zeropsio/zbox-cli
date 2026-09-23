@@ -1855,6 +1855,18 @@ type BaseWebhookEndpoint struct {
 	Url    string   `json:"url"`
 }
 
+// BaseWorkspaceCapacity defines model for BaseWorkspaceCapacity.
+type BaseWorkspaceCapacity struct {
+	// Cpus Cores of the Workspace VM.
+	Cpus int `json:"cpus"`
+
+	// DiskBytes Size of the data volume that holds bases, templates, sandboxes and snapshots.
+	DiskBytes int64 `json:"diskBytes"`
+
+	// MemoryBytes Memory of the Workspace VM.
+	MemoryBytes int64 `json:"memoryBytes"`
+}
+
 // BaseWorkspacePolicy defines model for BaseWorkspacePolicy.
 type BaseWorkspacePolicy struct {
 	AllowedNetworkModes       *[]string                                   `json:"allowedNetworkModes,omitempty"`
@@ -1872,6 +1884,20 @@ type BaseWorkspacePolicy struct {
 
 // BaseWorkspacePolicyDomainFilterEnforcement defines model for BaseWorkspacePolicy.DomainFilterEnforcement.
 type BaseWorkspacePolicyDomainFilterEnforcement string
+
+// BaseWorkspaceUsage defines model for BaseWorkspaceUsage.
+type BaseWorkspaceUsage struct {
+	// Cpus Cores reserved by the running sandboxes.
+	Cpus int `json:"cpus"`
+
+	// DiskBytes Used bytes of the data volume.
+	DiskBytes int64 `json:"diskBytes"`
+
+	// MemoryBytes Memory reserved by the running sandboxes.
+	MemoryBytes      int64 `json:"memoryBytes"`
+	ParkedSandboxes  int   `json:"parkedSandboxes"`
+	RunningSandboxes int   `json:"runningSandboxes"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -2508,9 +2534,11 @@ type ResponseWorkspace struct {
 	// AlwaysDenied The read-only always-denied egress set, design §6.5.
 	AlwaysDenied []string                   `json:"alwaysDenied"`
 	ApiHost      string                     `json:"apiHost"`
+	Capacity     BaseWorkspaceCapacity      `json:"capacity"`
 	IngressHost  string                     `json:"ingressHost"`
 	Policy       BaseWorkspacePolicy        `json:"policy"`
 	Substrate    ResponseWorkspaceSubstrate `json:"substrate"`
+	Usage        BaseWorkspaceUsage         `json:"usage"`
 	Version      string                     `json:"version"`
 }
 

@@ -28,7 +28,7 @@ var snapshotCmd = &cobra.Command{
 }
 
 var snapshotCreateCmd = &cobra.Command{
-	Use:   "create <sandbox-id> <name>",
+	Use:   "create <sandbox-id|name> <name>",
 	Short: "Take a named snapshot of a sandbox's disk, optionally with its memory",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +45,7 @@ var snapshotCreateCmd = &cobra.Command{
 }
 
 var snapshotLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id>",
+	Use:   "ls <sandbox-id|name>",
 	Short: "List the snapshots of a sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

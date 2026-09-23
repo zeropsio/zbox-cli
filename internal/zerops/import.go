@@ -8,7 +8,7 @@ import (
 )
 
 // The workspace is a Sandbox Workspace service (zbox@1): an Ubuntu VM with the orchestrator mounted at /opt/zerops/bin/zerops-zbox-orchestrator as a zstart package, so nothing is downloaded or deployed and a new orchestrator build reaches the workspace with the platform. The orchestrator runs Firecracker guests inside that VM, its only substrate, there is no docker.
-// One container, two dedicated cpus, 8 GB of RAM and a 50 GB disk, pinned so the workspace never scales: the orchestrator holds the sqlite file and the guests, a second container or a resize would not carry them.
+// One container of Cpu dedicated cpus, Ram GB of RAM and a Disk GB disk, min equal to max so the workspace never scales: the orchestrator holds the sqlite file and the guests, a second container or a resize would not carry them. The defaults live in cmd/setup.go (24 cpu, 128 GB, 250 GB since 2026-09-22, sized for the alpha metal nodes), `--cpu`, `--ram` and `--disk` go smaller.
 // Two http ports with subdomain access give two hosts in zeropsSubdomain: the API host first, the ingress host second. The orchestrator reads both itself.
 // The workspace API key is the service env ZBOX_WORKSPACE_API_KEY, a sensitive system env the Sandbox Workspace controller generates at service create (like the Qdrant apiKey), so the import carries no key of its own; the orchestrator reads it from its environment.
 // The orchestrator needs root on this type (network namespaces, taps, nftables, the jailer) and elevates itself: every subcommand re-execs under sudo with an explicit env list when it is not root. The image ships sudo-rs, which ignores `sudo -E`, so the template must not use it or the orchestrator never sees its key. The image mounts /var/lib/zbox itself.
@@ -27,12 +27,12 @@ const importTemplate = `{{with .ProjectName}}project:
     maxContainers: 1
     verticalAutoscaling:
       cpuMode: DEDICATED
-      minCpu: 2
-      maxCpu: 2
-      minRam: 8
-      maxRam: 8
-      minDisk: 50
-      maxDisk: 50
+      minCpu: {{.Cpu}}
+      maxCpu: {{.Cpu}}
+      minRam: {{.Ram}}
+      maxRam: {{.Ram}}
+      minDisk: {{.Disk}}
+      maxDisk: {{.Disk}}
     zeropsYaml:
       zerops:
         - setup: zbox
@@ -56,6 +56,10 @@ const importTemplate = `{{with .ProjectName}}project:
 type ImportParams struct {
 	ProjectName string
 	Hostname    string
+	// Cpu, Ram and Disk size the one container: dedicated cpus, GB of RAM, GB of disk, each pinned as min and max. The driver floor is 2 cpu, 2 GB, 10 GB.
+	Cpu  int
+	Ram  int
+	Disk int
 	// Image is the first base of the workspace, a registry reference or the URL of a `docker save` tarball.
 	Image string
 	// Templates are warmed from Image before the orchestrator starts.
@@ -76,6 +80,9 @@ var (
 )
 
 func RenderImport(p ImportParams) (string, error) {
+	if p.Cpu < 2 || p.Ram < 2 || p.Disk < 10 {
+		return "", fmt.Errorf("workspace size %d cpu, %d GB RAM, %d GB disk is under the floor of 2 cpu, 2 GB RAM, 10 GB disk", p.Cpu, p.Ram, p.Disk)
+	}
 	if !importImage.MatchString(p.Image) {
 		return "", fmt.Errorf("image %q cannot go into the workspace yaml, use a plain registry reference or URL", p.Image)
 	}

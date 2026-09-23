@@ -166,6 +166,40 @@ func whenPtr(p *string) string {
 	return when(*p)
 }
 
+// took is the span between two API timestamps at millisecond resolution: whole seconds hide that a wake takes 400 ms and a park 3 s (the user's rule of 2026-09-22, "1s is too high of resolution"). An unfinished span is a dash.
+func took(created string, finished *string) string {
+	if finished == nil {
+		return "-"
+	}
+	from, to := api.Time(created), api.Time(*finished)
+	if from.IsZero() || to.IsZero() {
+		return "-"
+	}
+	return durationString(to.Sub(from))
+}
+
+func durationString(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Second:
+		return fmt.Sprintf("%d ms", d.Milliseconds())
+	case d < time.Minute:
+		return fmt.Sprintf("%.1f s", d.Seconds())
+	}
+	m := int(d / time.Minute)
+	return fmt.Sprintf("%dm %.1fs", m, (d - time.Duration(m)*time.Minute).Seconds())
+}
+
+// tookNote is the " in 395 ms" tail of a finished operation's line.
+func tookNote(op *api.BaseOperation) string {
+	if op == nil || op.Finished == nil {
+		return ""
+	}
+	return " in " + took(op.Created, op.Finished)
+}
+
 func age(s string) string {
 	t := api.Time(s)
 	if t.IsZero() {

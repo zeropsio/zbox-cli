@@ -22,6 +22,10 @@ const (
 	defaultHostname = "zbox"
 	// defaultBaseImage is the image every workspace gets as its first base, pulled by the orchestrator from the tarball URL.
 	defaultBaseImage = config.DefaultBaseImage
+	// The workspace VM size, min equal to max. The alpha nodes are metal (32 to 64 cores, 251 GB), so the default is a big one since 2026-09-22; --cpu, --ram and --disk go smaller, the driver floor is 2 cpu, 2 GB, 10 GB.
+	defaultCpu  = 24
+	defaultRam  = 128
+	defaultDisk = 250
 	// The service env the Sandbox Workspace controller generates the workspace API key into at service create.
 	apiKeyEnv = "ZBOX_WORKSPACE_API_KEY"
 	// How long the key env gets to show up before the GUI hand-over is used instead; the subdomain env is already there by then.
@@ -33,6 +37,9 @@ var (
 	flagSetupProjectId string
 	flagSetupImage     string
 	flagSetupTemplates []string
+	flagSetupCpu       int
+	flagSetupRam       int
+	flagSetupDisk      int
 	flagTeardownYes    bool
 	setupPingTimeout   = 5 * time.Minute
 	setupBaseTimeout   = 15 * time.Minute
@@ -71,7 +78,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Image: flagSetupImage, Templates: templates})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage, Templates: templates})
 		if err != nil {
 			return err
 		}
@@ -87,7 +94,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, Image: flagSetupImage, Templates: templates})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage, Templates: templates})
 		if err != nil {
 			return err
 		}
@@ -257,6 +264,10 @@ var statusCmd = &cobra.Command{
 			return nil
 		}
 		fmt.Printf("Orchestrator: %s on %s, ingress %s\n", info.Version, strings.ToLower(string(info.Substrate)), info.IngressHost)
+		// An orchestrator from before the capacity fields answers zeros, the lines mean nothing then.
+		if info.Capacity.Cpus > 0 {
+			fmt.Printf("Capacity: %s\nIn use: %s\n", capacityString(info.Capacity), usageString(info.Usage))
+		}
 		return nil
 	},
 }
@@ -361,8 +372,14 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 	}
 }
 
-// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import.
+// defaultTemplates are the warm templates of a workspace when --template says nothing: `dev` is the everyday size, `big` the one the experts VM of the demo spawns with `zbox new --template big`.
+var defaultTemplates = []string{"dev:4g:2", "big:16g:4"}
+
+// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import. A single `none` asks for no template at all.
 func importTemplates(specs []string) ([]zerops.ImportTemplate, error) {
+	if len(specs) == 1 && specs[0] == "none" {
+		return nil, nil
+	}
 	var out []zerops.ImportTemplate
 	for _, spec := range specs {
 		parts := strings.Split(spec, ":")
@@ -440,7 +457,10 @@ func init() {
 	setupCmd.Flags().StringVar(&flagSetupName, "name", defaultHostname, "name of the Zerops project to create, or hostname of the workspace service when --project-id is given")
 	setupCmd.Flags().StringVar(&flagSetupProjectId, "project-id", "", "create the workspace in this existing project instead of creating a new one")
 	setupCmd.Flags().StringVar(&flagSetupImage, "image", defaultBaseImage, "image registered as the first base of the workspace")
-	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", nil, "warm template built from the image before the workspace starts, as name[:memory[:cpus]] (dev:4g:2); repeatable, each adds up to a minute to the setup")
+	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", defaultTemplates, "warm template built from the image before the workspace starts, as name[:memory[:cpus]]; repeatable, the first replaces the defaults, a single none builds no template, each adds up to a minute to the setup")
+	setupCmd.Flags().IntVar(&flagSetupCpu, "cpu", defaultCpu, "dedicated cpus of the workspace VM (min 2)")
+	setupCmd.Flags().IntVar(&flagSetupRam, "ram", defaultRam, "RAM of the workspace VM in GB (min 2), the sandboxes take theirs from it")
+	setupCmd.Flags().IntVar(&flagSetupDisk, "disk", defaultDisk, "disk of the workspace VM in GB (min 10), one pool for bases, sandboxes and snapshots")
 	teardownCmd.Flags().BoolVarP(&flagTeardownYes, "yes", "y", false, "skip the confirmation")
 	rootCmd.AddCommand(setupCmd, teardownCmd, statusCmd)
 }

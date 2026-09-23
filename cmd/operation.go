@@ -57,9 +57,9 @@ var opLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tKIND\tSANDBOX\tSTATUS\tCREATED\tFINISHED\tERROR", func(w io.Writer) {
+			table("ID\tKIND\tSANDBOX\tSTATUS\tCREATED\tFINISHED\tTOOK\tERROR", func(w io.Writer) {
 				for _, op := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", op.Id, op.Kind, dash(str(op.SandboxId)), op.Status, when(op.Created), whenPtr(op.Finished), dash(str(op.Error)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", op.Id, op.Kind, dash(str(op.SandboxId)), op.Status, when(op.Created), whenPtr(op.Finished), took(op.Created, op.Finished), dash(str(op.Error)))
 				}
 			})
 		})
@@ -129,7 +129,7 @@ var opWaitCmd = &cobra.Command{
 }
 
 func printOperation(op *api.BaseOperation) {
-	pairs := []string{"ID", op.Id, "Kind", string(op.Kind), "Status", string(op.Status), "Sandbox", dash(str(op.SandboxId)), "Created", when(op.Created), "Finished", whenPtr(op.Finished)}
+	pairs := []string{"ID", op.Id, "Kind", string(op.Kind), "Status", string(op.Status), "Sandbox", dash(str(op.SandboxId)), "Created", when(op.Created), "Finished", whenPtr(op.Finished), "Took", took(op.Created, op.Finished)}
 	if op.ParentId != nil {
 		pairs = append(pairs, "Parent", *op.ParentId)
 	}

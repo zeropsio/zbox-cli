@@ -43,12 +43,28 @@ var workspaceCmd = &cobra.Command{
 				"Ingress host", info.IngressHost,
 				"Version", info.Version,
 				"Substrate", strings.ToLower(string(info.Substrate)),
+				"Capacity", capacityString(info.Capacity),
+				"In use", usageString(info.Usage),
 				"Always denied", dash(strings.Join(info.AlwaysDenied, ", ")),
 			)
 			fmt.Println("Policy:")
 			_ = printJson(info.Policy)
 		})
 	},
+}
+
+// capacityString is the VM as the host sees it: cores, MemTotal, the size of the data volume.
+func capacityString(c api.BaseWorkspaceCapacity) string {
+	return fmt.Sprintf("%d cpu, %s, %s disk", c.Cpus, bytesString(c.MemoryBytes), bytesString(c.DiskBytes))
+}
+
+// usageString is what the running sandboxes reserve of it and what the data volume holds across bases, templates, sandboxes and snapshots.
+func usageString(u api.BaseWorkspaceUsage) string {
+	noun := "sandboxes"
+	if u.RunningSandboxes == 1 {
+		noun = "sandbox"
+	}
+	return fmt.Sprintf("%d cpu, %s by %d running %s (%d parked), %s disk", u.Cpus, bytesString(u.MemoryBytes), u.RunningSandboxes, noun, u.ParkedSandboxes, bytesString(u.DiskBytes))
 }
 
 var workspacePolicyCmd = &cobra.Command{

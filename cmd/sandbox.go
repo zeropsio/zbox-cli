@@ -177,7 +177,7 @@ var lsCmd = &cobra.Command{
 }
 
 var getCmd = &cobra.Command{
-	Use:   "get <id>",
+	Use:   "get <id|name>",
 	Short: "Show one sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -194,7 +194,7 @@ var getCmd = &cobra.Command{
 }
 
 var setCmd = &cobra.Command{
-	Use:   "set <id>",
+	Use:   "set <id|name>",
 	Short: "Rename a sandbox or change its TTLs",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -215,7 +215,7 @@ var setCmd = &cobra.Command{
 }
 
 var rmCmd = &cobra.Command{
-	Use:   "rm <id>...",
+	Use:   "rm <id|name>...",
 	Short: "Terminate sandboxes",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -236,7 +236,7 @@ var rmCmd = &cobra.Command{
 			}
 			ops = append(ops, *op)
 			if !flagJson {
-				fmt.Printf("%s %s\n", id, verb(op, "terminated"))
+				fmt.Printf("%s %s%s\n", id, verb(op, "terminated"), tookNote(op))
 			}
 		}
 		return emit(ops, func() {})
@@ -244,7 +244,7 @@ var rmCmd = &cobra.Command{
 }
 
 var parkCmd = &cobra.Command{
-	Use:   "park <id>",
+	Use:   "park <id|name>",
 	Short: "Park a sandbox: keep its disk and memory, free its RAM",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -257,7 +257,7 @@ var parkCmd = &cobra.Command{
 }
 
 var wakeCmd = &cobra.Command{
-	Use:   "wake <id>",
+	Use:   "wake <id|name>",
 	Short: "Wake a parked sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -270,7 +270,7 @@ var wakeCmd = &cobra.Command{
 }
 
 var forkCmd = &cobra.Command{
-	Use:   "fork <id>",
+	Use:   "fork <id|name>",
 	Short: "Fork a sandbox into one or more children that continue from its current state",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -303,7 +303,9 @@ func runOperation(cmd *cobra.Command, ws *api.Workspace, past string, start func
 			return err
 		}
 	}
-	return emit(op, func() { fmt.Printf("%s %s%s (operation %s)\n", str(op.SandboxId), verb(op, past), bootNote(op), op.Id) })
+	return emit(op, func() {
+		fmt.Printf("%s %s%s%s (operation %s)\n", str(op.SandboxId), verb(op, past), bootNote(op), tookNote(op), op.Id)
+	})
 }
 
 // bootNote reads the receipt of a finished boot (CREATE, WAKE, FORK, RESTORE): the result is a free object in the contract, resumedMemory says whether the guest resumed from a memory image instead of cold booting.
@@ -342,7 +344,8 @@ func runSpawn(cmd *cobra.Command, ws *api.Workspace, start func() (*api.Response
 				return err
 			}
 			spawn.Sandboxes[i] = *s
-			notes[s.Id] = bootNote(childOf(cmd, ws, parent, s.Id))
+			child := childOf(cmd, ws, parent, s.Id)
+			notes[s.Id] = bootNote(child) + tookNote(child)
 		}
 	}
 	return emit(spawn, func() {

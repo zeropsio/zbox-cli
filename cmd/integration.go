@@ -221,7 +221,7 @@ func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) 
 }
 
 var attachCmd = &cobra.Command{
-	Use:   "attach <sandbox-id> <label>",
+	Use:   "attach <sandbox-id|name> <label>",
 	Short: "Attach an integration or a peer sandbox to a sandbox under a label",
 	Long:  "The sandbox then reaches it at http://<label>.int.<workspace-domain>/. Give --integration for a defined integration or --peer with --peer-port for another sandbox's published port.",
 	Args:  cobra.ExactArgs(2),
@@ -256,7 +256,7 @@ var attachCmd = &cobra.Command{
 }
 
 var detachCmd = &cobra.Command{
-	Use:   "detach <sandbox-id> <label>...",
+	Use:   "detach <sandbox-id|name> <label>...",
 	Short: "Detach integrations from a sandbox",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -275,7 +275,7 @@ var detachCmd = &cobra.Command{
 }
 
 var attachmentsCmd = &cobra.Command{
-	Use:   "attachments <sandbox-id>",
+	Use:   "attachments <sandbox-id|name>",
 	Short: "List what a sandbox has attached",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

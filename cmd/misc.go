@@ -35,7 +35,7 @@ var credentialCmd = &cobra.Command{
 }
 
 var credentialIssueCmd = &cobra.Command{
-	Use:   "issue <sandbox-id>",
+	Use:   "issue <sandbox-id|name>",
 	Short: "Issue a ticket or a token for a port, the secret is shown once",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -72,7 +72,7 @@ var credentialIssueCmd = &cobra.Command{
 }
 
 var credentialLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id>",
+	Use:   "ls <sandbox-id|name>",
 	Short: "List the credentials of a sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -282,7 +282,7 @@ func eventsText(events []string, sep string) string {
 }
 
 var metricsCmd = &cobra.Command{
-	Use:   "metrics <sandbox-id>",
+	Use:   "metrics <sandbox-id|name>",
 	Short: "Hourly resource usage of a sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

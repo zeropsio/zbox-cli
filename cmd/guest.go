@@ -37,7 +37,7 @@ func execRequest(argv []string) (api.RequestPostExec, error) {
 }
 
 var execCmd = &cobra.Command{
-	Use:   "exec <id> -- <command...>",
+	Use:   "exec <id|name> -- <command...>",
 	Short: "Run a command in a sandbox and exit with its exit code",
 	Long:  "The command is argv, run without a shell: `zbox exec <id> -- sh -c 'a | b'` for a pipeline. A parked sandbox is woken first.",
 	Args:  cobra.MinimumNArgs(2),
@@ -70,7 +70,7 @@ var execCmd = &cobra.Command{
 }
 
 var processCmd = &cobra.Command{
-	Use:   "process <id> -- <command...>",
+	Use:   "process <id|name> -- <command...>",
 	Short: "Start a detached process in a sandbox and print its session",
 	Long:  "The session id is the handle: `zbox session output` reads what it wrote, `zbox session interrupt` stops it.",
 	Args:  cobra.MinimumNArgs(2),
@@ -97,7 +97,7 @@ var sessionCmd = &cobra.Command{
 }
 
 var sessionLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id>",
+	Use:   "ls <sandbox-id|name>",
 	Short: "List the sessions of a sandbox",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -197,7 +197,7 @@ var fileCmd = &cobra.Command{
 }
 
 var fileLsCmd = &cobra.Command{
-	Use:   "ls <id> <path>",
+	Use:   "ls <id|name> <path>",
 	Short: "List a directory",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -227,7 +227,7 @@ var fileLsCmd = &cobra.Command{
 }
 
 var fileGetCmd = &cobra.Command{
-	Use:   "get <id> <path>",
+	Use:   "get <id|name> <path>",
 	Short: "Download a file, to stdout or to -o",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -245,7 +245,7 @@ var fileGetCmd = &cobra.Command{
 }
 
 var fileArchiveCmd = &cobra.Command{
-	Use:   "archive <id> <path>",
+	Use:   "archive <id|name> <path>",
 	Short: "Download a directory as a tar stream, to stdout or to -o",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -263,7 +263,7 @@ var fileArchiveCmd = &cobra.Command{
 }
 
 var filePutCmd = &cobra.Command{
-	Use:   "put <id> <local-file> <path>",
+	Use:   "put <id|name> <local-file> <path>",
 	Short: "Upload a file, - reads stdin",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -293,7 +293,7 @@ var filePutCmd = &cobra.Command{
 }
 
 var fileRmCmd = &cobra.Command{
-	Use:   "rm <id> <path>...",
+	Use:   "rm <id|name> <path>...",
 	Short: "Delete files",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -328,7 +328,7 @@ func writeOut(r io.Reader, path string) error {
 }
 
 var sshCmd = &cobra.Command{
-	Use:   "ssh <id>",
+	Use:   "ssh <id|name>",
 	Short: "Show how to reach a sandbox over SSH on the project VPN",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -359,7 +359,7 @@ var sshCmd = &cobra.Command{
 }
 
 var sshKeyCmd = &cobra.Command{
-	Use:   "ssh-key <id> [public-key-file]",
+	Use:   "ssh-key <id|name> [public-key-file]",
 	Short: "Install an OpenSSH public key for the workload user, defaults to ~/.ssh/id_ed25519.pub",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {

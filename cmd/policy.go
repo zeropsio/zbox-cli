@@ -11,7 +11,7 @@ import (
 )
 
 var policyCmd = &cobra.Command{
-	Use:   "policy <id>",
+	Use:   "policy <id|name>",
 	Short: "Print a sandbox's policy, or replace it with -f",
 	Long:  "The policy is versioned: the file must carry the policyGeneration that was read, a concurrent change is rejected instead of overwritten. Without -f the current one is printed in the shape -f takes.",
 	Args:  cobra.ExactArgs(1),
@@ -46,7 +46,7 @@ var portCmd = &cobra.Command{
 }
 
 var portLsCmd = &cobra.Command{
-	Use:   "ls <id>",
+	Use:   "ls <id|name>",
 	Short: "List the ports of a sandbox with their URLs",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,7 +63,7 @@ var portLsCmd = &cobra.Command{
 }
 
 var portOpenCmd = &cobra.Command{
-	Use:   "open <id> <port[/protocol][/access]>...",
+	Use:   "open <id|name> <port[/protocol][/access]>...",
 	Short: "Declare ports on a sandbox, keeping the ones already there",
 	Long:  "A port is port[/protocol][/access]: 3000, 3000/public, 5432/tcp/project. Access is members (default, the workspace API key), project, ticket, token or public. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
 	Args:  cobra.MinimumNArgs(2),
@@ -77,7 +77,7 @@ var portOpenCmd = &cobra.Command{
 }
 
 var portCloseCmd = &cobra.Command{
-	Use:   "close <id> <port>...",
+	Use:   "close <id|name> <port>...",
 	Short: "Remove ports from a sandbox's policy",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {

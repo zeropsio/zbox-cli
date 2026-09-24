@@ -8,7 +8,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/spf13/cobra v1.9.1
-	github.com/zeropsio/zerops-go v0.0.0
+	github.com/zeropsio/zerops-go v1.0.23
 	golang.org/x/term v0.35.0
 )
 
@@ -42,7 +42,5 @@ require (
 	golang.org/x/tools v0.48.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/zeropsio/zerops-go => ../nest/pkg/zerops/publicSdk/zerops-go
 
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen

@@ -3,7 +3,7 @@
 Agent sandboxes on Zerops. The CLI creates a sandbox workspace in your Zerops account and manages the sandboxes inside it. One Zerops service is one workspace.
 
 ```sh
-go build -o zbox .
+go install ./cmd/zbox         # or from anywhere: go install github.com/zeropsio/zbox-cli/cmd/zbox@latest (the repo is private: GOPRIVATE=github.com/zeropsio)
 
 zbox login                    # through the Zerops GUI, or: zbox login --token <PAT>, or --email
 zbox setup                    # creates the Zerops project with the workspace and its default base

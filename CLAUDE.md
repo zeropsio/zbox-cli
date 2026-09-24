@@ -41,7 +41,7 @@ go generate ./internal/api
 Build straight into the user's PATH after every change, they test by hand from there:
 
 ```sh
-go build -o ~/.local/bin/zbox .
+go build -o ~/.local/bin/zbox ./cmd/zbox
 ```
 
 `zbox login` and `zbox register` open the Zerops GUI by default and receive a personal access token on a loopback hand-over (`internal/browser`), the machinery Zerops Code uses: the CLI opens `<gui>/authorize-app?app=zbox&state=<nonce>&port=<port>` (`&intent=register` for register), the GUI redirects the browser to `http://localhost:<port>/zerops/authorized` with the credential in the **fragment** (`#token=&state=`, or `#error=<code>&state=`), and the callback page the CLI serves posts the fragment to `/zerops/authorized/deliver` and scrubs it from history. The receiver listens on 127.0.0.1 and ::1, checks the nonce, and maps the GUI's codes (`access_denied`, `mint_failed`, `workspace_not_found`, `reveal_failed`, `workspace_not_ready`) to `HandoverError`; `authorize` waits for the `zeropsSubdomain` env before opening the browser so the last one is not met. `browser_test.go` plays the GUI and the browser against it. `--token` stores a given token; `--email` (with `--password`, asked for without echo) logs in from the terminal through `POST /auth/login` and mints the token itself (`POST /user-token`), which cannot answer two-factor authentication and cannot be exercised with a token (`notAllowedForApplicationToken`). The GUI origin is `guiUrl` in the config, `--gui-url` for one run, and by default `http://alpha.devel.zerops.dev` (`config.DefaultGuiUrl`), the deployed alpha GUI, which serves the hand-over since 2026-09-22; `--gui-url http://localhost:1111` points a run at the GUI dev server on this machine (`~/code/zerops/frontend`).

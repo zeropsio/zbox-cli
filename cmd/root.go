@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	flagApiUrl string
-	flagGuiUrl string
-	flagJson   bool
+	flagApiUrl    string
+	flagGuiUrl    string
+	flagWorkspace string
+	flagJson      bool
 )
 
 var rootCmd = &cobra.Command{
@@ -58,6 +59,7 @@ func (e exitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
 func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.BoolVar(&flagJson, "json", false, "print the API objects as JSON instead of text, for scripts and agents")
+	pf.StringVar(&flagWorkspace, "workspace", "", "work on this known workspace for one run and leave the current one as it is: its name, service id, project name or API host (env "+config.EnvWorkspace+")")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL, stored by `zbox login`")
 	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
 	_ = pf.MarkHidden("public-api-url")
@@ -78,6 +80,43 @@ func loadConfig() (config.Config, error) {
 	return c, nil
 }
 
+// workspaceRef is the workspace named for this run and where the name came from, the flag before ZBOX_WORKSPACE.
+func workspaceRef() (ref, source string) {
+	if flagWorkspace != "" {
+		return flagWorkspace, "--workspace"
+	}
+	return os.Getenv(config.EnvWorkspace), config.EnvWorkspace
+}
+
+// loadSelected is the config of the commands that work on a workspace: the workspace named for this run stands in for the current one (config.Pin), and saving such a config keeps the stored selection. The commands that manage the selection itself (switch, use, authorize, setup, ls) read loadConfig.
+func loadSelected() (config.Config, error) {
+	c, err := loadConfig()
+	if err != nil {
+		return c, err
+	}
+	ref, source := workspaceRef()
+	if ref == "" {
+		return c, nil
+	}
+	// The flag is the last word, but two env variables naming a workspace leave no way to tell which one was meant.
+	if source == config.EnvWorkspace && (os.Getenv(config.EnvWorkspaceUrl) != "" || os.Getenv(config.EnvWorkspaceKey) != "") {
+		return c, fmt.Errorf("%s and %s/%s both name the workspace, unset one of them", config.EnvWorkspace, config.EnvWorkspaceUrl, config.EnvWorkspaceKey)
+	}
+	c, err = c.Pin(ref)
+	if err != nil {
+		return c, fmt.Errorf("%s: %w", source, err)
+	}
+	return c, nil
+}
+
+// refuseOverride guards the commands whose whole effect is to change the current workspace, which a workspace named for one run is there to prevent.
+func refuseOverride(command string) error {
+	if ref, source := workspaceRef(); ref != "" {
+		return fmt.Errorf("`%s` changes the current workspace and %s (%s) names one for a single run, run it without", command, source, ref)
+	}
+	return nil
+}
+
 func zeropsClient(c config.Config) (*zerops.Client, error) {
 	token := c.EffectiveToken()
 	if token == "" {
@@ -88,7 +127,7 @@ func zeropsClient(c config.Config) (*zerops.Client, error) {
 
 // workspace is the orchestrator client of the assigned workspace. Most commands start here.
 func workspace() (*api.Workspace, error) {
-	c, err := loadConfig()
+	c, err := loadSelected()
 	if err != nil {
 		return nil, err
 	}

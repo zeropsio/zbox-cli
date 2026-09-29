@@ -299,8 +299,11 @@ func (c *Workspace) Operations(ctx context.Context, p GetOperationListParams) ([
 }
 
 func (c *Workspace) Operation(ctx context.Context, id string) (*BaseOperation, error) {
-	return ok[BaseOperation](c.gen.GetOperation(ctx, id))
+	return ok[BaseOperation](c.gen.GetOperation(ctx, id, &GetOperationParams{}))
 }
+
+// operationWaitSeconds is the orchestrator's cap on one held answer.
+const operationWaitSeconds = 30
 
 func (c *Workspace) Events(ctx context.Context, p GetEventListParams) ([]BaseEvent, error) {
 	return items[BaseEvent](c.gen.GetEventList(ctx, &p))
@@ -321,10 +324,11 @@ func (e OperationFailed) Error() string {
 	return fmt.Sprintf("%s failed: %s", strings.ToLower(string(e.Op.Kind)), msg)
 }
 
-// WaitOperation polls until the operation ends, and turns FAILED into an error so `--wait` commands exit non-zero.
+// WaitOperation long-polls until the operation ends, and turns FAILED into an error so `--wait` commands exit non-zero.
 func (c *Workspace) WaitOperation(ctx context.Context, id string) (*BaseOperation, error) {
+	wait := operationWaitSeconds
 	for {
-		op, err := c.Operation(ctx, id)
+		op, err := ok[BaseOperation](c.gen.GetOperation(ctx, id, &GetOperationParams{WaitSeconds: &wait}))
 		if err != nil {
 			return nil, err
 		}
@@ -337,7 +341,7 @@ func (c *Workspace) WaitOperation(ctx context.Context, id string) (*BaseOperatio
 		select {
 		case <-ctx.Done():
 			return op, ctx.Err()
-		case <-time.After(time.Second):
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
@@ -557,6 +561,28 @@ func (c *Workspace) WriteFile(ctx context.Context, id, path, mode string, body i
 
 func (c *Workspace) DeleteFile(ctx context.Context, id, path string) error {
 	return done(c.gen.DeleteSandboxFile(ctx, id, &DeleteSandboxFileParams{Path: path}))
+}
+
+// ---- Console routes
+//
+// The console is served by the orchestrator at / of the API host and its routes are registered by hand on its mux, outside the OpenAPI contract.
+
+// ConsoleTicket is a single-use console sign-in ticket, minted by POST /console/login-ticket. It lives 60 s.
+type ConsoleTicket struct {
+	Ticket  string `json:"ticket"`
+	Expires string `json:"expires"`
+}
+
+// ConsoleLoginTicket mints a single-use ticket for /console/login?ticket=, so the workspace API key never appears in a URL. An orchestrator from before 2026-09-24 has no such route and answers 404.
+func (c *Workspace) ConsoleLoginTicket(ctx context.Context) (*ConsoleTicket, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+"/console/login-ticket", nil)
+	if err != nil {
+		return nil, err
+	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+	return ok[ConsoleTicket](c.http.Do(req))
 }
 
 // ---- WebSocket routes

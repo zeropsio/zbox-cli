@@ -116,11 +116,32 @@ var workspaceUseCmd = &cobra.Command{
 			return fmt.Errorf("the workspace did not answer: %w", err)
 		}
 		// A workspace pointed at by hand has no Zerops ids the CLI could tear down.
-		w := config.Workspace{Name: flagWorkspaceName, WorkspaceUrl: url, ApiKey: flagWorkspaceKey}
+		w := config.Workspace{Name: cmp.Or(flagWorkspaceName, config.DefaultName(url)), WorkspaceUrl: url, ApiKey: flagWorkspaceKey}
+		// Named for one run, the workspace is only stored and the current one stays. The name has to be its own, so a ZBOX_WORKSPACE left in the environment cannot pass for a request to keep the selection.
+		if ref, source := workspaceRef(); ref != "" {
+			known := []config.Workspace{w}
+			for _, other := range c.Workspaces {
+				if other.WorkspaceUrl != w.WorkspaceUrl {
+					known = append(known, other)
+				}
+			}
+			if named, err := (config.Config{Workspaces: known}).Lookup(ref); err != nil || named.WorkspaceUrl != w.WorkspaceUrl {
+				return fmt.Errorf("%s %s does not name the workspace being stored (%s, %s); name it, or run without to make it the current one", source, ref, w.Name, w.Host())
+			}
+			if err := c.Remember(w); err != nil {
+				return err
+			}
+			fmt.Printf("Stored workspace %s: %s (%s on %s).", w.Name, url, info.Version, strings.ToLower(string(info.Substrate)))
+			if current, ok := c.Current(); ok && current.WorkspaceUrl != w.WorkspaceUrl {
+				fmt.Printf(" The current one stays %s (%s).", current.Name, current.Host())
+			}
+			fmt.Println()
+			return nil
+		}
 		if err := c.Assign(w); err != nil {
 			return err
 		}
-		fmt.Printf("Using workspace %s: %s (%s on %s).\n", cmp.Or(w.Name, config.DefaultName(url)), url, info.Version, strings.ToLower(string(info.Substrate)))
+		fmt.Printf("Using workspace %s: %s (%s on %s).\n", w.Name, url, info.Version, strings.ToLower(string(info.Substrate)))
 		return nil
 	},
 }
@@ -129,14 +150,19 @@ var workspaceForgetCmd = &cobra.Command{
 	Use:   "forget",
 	Short: "Drop the workspace assignment without deleting anything",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := loadConfig()
+		c, err := loadSelected()
 		if err != nil {
 			return err
 		}
+		forgotten, known := c.Current()
 		if err := c.ForgetWorkspace(); err != nil {
 			return err
 		}
-		fmt.Println("Workspace forgotten.")
+		if known {
+			fmt.Printf("Workspace %s (%s) forgotten.\n", forgotten.Name, forgotten.Host())
+		} else {
+			fmt.Println("Workspace forgotten.")
+		}
 		printOthers(c)
 		return nil
 	},
@@ -190,16 +216,45 @@ var workspaceLsCmd = &cobra.Command{
 					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\tstored\n", mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), "not in this account", dash(ws.ServiceId))
 				}
 			})
+			printMarks(c)
 		})
 	},
 }
 
-// mark is the asterisk of the current workspace in listings.
+// mark is the asterisk of the current workspace in listings, and the arrow of the one named for this run.
 func mark(c config.Config, workspaceUrl string) string {
-	if workspaceUrl != "" && workspaceUrl == c.WorkspaceUrl {
+	switch {
+	case workspaceUrl == "":
+		return " "
+	case workspaceUrl == overridden(c).WorkspaceUrl:
+		return ">"
+	case workspaceUrl == c.WorkspaceUrl:
 		return "*"
 	}
 	return " "
+}
+
+// overridden is the workspace named for this run, empty when none is or the name does not resolve: a listing is where one looks the name up, so it does not fail on it.
+func overridden(c config.Config) config.Workspace {
+	ref, _ := workspaceRef()
+	if ref == "" {
+		return config.Workspace{}
+	}
+	w, _ := c.Lookup(ref)
+	return w
+}
+
+// printMarks explains the arrow under a listing, or why there is none.
+func printMarks(c config.Config) {
+	ref, source := workspaceRef()
+	if ref == "" {
+		return
+	}
+	if w, err := c.Lookup(ref); err != nil {
+		fmt.Printf("%s: %v\n", source, err)
+	} else {
+		fmt.Printf("> is %s (%s %s), the workspace commands work on in this run; * is the current one.\n", w.Name, source, ref)
+	}
 }
 
 func printWorkspaces(c config.Config) {
@@ -212,6 +267,7 @@ func printWorkspaces(c config.Config) {
 			fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\n", mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), dash(ws.ServiceId))
 		}
 	})
+	printMarks(c)
 }
 
 var workspaceAuthorizeCmd = &cobra.Command{
@@ -281,6 +337,9 @@ var switchCmd = &cobra.Command{
 		if len(args) == 0 {
 			return emit(c.Workspaces, func() { printWorkspaces(c) })
 		}
+		if err := refuseOverride("zbox switch"); err != nil {
+			return err
+		}
 		w, err := c.Lookup(args[0])
 		if err != nil {
 			return err
@@ -304,16 +363,24 @@ func init() {
 var openCmd = &cobra.Command{
 	Use:   "open",
 	Short: "Open the console of the workspace in the browser, signed in",
-	Long:  "The orchestrator serves the console at the root of the workspace API host. The URL carries the workspace API key once: `/console/login?apiKey=` sets the console session cookie and redirects to `/`, the same trade-off as a MEMBERS port URL. Without a browser, paste the key from `zbox workspace key` into the console's own login form.",
+	Long:  "The orchestrator serves the console at the root of the workspace API host. The command mints a single-use sign-in ticket with the workspace API key (`POST /console/login-ticket`, valid for 60 s) and opens `/console/login?ticket=`, which sets the console session cookie and redirects to `/`. The key itself never appears in a URL. Without a browser, paste the key from `zbox workspace key` into the console's own login form.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		target := strings.TrimRight(ws.BaseUrl, "/") + "/console/login?apiKey=" + ws.ApiKey()
+		ticket, err := ws.ConsoleLoginTicket(cmd.Context())
+		if err != nil {
+			var e api.ApiError
+			if errors.As(err, &e) && e.Status == 404 {
+				return fmt.Errorf("the workspace runs an orchestrator from before 2026-09-24 without the console ticket route; restart the service to pick up the current one, or paste the key from `zbox workspace key` into the console's login form at %s", ws.BaseUrl)
+			}
+			return fmt.Errorf("mint a console ticket: %w", err)
+		}
+		target := ws.BaseUrl + "/console/login?ticket=" + url.QueryEscape(ticket.Ticket)
 		fmt.Println(target)
 		if err := browser.Open(target); err != nil {
-			fmt.Println("Could not open a browser, open the URL manually.")
+			fmt.Println("Could not open a browser, open the URL manually within a minute, it is single use.")
 		}
 		return nil
 	},

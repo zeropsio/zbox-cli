@@ -2005,6 +2005,9 @@ type RequestPostSandbox struct {
 
 	// TemplateDigest Spawn from a template, resuming its memory snapshot when it has one.
 	TemplateDigest *string `json:"templateDigest,omitempty"`
+
+	// WaitSeconds Hold the answer until the create operation finishes or fails, at most this many seconds (30 at most). The operation and the sandbox in the answer are then final.
+	WaitSeconds *int `json:"waitSeconds,omitempty"`
 }
 
 // RequestPostSandboxNetworkMode Fixed at create, design §5.8.
@@ -2629,7 +2632,7 @@ type Status string
 // To defines model for to.
 type To = string
 
-// WaitSeconds Long poll: hold the request up to this long when nothing is newer than the cursor.
+// WaitSeconds Hold the answer until the operation finishes or fails, at most this many seconds (30 at most). Omitted or 0 answers at once.
 type WaitSeconds = int
 
 // PostBaseParams defines parameters for PostBase.
@@ -2651,7 +2654,7 @@ type GetEventListParams struct {
 	Limit       *Limit       `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// WaitSeconds Long poll: hold the request up to this long when nothing is newer than the cursor.
-	WaitSeconds *WaitSeconds `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
+	WaitSeconds *int `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
 }
 
 // GetEventStreamParams defines parameters for GetEventStream.
@@ -2696,6 +2699,12 @@ type GetOperationListParamsStatus string
 
 // GetOperationListParamsKind defines parameters for GetOperationList.
 type GetOperationListParamsKind string
+
+// GetOperationParams defines parameters for GetOperation.
+type GetOperationParams struct {
+	// WaitSeconds Hold the answer until the operation finishes or fails, at most this many seconds (30 at most). Omitted or 0 answers at once.
+	WaitSeconds *WaitSeconds `form:"waitSeconds,omitempty" json:"waitSeconds,omitempty"`
+}
 
 // PostSandboxParams defines parameters for PostSandbox.
 type PostSandboxParams struct {
@@ -3095,7 +3104,7 @@ type ClientInterface interface {
 	GetOperationList(ctx context.Context, params *GetOperationListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetOperation performs a GET /api/rest/operation/{id} (the `GetOperation` operationId) request.
-	GetOperation(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetOperation(ctx context.Context, id Id, params *GetOperationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetPing performs a GET /api/rest/ping (the `GetPing` operationId) request.
 	GetPing(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3768,8 +3777,8 @@ func (c *Client) GetOperationList(ctx context.Context, params *GetOperationListP
 }
 
 // GetOperation performs a GET /api/rest/operation/{id} (the `GetOperation` operationId) request.
-func (c *Client) GetOperation(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetOperationRequest(c.Server, id)
+func (c *Client) GetOperation(ctx context.Context, id Id, params *GetOperationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOperationRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5843,7 +5852,7 @@ func NewGetOperationListRequest(server string, params *GetOperationListParams) (
 }
 
 // NewGetOperationRequest constructs an http.Request for the GetOperation method
-func NewGetOperationRequest(server string, id Id) (*http.Request, error) {
+func NewGetOperationRequest(server string, id Id, params *GetOperationParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5866,6 +5875,33 @@ func NewGetOperationRequest(server string, id Id) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.WaitSeconds != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "waitSeconds", *params.WaitSeconds, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -8553,7 +8589,7 @@ type ClientWithResponsesInterface interface {
 	// GetOperationWithResponse performs a GET /api/rest/operation/{id} (the `GetOperation` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetOperationWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetOperationResponse, error)
+	GetOperationWithResponse(ctx context.Context, id Id, params *GetOperationParams, reqEditors ...RequestEditorFn) (*GetOperationResponse, error)
 
 	// GetPingWithResponse performs a GET /api/rest/ping (the `GetPing` operationId) request.
 	//
@@ -14607,8 +14643,8 @@ func (c *ClientWithResponses) GetOperationListWithResponse(ctx context.Context, 
 // GetOperationWithResponse performs a GET /api/rest/operation/{id} (the `GetOperation` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetOperationWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetOperationResponse, error) {
-	rsp, err := c.GetOperation(ctx, id, reqEditors...)
+func (c *ClientWithResponses) GetOperationWithResponse(ctx context.Context, id Id, params *GetOperationParams, reqEditors ...RequestEditorFn) (*GetOperationResponse, error) {
+	rsp, err := c.GetOperation(ctx, id, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

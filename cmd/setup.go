@@ -51,6 +51,9 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Create a workspace, in a new Zerops project or in an existing one",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := refuseOverride("zbox setup"); err != nil {
+			return err
+		}
 		c, err := loadConfig()
 		if err != nil {
 			return err
@@ -170,7 +173,7 @@ var teardownCmd = &cobra.Command{
 	Long:  "Deletes the Zerops service of the current workspace with everything in it (sandboxes, bases, snapshots) and forgets it here. The project is left as it is, other services in it are not touched; an empty project created by `zbox setup` can be deleted in the Zerops GUI.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
-		c, err := loadConfig()
+		c, err := loadSelected()
 		if err != nil {
 			return err
 		}
@@ -181,8 +184,10 @@ var teardownCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		// Forgetting the workspace clears it from c, the project is named after that.
+		project := c.ProjectName
 		if !flagTeardownYes {
-			fmt.Printf("Delete the workspace service %s in project %s with every sandbox in it? The project stays. [y/N] ", currentLabel(c), c.ProjectName)
+			fmt.Printf("Delete the workspace service %s in project %s with every sandbox in it? The project stays. [y/N] ", currentLabel(c), project)
 			answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 			if strings.ToLower(strings.TrimSpace(answer)) != "y" {
 				return errors.New("aborted")
@@ -207,7 +212,7 @@ var teardownCmd = &cobra.Command{
 		if err := c.ForgetWorkspace(); err != nil {
 			return err
 		}
-		fmt.Printf("Workspace service deleted, project %s stays.\n", c.ProjectName)
+		fmt.Printf("Workspace service deleted, project %s stays.\n", project)
 		printOthers(c)
 		return nil
 	},
@@ -226,7 +231,7 @@ var statusCmd = &cobra.Command{
 	Short: "Show the login, the workspace and whether it answers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
-		c, err := loadConfig()
+		c, err := loadSelected()
 		if err != nil {
 			return err
 		}
@@ -258,7 +263,11 @@ var statusCmd = &cobra.Command{
 			return nil
 		}
 		url, key := c.EffectiveWorkspace()
-		fmt.Printf("Workspace: %s\n", url)
+		if ref, source := workspaceRef(); c.Pinned() {
+			fmt.Printf("Workspace: %s (%s %s, the current one is left as it is)\n", url, source, ref)
+		} else {
+			fmt.Printf("Workspace: %s\n", url)
+		}
 		ws := api.New(url, key)
 		info, err := ws.Info(ctx)
 		if err != nil {
@@ -276,7 +285,7 @@ var statusCmd = &cobra.Command{
 
 // ensureWorkspace offers the setup instead of failing, because `zbox new` is the first command most people reach for and the workspace is a prerequisite they have no reason to know about yet.
 func ensureWorkspace(ctx context.Context) (*api.Workspace, error) {
-	c, err := loadConfig()
+	c, err := loadSelected()
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +317,13 @@ func forgetGoneWorkspace(c *config.Config, err error, message string) error {
 
 // printOthers names the remaining workspaces after the current one is gone, so the reader knows a switch is one command away.
 func printOthers(c config.Config) {
+	// A workspace named for one run was dropped and the current one is still in use, there is nothing to switch to.
+	if ref, _ := workspaceRef(); ref != "" {
+		if w, ok := c.Current(); ok {
+			fmt.Printf("The current workspace stays %s (%s).\n", w.Name, w.Host())
+			return
+		}
+	}
 	if others := c.Others(); len(others) > 0 {
 		fmt.Printf("Other workspaces: %s. Switch with `zbox switch <name>`.\n", strings.Join(others, ", "))
 	}

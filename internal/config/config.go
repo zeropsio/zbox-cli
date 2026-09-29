@@ -2,6 +2,7 @@
 package config
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,8 @@ const (
 	EnvToken        = "ZBOX_TOKEN"
 	EnvWorkspaceUrl = "ZBOX_WORKSPACE_URL"
 	EnvWorkspaceKey = "ZBOX_API_KEY"
+	// EnvWorkspace names a known workspace for one run, the env form of --workspace. Unlike the URL and key pair it carries no secret, the key is the stored one.
+	EnvWorkspace = "ZBOX_WORKSPACE"
 )
 
 type Config struct {
@@ -41,6 +44,9 @@ type Config struct {
 	ApiKey string `json:"apiKey,omitempty"`
 	// Workspaces are the known workspaces, the current one included. The flat fields above stay the current one so every reader is unchanged; `zbox switch` copies another entry into them.
 	Workspaces []Workspace `json:"workspaces,omitempty"`
+
+	// pinned is the stored selection while the flat fields show the workspace named for this run (Pin). Save writes it back, so an override never becomes the current workspace.
+	pinned *Workspace
 }
 
 // Workspace is one saved assignment, addressed by its name in `zbox switch`.
@@ -123,11 +129,36 @@ func (c Config) Save() error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
+	// The receiver is a copy, so the caller keeps the pinned view while the file gets the stored selection.
+	if c.pinned != nil {
+		c.setCurrent(*c.pinned)
+	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(p, data, 0o600)
+}
+
+// Pin answers the config with the workspace named by ref in place of the current one, for one run: every reader of the flat fields works on it, and Save still writes the selection that was stored. The key is the stored one, so the workspace has to be known here.
+func (c Config) Pin(ref string) (Config, error) {
+	w, err := c.Lookup(ref)
+	if err != nil {
+		return c, err
+	}
+	if w.ApiKey == "" {
+		return c, fmt.Errorf("no key is stored for workspace %s (%s), `zbox workspace authorize %s` or `zbox workspace use %s --api-key <key>` stores it", w.Name, w.Host(), cmp.Or(w.ServiceId, "<service-id>"), w.WorkspaceUrl)
+	}
+	if c.pinned == nil {
+		c.pinned = &Workspace{ProjectId: c.ProjectId, ProjectName: c.ProjectName, ServiceId: c.ServiceId, WorkspaceUrl: c.WorkspaceUrl, ApiKey: c.ApiKey}
+	}
+	c.setCurrent(w)
+	return c, nil
+}
+
+// Pinned says whether the flat fields show a workspace named for this run rather than the stored selection.
+func (c Config) Pinned() bool {
+	return c.pinned != nil
 }
 
 // EffectiveGuiUrl is the Zerops GUI origin for the browser hand-offs: the stored value, otherwise the development default.
@@ -146,9 +177,12 @@ func (c Config) EffectiveToken() string {
 	return c.Token
 }
 
-// EffectiveWorkspace lets the environment point one run at any workspace, for scripts and for sandboxes that hold the key of their own workspace.
+// EffectiveWorkspace lets the environment point one run at any workspace, for scripts and for sandboxes that hold the key of their own workspace. A pinned workspace is the more specific word and is not overridden.
 func (c Config) EffectiveWorkspace() (url, key string) {
 	url, key = c.WorkspaceUrl, c.ApiKey
+	if c.pinned != nil {
+		return url, key
+	}
 	if v := os.Getenv(EnvWorkspaceUrl); v != "" {
 		url = v
 	}
@@ -190,31 +224,37 @@ func (c Config) find(workspaceUrl string) int {
 	return -1
 }
 
-// Lookup resolves what the user typed: a name, an API URL or host, a host prefix, or a service id.
+// Lookup resolves what the user typed: a name, an API URL or host, a service id, a project name or id, or a prefix of the name or host when nothing matches whole. A ref that fits several workspaces is refused with the candidates, never settled by the order of the list.
 func (c Config) Lookup(ref string) (Workspace, error) {
 	ref = strings.TrimSuffix(ref, "/")
-	for _, w := range c.Workspaces {
-		if w.Name == ref || w.WorkspaceUrl == ref || w.Host() == ref || (w.ServiceId != "" && w.ServiceId == ref) {
-			return w, nil
-		}
+	if ref == "" {
+		return Workspace{}, errors.New("no workspace named, `zbox workspace ls` lists them")
 	}
 	var hits []Workspace
 	for _, w := range c.Workspaces {
-		if strings.HasPrefix(w.Host(), ref) || strings.HasPrefix(w.Name, ref) {
+		if w.Name == ref || w.WorkspaceUrl == ref || w.Host() == ref || (w.ServiceId != "" && w.ServiceId == ref) || (w.ProjectName != "" && w.ProjectName == ref) || (w.ProjectId != "" && w.ProjectId == ref) {
 			hits = append(hits, w)
+		}
+	}
+	if len(hits) == 0 {
+		for _, w := range c.Workspaces {
+			if strings.HasPrefix(w.Host(), ref) || strings.HasPrefix(w.Name, ref) {
+				hits = append(hits, w)
+			}
 		}
 	}
 	switch len(hits) {
 	case 1:
 		return hits[0], nil
 	case 0:
-		return Workspace{}, fmt.Errorf("no known workspace matches %q, `zbox workspace ls` lists them", ref)
+		return Workspace{}, fmt.Errorf("no workspace with a key stored here matches %q: `zbox workspace ls` lists them, `zbox workspace authorize <service-id>` or `zbox workspace use <url> --api-key <key>` stores the key of one", ref)
 	default:
-		names := make([]string, len(hits))
-		for i, w := range hits {
-			names[i] = w.Name
+		var b strings.Builder
+		fmt.Fprintf(&b, "%q matches several workspaces, name one by its name, service id or API host:", ref)
+		for _, w := range hits {
+			fmt.Fprintf(&b, "\n  %s  (project %s, service %s, %s)", w.Name, cmp.Or(w.ProjectName, "-"), cmp.Or(w.ServiceId, "-"), w.Host())
 		}
-		return Workspace{}, fmt.Errorf("%q matches several workspaces: %s", ref, strings.Join(names, ", "))
+		return Workspace{}, errors.New(b.String())
 	}
 }
 
@@ -252,12 +292,17 @@ func (c *Config) setCurrent(w Workspace) {
 	c.ProjectId, c.ProjectName, c.ServiceId, c.WorkspaceUrl, c.ApiKey = w.ProjectId, w.ProjectName, w.ServiceId, w.WorkspaceUrl, w.ApiKey
 }
 
-// ForgetWorkspace drops the current workspace from the list and leaves none in use, `zbox switch` picks the next one.
+// ForgetWorkspace drops the current workspace from the list and leaves none in use, `zbox switch` picks the next one. A pinned workspace is dropped the same way and the stored selection stays, unless it was that very workspace.
 func (c *Config) ForgetWorkspace() error {
 	if i := c.find(c.WorkspaceUrl); i >= 0 {
 		c.Workspaces = append(c.Workspaces[:i], c.Workspaces[i+1:]...)
 	}
-	c.ProjectId, c.ProjectName, c.ServiceId, c.WorkspaceUrl, c.ApiKey = "", "", "", "", ""
+	var stays Workspace
+	if c.pinned != nil && c.pinned.WorkspaceUrl != c.WorkspaceUrl {
+		stays = *c.pinned
+	}
+	c.pinned = nil
+	c.setCurrent(stays)
 	return c.Save()
 }
 

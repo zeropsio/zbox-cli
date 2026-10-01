@@ -25,7 +25,7 @@ type Workspace struct {
 	http    *http.Client
 }
 
-// ApiKey is the workspace key the client sends, the text output appends it to MEMBERS port URLs so they open on click.
+// ApiKey is the workspace key the client sends as the bearer, printed by `zbox workspace key`. It never goes into a URL: the API, the WebSocket routes and the MEMBERS ports take it as an Authorization bearer only.
 func (w *Workspace) ApiKey() string { return w.apiKey }
 
 func New(baseUrl, apiKey string) *Workspace {

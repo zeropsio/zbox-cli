@@ -31,7 +31,7 @@ var (
 var credentialCmd = &cobra.Command{
 	Use:     "credential",
 	Aliases: []string{"cred"},
-	Short:   "Ingress credentials: preview tickets and tokens for ticket and token ports",
+	Short:   "Ingress credentials: one-time tickets for members and ticket ports, tokens for token ports",
 }
 
 var credentialIssueCmd = &cobra.Command{
@@ -351,7 +351,7 @@ var quarantineRmCmd = &cobra.Command{
 }
 
 func init() {
-	credentialIssueCmd.Flags().StringVar(&flagCredKind, "kind", "ticket", "ticket (one use, exchanged for a session cookie) or token (bearer)")
+	credentialIssueCmd.Flags().StringVar(&flagCredKind, "kind", "ticket", "ticket (one use, exchanged for a session cookie; members and ticket ports) or token (bearer; token ports only)")
 	credentialIssueCmd.Flags().IntVar(&flagCredPort, "port", 0, "the sandbox port the credential is for")
 	credentialIssueCmd.Flags().DurationVar(&flagCredTtl, "ttl", 0, "validity, for example 1h")
 	credentialIssueCmd.Flags().StringVar(&flagCredName, "name", "", "label")

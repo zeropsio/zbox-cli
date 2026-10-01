@@ -94,6 +94,6 @@ func init() {
 	sandboxArgs(getCmd, setCmd, parkCmd, wakeCmd, forkCmd, shellCmd, execCmd, processCmd, sessionLsCmd,
 		fileLsCmd, fileGetCmd, fileArchiveCmd, filePutCmd, fileRmCmd, sshCmd, sshKeyCmd,
 		policyCmd, portLsCmd, portOpenCmd, portCloseCmd, attachCmd, detachCmd, attachmentsCmd,
-		credentialIssueCmd, credentialLsCmd, metricsCmd, snapshotCreateCmd, snapshotLsCmd)
+		credentialIssueCmd, credentialLsCmd, metricsCmd, snapshotCreateCmd, snapshotLsCmd, openCmd)
 	sandboxArgsAll(rmCmd)
 }

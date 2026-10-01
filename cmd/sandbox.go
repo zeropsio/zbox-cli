@@ -30,7 +30,7 @@ var (
 	flagNewWorkdir     string
 	flagNewEnv         []string
 	flagNoWait         bool
-	flagLsStatus       string
+	flagLsStatus       []string
 	flagLsLineage      string
 	flagLsParent       string
 	flagSetName        string
@@ -161,7 +161,7 @@ var lsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		p := api.GetSandboxListParams{Status: upperPtr[api.GetSandboxListParamsStatus](flagLsStatus), LineageId: optional(flagLsLineage), ParentId: optional(flagLsParent)}
+		p := api.GetSandboxListParams{Status: statusList(flagLsStatus), LineageId: optional(flagLsLineage), ParentId: optional(flagLsParent)}
 		list, err := ws.Sandboxes(cmd.Context(), p)
 		if err != nil {
 			return err
@@ -468,20 +468,17 @@ func printPorts(s *api.BaseSandbox) {
 	})
 }
 
-// openUrl is the URL of a port as the user opens it: the router takes the credential once as a query
-// parameter, exchanges it for a session cookie and redirects to the clean URL. MEMBERS ports carry the
-// workspace key, TICKET and TOKEN ports carry the secret when one is given (only `zbox cred issue`
-// knows it), PUBLIC ports stay bare and PROJECT ports are not reachable through the edge.
+// openUrl is the URL of a port as the user opens it: the router takes a fresh credential once as a query
+// parameter, exchanges it for a session cookie and redirects to the clean URL. MEMBERS and TICKET ports
+// take a ticket, TOKEN ports a token, appended when one is given (`zbox cred issue` and `zbox open` mint
+// them; a listing has none and prints the bare URL). A MEMBERS port takes no workspace key at all since
+// 2026-10-01. PUBLIC ports stay bare and PROJECT ports are not reachable through the edge.
 func openUrl(url string, access api.BaseIngressPortAccess, secret string) string {
 	if url == "" {
 		return ""
 	}
 	switch access {
-	case api.BaseIngressPortAccessMEMBERS:
-		if workspaceKey != "" {
-			return url + "?apiKey=" + workspaceKey
-		}
-	case api.BaseIngressPortAccessTICKET:
+	case api.BaseIngressPortAccessMEMBERS, api.BaseIngressPortAccessTICKET:
 		if secret != "" {
 			return url + "?ticket=" + secret
 		}
@@ -491,6 +488,22 @@ func openUrl(url string, access api.BaseIngressPortAccess, secret string) string
 		}
 	}
 	return url
+}
+
+// statusList turns the repeatable --status values (and comma-separated ones in a single flag) into the API's list, upper-cased; none leaves the parameter out, which lists the live sandboxes. An unknown value is the API's 400 to report, the valid set is in the flag help.
+func statusList(in []string) *[]string {
+	var out []string
+	for _, v := range in {
+		for _, s := range strings.Split(v, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				out = append(out, string(upper[string](s)))
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return &out
 }
 
 func declaredPorts(s *api.BaseSandbox) []api.BaseIngressPort {
@@ -589,7 +602,7 @@ func init() {
 	f.StringArrayVarP(&flagNewEnv, "env", "e", nil, "launch env override as KEY=value, repeatable")
 	f.BoolVar(&flagNoWait, "no-wait", false, "return right after the create request")
 
-	lsCmd.Flags().StringVar(&flagLsStatus, "status", "", "only sandboxes in this status")
+	lsCmd.Flags().StringArrayVar(&flagLsStatus, "status", nil, "only sandboxes in any of these statuses, repeatable or comma-separated: creating, running, parking, parked, waking, forking, restoring, failed, terminated, archived (default: the live ones, terminated and archived excluded)")
 	lsCmd.Flags().StringVar(&flagLsLineage, "lineage", "", "only sandboxes of this lineage")
 	lsCmd.Flags().StringVar(&flagLsParent, "parent", "", "only children of this sandbox")
 

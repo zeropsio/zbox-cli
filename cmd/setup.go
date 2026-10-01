@@ -163,7 +163,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		return err
 	}
 	screen.Stop()
-	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\nCreate your first sandbox with `zbox new`, open the console with `zbox open`, or find the workspace in the Zerops GUI under zbox.\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
+	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\nCreate your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI under zbox.\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
 	return nil
 }
 

@@ -1229,48 +1229,6 @@ func (e GetOperationListParamsKind) Valid() bool {
 	}
 }
 
-// Defines values for GetSandboxListParamsStatus.
-const (
-	GetSandboxListParamsStatusARCHIVED   GetSandboxListParamsStatus = "ARCHIVED"
-	GetSandboxListParamsStatusCREATING   GetSandboxListParamsStatus = "CREATING"
-	GetSandboxListParamsStatusFAILED     GetSandboxListParamsStatus = "FAILED"
-	GetSandboxListParamsStatusFORKING    GetSandboxListParamsStatus = "FORKING"
-	GetSandboxListParamsStatusPARKED     GetSandboxListParamsStatus = "PARKED"
-	GetSandboxListParamsStatusPARKING    GetSandboxListParamsStatus = "PARKING"
-	GetSandboxListParamsStatusRESTORING  GetSandboxListParamsStatus = "RESTORING"
-	GetSandboxListParamsStatusRUNNING    GetSandboxListParamsStatus = "RUNNING"
-	GetSandboxListParamsStatusTERMINATED GetSandboxListParamsStatus = "TERMINATED"
-	GetSandboxListParamsStatusWAKING     GetSandboxListParamsStatus = "WAKING"
-)
-
-// Valid indicates whether the value is a known member of the GetSandboxListParamsStatus enum.
-func (e GetSandboxListParamsStatus) Valid() bool {
-	switch e {
-	case GetSandboxListParamsStatusARCHIVED:
-		return true
-	case GetSandboxListParamsStatusCREATING:
-		return true
-	case GetSandboxListParamsStatusFAILED:
-		return true
-	case GetSandboxListParamsStatusFORKING:
-		return true
-	case GetSandboxListParamsStatusPARKED:
-		return true
-	case GetSandboxListParamsStatusPARKING:
-		return true
-	case GetSandboxListParamsStatusRESTORING:
-		return true
-	case GetSandboxListParamsStatusRUNNING:
-		return true
-	case GetSandboxListParamsStatusTERMINATED:
-		return true
-	case GetSandboxListParamsStatusWAKING:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for GetSandboxSessionListParamsKind.
 const (
 	GetSandboxSessionListParamsKindEXEC GetSandboxSessionListParamsKind = "EXEC"
@@ -2566,9 +2524,6 @@ type AfterId = int64
 // AfterSeq Per-sandbox cursor: return events with a greater seq.
 type AfterSeq = int
 
-// ApiKey The Workspace API key for clients that cannot set the Authorization header on a WebSocket upgrade.
-type ApiKey = string
-
 // BeforeId Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.
 type BeforeId = string
 
@@ -2661,9 +2616,6 @@ type GetEventListParams struct {
 type GetEventStreamParams struct {
 	AfterId   *int64     `form:"afterId,omitempty" json:"afterId,omitempty"`
 	SandboxId *SandboxId `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
-
-	// ApiKey The Workspace API key for clients that cannot set the Authorization header on a WebSocket upgrade.
-	ApiKey *ApiKey `form:"apiKey,omitempty" json:"apiKey,omitempty"`
 }
 
 // GetExportListParams defines parameters for GetExportList.
@@ -2713,13 +2665,11 @@ type PostSandboxParams struct {
 
 // GetSandboxListParams defines parameters for GetSandboxList.
 type GetSandboxListParams struct {
-	Status    *GetSandboxListParamsStatus `form:"status,omitempty" json:"status,omitempty"`
-	LineageId *LineageId                  `form:"lineageId,omitempty" json:"lineageId,omitempty"`
-	ParentId  *ParentId                   `form:"parentId,omitempty" json:"parentId,omitempty"`
+	// Status Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.
+	Status    *[]string  `form:"status,omitempty" json:"status,omitempty"`
+	LineageId *LineageId `form:"lineageId,omitempty" json:"lineageId,omitempty"`
+	ParentId  *ParentId  `form:"parentId,omitempty" json:"parentId,omitempty"`
 }
-
-// GetSandboxListParamsStatus defines parameters for GetSandboxList.
-type GetSandboxListParamsStatus string
 
 // DeleteSandboxParams defines parameters for DeleteSandbox.
 type DeleteSandboxParams struct {
@@ -2813,9 +2763,6 @@ type GetSandboxShellParams struct {
 	// SessionId Reconnect to an open PTY session instead of opening a new one.
 	SessionId     *SessionId     `form:"sessionId,omitempty" json:"sessionId,omitempty"`
 	SessionTicket *SessionTicket `form:"sessionTicket,omitempty" json:"sessionTicket,omitempty"`
-
-	// ApiKey The Workspace API key for clients that cannot set the Authorization header on a WebSocket upgrade.
-	ApiKey *ApiKey `form:"apiKey,omitempty" json:"apiKey,omitempty"`
 }
 
 // PostSandboxSnapshotParams defines parameters for PostSandboxSnapshot.
@@ -5198,18 +5145,6 @@ func NewGetEventStreamRequest(server string, params *GetEventStreamParams) (*htt
 
 		}
 
-		if params.ApiKey != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "apiKey", *params.ApiKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -6083,7 +6018,7 @@ func NewGetSandboxListRequest(server string, params *GetSandboxListParams) (*htt
 
 		if params.Status != nil {
 
-			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: "stringArray"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -7365,18 +7300,6 @@ func NewGetSandboxShellRequest(server string, id Id, params *GetSandboxShellPara
 		if params.SessionTicket != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sessionTicket", *params.SessionTicket, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if params.ApiKey != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "apiKey", *params.ApiKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

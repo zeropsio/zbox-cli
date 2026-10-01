@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -357,13 +358,28 @@ func init() {
 	workspaceUseCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox switch`, defaults to the first label of the API host")
 	workspaceAuthorizeCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox switch`, defaults to the service hostname")
 	workspaceCmd.AddCommand(workspaceLsCmd, workspaceAuthorizeCmd, workspaceKeyCmd, workspacePolicyCmd, workspaceUseCmd, workspaceForgetCmd)
-	rootCmd.AddCommand(workspaceCmd, openCmd, switchCmd)
+	rootCmd.AddCommand(workspaceCmd, openCmd, consoleCmd, switchCmd)
 }
 
 var openCmd = &cobra.Command{
-	Use:   "open",
+	Use:   "open <sandbox-id|name> [port]",
+	Short: "Open a port of a sandbox in the browser, signed in",
+	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. Scripts talk to a token port with a token from `zbox cred issue`, members ports take no API key. The console is `zbox console`.",
+	Args:  cobra.RangeArgs(1, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		return openPort(cmd, ws, args[0], args[1:])
+	},
+}
+
+var consoleCmd = &cobra.Command{
+	Use:   "console",
 	Short: "Open the console of the workspace in the browser, signed in",
-	Long:  "The orchestrator serves the console at the root of the workspace API host. The command mints a single-use sign-in ticket with the workspace API key (`POST /console/login-ticket`, valid for 60 s) and opens `/console/login?ticket=`, which sets the console session cookie and redirects to `/`. The key itself never appears in a URL. Without a browser, paste the key from `zbox workspace key` into the console's own login form.",
+	Long:  "The orchestrator serves the console at the root of the workspace API host. The command mints a single-use sign-in ticket with the workspace API key (`POST /console/login-ticket`, valid for 60 s) and opens `/console/login?ticket=`, which sets the console session cookie and redirects to `/`. The key itself never appears in a URL. Without a browser, paste the key from `zbox workspace key` into the console's own login form. A sandbox port is opened with `zbox open`.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -377,13 +393,86 @@ var openCmd = &cobra.Command{
 			}
 			return fmt.Errorf("mint a console ticket: %w", err)
 		}
-		target := ws.BaseUrl + "/console/login?ticket=" + url.QueryEscape(ticket.Ticket)
-		fmt.Println(target)
-		if err := browser.Open(target); err != nil {
-			fmt.Println("Could not open a browser, open the URL manually within a minute, it is single use.")
-		}
-		return nil
+		return openInBrowser(ws.BaseUrl + "/console/login?ticket=" + url.QueryEscape(ticket.Ticket))
 	},
+}
+
+// openTicketTtl is how long the credential minted for one `zbox open` lives: long enough to land in the browser, not long enough to be worth copying.
+const openTicketTtl = 60
+
+// openPort opens one HTTP port of a sandbox: the port named, or the only one with a URL. A members or ticket port is entered with a fresh one-time ticket, a token port with a fresh token (the router takes either once as a query parameter and sets the session cookie), a public port bare. The credential is minted here and now, listings never carry one.
+func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) error {
+	s, err := ws.Sandbox(cmd.Context(), id)
+	if err != nil {
+		return err
+	}
+	urls := map[int]string{}
+	for _, h := range s.Hosts {
+		urls[h.Port] = h.Url
+	}
+	var port api.BaseIngressPort
+	switch len(rest) {
+	case 1:
+		n, err := strconv.Atoi(rest[0])
+		if err != nil {
+			return fmt.Errorf("%q is not a port number", rest[0])
+		}
+		found := false
+		for _, p := range declaredPorts(s) {
+			if p.Port == n {
+				port, found = p, true
+			}
+		}
+		if !found {
+			return fmt.Errorf("sandbox %s has no port %d declared, see `zbox port ls %s`", s.Id, n, s.Id)
+		}
+	default:
+		var candidates []api.BaseIngressPort
+		for _, p := range declaredPorts(s) {
+			if urls[p.Port] != "" {
+				candidates = append(candidates, p)
+			}
+		}
+		switch len(candidates) {
+		case 1:
+			port = candidates[0]
+		case 0:
+			return fmt.Errorf("sandbox %s has no HTTP port with a URL, open one with `zbox port open %s <port>`", s.Id, s.Id)
+		default:
+			ports := make([]string, 0, len(candidates))
+			for _, p := range candidates {
+				ports = append(ports, strconv.Itoa(p.Port))
+			}
+			return fmt.Errorf("sandbox %s has several HTTP ports, name one: %s", s.Id, strings.Join(ports, ", "))
+		}
+	}
+	base := urls[port.Port]
+	if base == "" {
+		return fmt.Errorf("port %d of sandbox %s has no URL: %s ports are not reachable through the edge", port.Port, s.Id, strings.ToLower(string(port.Access)))
+	}
+	var kind api.RequestPostIngressCredentialKind
+	switch port.Access {
+	case api.BaseIngressPortAccessPUBLIC:
+		return openInBrowser(base)
+	case api.BaseIngressPortAccessTOKEN:
+		kind = api.RequestPostIngressCredentialKindTOKEN
+	default:
+		kind = api.RequestPostIngressCredentialKindTICKET
+	}
+	issued, err := ws.IssueCredential(cmd.Context(), s.Id, api.RequestPostIngressCredential{Kind: kind, Port: port.Port, Name: optional("zbox open"), TtlSeconds: optionalInt(openTicketTtl)})
+	if err != nil {
+		return fmt.Errorf("issue a %s for port %d: %w", strings.ToLower(string(kind)), port.Port, err)
+	}
+	return openInBrowser(openUrl(base, port.Access, issued.Secret))
+}
+
+// openInBrowser prints the URL and opens it. The credential in it is single use and short lived, so a failed browser launch says to hurry.
+func openInBrowser(target string) error {
+	fmt.Println(target)
+	if err := browser.Open(target); err != nil {
+		fmt.Println("Could not open a browser, open the URL manually within a minute, it is single use.")
+	}
+	return nil
 }
 
 var workspaceKeyCmd = &cobra.Command{

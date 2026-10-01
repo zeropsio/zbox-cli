@@ -135,12 +135,8 @@ func workspace() (*api.Workspace, error) {
 		return nil, errors.New("no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`")
 	}
 	url, key := c.EffectiveWorkspace()
-	workspaceKey = key
 	return api.New(url, key), nil
 }
-
-// workspaceKey is the key of the workspace in use, printed into MEMBERS port URLs (see openUrl).
-var workspaceKey string
 
 // ---- output
 

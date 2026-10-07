@@ -45,6 +45,8 @@ var (
 	flagTeardownYes    bool
 	setupPingTimeout   = 5 * time.Minute
 	setupBaseTimeout   = 15 * time.Minute
+	// How long the base of ZBOX_WORKSPACE_BASES gets to show up in the list before the CLI registers it itself. zsc pulls it before the orchestrator starts, so it is normally there at the first look; a failed pull is only a warning in the project log and leaves no row at all.
+	setupBasePoll = 3 * time.Minute
 )
 
 var setupCmd = &cobra.Command{
@@ -72,7 +74,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err != nil {
 		return err
 	}
-	templates, err := importTemplates(flagSetupTemplates, flagSetupWarmups)
+	templates, err := setupTemplates(flagSetupTemplates, flagSetupWarmups)
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage, Templates: templates})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage})
 		if err != nil {
 			return err
 		}
@@ -99,7 +101,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage, Templates: templates})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupName, Hostname: defaultHostname, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, Image: flagSetupImage})
 		if err != nil {
 			return err
 		}
@@ -120,7 +122,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
-	screen.Step("Building and starting the workspace")
+	screen.Step("Starting the workspace")
 	// The Zerops processes behind the import are not shown, their names describe the plumbing rather than anything the reader can act on, and a failure is reported as an error anyway.
 	if err := zc.WaitProcesses(ctx, res.Processes, func(zerops.ProcessState) {}); err != nil {
 		return err
@@ -156,14 +158,31 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	if err := waitForPing(ctx, ws); err != nil {
 		return err
 	}
-	// The init commands of the service registered the base already (`base ensure`), so this finds it READY; against an orchestrator from before those commands it registers it.
+	// The orchestrator pulls the image named in ZBOX_WORKSPACE_BASES in the background once it listens, so the row appears a little after the API answers.
 	screen.Step("Checking the default base image")
 	base, err := ensureBase(ctx, ws, flagSetupImage)
 	if err != nil {
 		return err
 	}
+	// Templates are not built at start any more (since 2026-10-06), they are created through the API the way `zbox template create --warm` does, one after the other, each waited for.
+	for _, t := range templates {
+		screen.Step("Building the warm template " + t.Name)
+		if err := createSetupTemplate(ctx, ws, base.Digest, t); err != nil {
+			screen.Stop()
+			fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
+			return fmt.Errorf("%w; the workspace is up, `zbox template create --warm` builds the template again", err)
+		}
+	}
 	screen.Stop()
-	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\nCreate your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI under zbox.\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
+	fmt.Printf("The workspace is ready: %s\nDefault base %s (%s).\n", c.WorkspaceUrl, short(base.Digest), base.ImageRef)
+	if len(templates) > 0 {
+		names := make([]string, len(templates))
+		for i, t := range templates {
+			names[i] = t.Name
+		}
+		fmt.Printf("Warm templates: %s.\n", strings.Join(names, ", "))
+	}
+	fmt.Println("Create your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI under zbox.")
 	return nil
 }
 
@@ -393,21 +412,29 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 // defaultTemplates are the warm templates of a workspace when --template says nothing: `dev` is the everyday size, `big` the one the experts VM of the demo spawns with `zbox new --template big`.
 var defaultTemplates = []string{"dev:4g:2", "big:16g:4"}
 
-// importTemplates reads the --template values, name[:memory[:cpus]], into the `template ensure` lines of the import, and the --warmup values, name=command, onto the template of that name. A single `none` asks for no template at all.
-func importTemplates(specs []string, warmups []string) ([]zerops.ImportTemplate, error) {
+// setupTemplate is one warm template the setup creates through the API once the base is READY. Zero MemoryBytes or Cpus leave the sandbox default. Warmup is the shell command run in the build guest before its memory is captured, empty for none.
+type setupTemplate struct {
+	Name        string
+	MemoryBytes int64
+	Cpus        int
+	Warmup      string
+}
+
+// setupTemplates reads the --template values, name[:memory[:cpus]], and the --warmup values, name=command, onto the template of that name. A single `none` asks for no template at all.
+func setupTemplates(specs []string, warmups []string) ([]setupTemplate, error) {
 	if len(specs) == 1 && specs[0] == "none" {
 		if len(warmups) > 0 {
 			return nil, fmt.Errorf("--warmup names a template and --template none builds none")
 		}
 		return nil, nil
 	}
-	var out []zerops.ImportTemplate
+	var out []setupTemplate
 	for _, spec := range specs {
 		parts := strings.Split(spec, ":")
 		if len(parts) > 3 || parts[0] == "" {
 			return nil, fmt.Errorf("--template %q: use name[:memory[:cpus]], for example dev:4g:2", spec)
 		}
-		t := zerops.ImportTemplate{Name: parts[0]}
+		t := setupTemplate{Name: parts[0]}
 		if len(parts) > 1 && parts[1] != "" {
 			n, err := parseBytes(parts[1])
 			if err != nil {
@@ -429,7 +456,7 @@ func importTemplates(specs []string, warmups []string) ([]zerops.ImportTemplate,
 		if !ok || name == "" || command == "" {
 			return nil, fmt.Errorf("--warmup %q: use name=command, for example dev='claude --version'", spec)
 		}
-		i := slices.IndexFunc(out, func(t zerops.ImportTemplate) bool { return t.Name == name })
+		i := slices.IndexFunc(out, func(t setupTemplate) bool { return t.Name == name })
 		if i < 0 {
 			return nil, fmt.Errorf("--warmup %q: no --template named %q", spec, name)
 		}
@@ -441,23 +468,54 @@ func importTemplates(specs []string, warmups []string) ([]zerops.ImportTemplate,
 	return out, nil
 }
 
-// ensureBase registers the image as a base unless one already exists for it, and waits until it is READY. A workspace with no base cannot serve `zbox new`.
-func ensureBase(ctx context.Context, ws *api.Workspace, imageRef string) (*api.BaseBase, error) {
-	bases, err := ws.Bases(ctx)
+// createSetupTemplate creates one warm template from the base and waits until it is READY, failing with the orchestrator's reason when the build does.
+func createSetupTemplate(ctx context.Context, ws *api.Workspace, baseDigest string, t setupTemplate) error {
+	warm := true
+	req := api.RequestPostTemplate{BaseDigest: baseDigest, Name: optional(t.Name), Warm: &warm, Warmup: optional(t.Warmup), Cpus: optionalInt(t.Cpus)}
+	if t.MemoryBytes != 0 {
+		req.MemoryBytes = &t.MemoryBytes
+	}
+	created, err := ws.CreateTemplate(ctx, req)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("template %s: %w", t.Name, err)
 	}
-	var base *api.BaseBase
-	for i := range bases {
-		if bases[i].ImageRef == imageRef && bases[i].Status != api.BaseBaseStatusFAILED {
-			base = &bases[i]
-		}
+	if _, err := waitTemplate(ctx, ws, created.Digest); err != nil {
+		return fmt.Errorf("template %s: %w", t.Name, err)
 	}
-	if base == nil {
-		base, err = ws.CreateBase(ctx, api.RequestPostBase{ImageRef: imageRef})
+	return nil
+}
+
+// ensureBase finds the base of the image and waits until it is READY. zsc registers the image named in ZBOX_WORKSPACE_BASES before the orchestrator starts and the row exists only once the pull succeeded (a failed pull is a warning in the project log, there is no row), so the row is polled for setupBasePoll in case the orchestrator is still catching up, and only then is the image registered through the API, which gets the pull's error back; a second pull of a ref already registered is a no-op on the digest, so the fallback is safe, just slower. A workspace with no base cannot serve `zbox new`.
+func ensureBase(ctx context.Context, ws *api.Workspace, imageRef string) (*api.BaseBase, error) {
+	deadline := time.Now().Add(setupBasePoll)
+	for {
+		bases, err := ws.Bases(ctx)
 		if err != nil {
 			return nil, err
 		}
+		var base *api.BaseBase
+		for i := range bases {
+			// A failed pull is reported with its reason by the wait, the orchestrator retries it at the next restart or reload.
+			if bases[i].ImageRef == imageRef && bases[i].Status != api.BaseBaseStatusDELETED {
+				base = &bases[i]
+			}
+		}
+		if base != nil {
+			return waitForBase(ctx, ws, base.Digest, setupBaseTimeout)
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+	// Nothing showed up in time: the pull failed at start, or the workspace is from before the env; the fallback registers the image itself and gets the pull's error back.
+	base, err := ws.CreateBase(ctx, api.RequestPostBase{ImageRef: imageRef})
+	if err != nil {
+		return nil, err
 	}
 	return waitForBase(ctx, ws, base.Digest, setupBaseTimeout)
 }
@@ -492,7 +550,7 @@ func init() {
 	setupCmd.Flags().StringVar(&flagSetupName, "name", defaultHostname, "name of the Zerops project to create, or hostname of the workspace service when --project-id is given")
 	setupCmd.Flags().StringVar(&flagSetupProjectId, "project-id", "", "create the workspace in this existing project instead of creating a new one")
 	setupCmd.Flags().StringVar(&flagSetupImage, "image", defaultBaseImage, "image registered as the first base of the workspace")
-	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", defaultTemplates, "warm template built from the image before the workspace starts, as name[:memory[:cpus]]; repeatable, the first replaces the defaults, a single none builds no template, each adds up to a minute to the setup")
+	setupCmd.Flags().StringArrayVar(&flagSetupTemplates, "template", defaultTemplates, "warm template built from the image once the workspace is up, as name[:memory[:cpus]]; repeatable, the first replaces the defaults, a single none builds no template, each adds up to a minute to the setup")
 	setupCmd.Flags().StringArrayVar(&flagSetupWarmups, "warmup", nil, "shell command a template runs in its guest before the memory is captured, as name=command (for example dev='claude --version'), so what it loads is resident in every spawn; repeatable, one per template name")
 	setupCmd.Flags().IntVar(&flagSetupCpu, "cpu", defaultCpu, "dedicated cpus of the workspace VM (min 2)")
 	setupCmd.Flags().IntVar(&flagSetupRam, "ram", defaultRam, "RAM of the workspace VM in GB (min 2), the sandboxes take theirs from it")

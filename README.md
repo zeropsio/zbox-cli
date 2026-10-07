@@ -26,11 +26,12 @@ go install github.com/zeropsio/zbox-cli/cmd/zbox@latest
 
 ```sh
 zbox login                    # through the Zerops GUI, or: zbox login --token <PAT>, or --email; zbox register creates an account
-zbox setup                    # creates the Zerops project with the workspace, its default base and the dev and big warm templates
+zbox setup                    # creates the Zerops project with the workspace, waits for its default base and builds the dev and big warm templates
 zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname)
-zbox setup --template dev:4g:2  # builds only a warm template named dev (4 GB, 2 cpus); the default builds dev:4g:2 and big:16g:4
+zbox setup --template dev:4g:2  # builds only a warm template named dev (4 GB, 2 cpus); the default builds dev:4g:2 and big:16g:4, --template none builds none
 zbox setup --cpu 2 --ram 8 --disk 50  # a small workspace VM instead of the default 24 cpu, 128 GB, 250 GB
 zbox setup --warmup dev='claude --version'  # the dev template runs this before its memory is captured, so claude is resident in every spawn
+zbox setup --image ubuntu:26.04  # the first base, written into the service env ZBOX_WORKSPACE_BASES; add more there (whitespace or commas) and reload the service
 zbox status                   # the login, the workspace, whether it answers, its capacity and what is in use
 
 zbox workspace ls             # the workspaces of the account, the ones with a stored key are named
@@ -67,6 +68,8 @@ claude mcp add zbox -- zbox mcp --template dev   # MCP server on stdio: run_code
 Every command takes `--json` and prints the API objects as they are. Mutations wait for their operation and exit non-zero when it fails, unless `--no-wait`.
 
 Also there: `set` (rename, TTLs), `policy`, `template`, `credential` (tickets and tokens for preview ports), `connector` (claude, github, codex logins), `integration`, `attach`, `detach` and `attachments` (credential proxy), `webhook`, `session`, `process`, `file`, `ssh`, `ssh-key`, `lineage`, `export`, `import`, `metrics`, `quarantine`.
+
+The workspace is a managed Zerops service (`zbox@1`): nothing is deployed to it, the orchestrator ships with the platform and starts on its own. The service env `ZBOX_WORKSPACE_BASES` lists the bases it registers at start (image references or `docker save` tarball URLs, separated by whitespace or commas), `zbox setup` writes the first one; an edit applies at the next service reload (keeps the sandboxes up) or restart (reboots the VM, parks every sandbox). Templates are created through the API (`zbox setup` does it after the base is READY, `zbox template create --warm` any time).
 
 State lives in `~/.config/zbox/config.json` (override with `ZBOX_CONFIG`). `ZBOX_TOKEN` overrides the stored Zerops token, `ZBOX_WORKSPACE` (or `--workspace`) picks a stored workspace for one run, `ZBOX_WORKSPACE_URL` and `ZBOX_API_KEY` override the workspace entirely.
 

@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -283,8 +285,13 @@ var templateRmCmd = &cobra.Command{
 }
 
 func waitForTemplate(cmd *cobra.Command, ws *api.Workspace, digest string) (*api.BaseTemplate, error) {
+	return waitTemplate(cmd.Context(), ws, digest)
+}
+
+// waitTemplate holds until the template is READY, or fails with the orchestrator's reason when the build does. A warm-up has a 10 minute limit on the orchestrator side, so there is no timeout here.
+func waitTemplate(ctx context.Context, ws *api.Workspace, digest string) (*api.BaseTemplate, error) {
 	for {
-		t, err := ws.Template(cmd.Context(), digest)
+		t, err := ws.Template(ctx, digest)
 		if err != nil {
 			return nil, err
 		}
@@ -296,8 +303,10 @@ func waitForTemplate(cmd *cobra.Command, ws *api.Workspace, digest string) (*api
 		case api.BaseTemplateStatusFAILED:
 			return t, fmt.Errorf("template %s failed: %s", short(digest), dash(str(t.FailedReason)))
 		}
-		if err := sleep(cmd, 3); err != nil {
-			return t, err
+		select {
+		case <-ctx.Done():
+			return t, ctx.Err()
+		case <-time.After(3 * time.Second):
 		}
 	}
 }

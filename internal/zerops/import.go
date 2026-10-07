@@ -4,28 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"strings"
 	"text/template"
 )
 
-// The workspace is a Sandbox Workspace service (zbox@1): an Ubuntu VM with the orchestrator mounted at /opt/zerops/bin/zerops-zbox-orchestrator as a zstart package, so nothing is downloaded or deployed and a new orchestrator build reaches the workspace with the platform. The orchestrator runs Firecracker guests inside that VM, its only substrate, there is no docker.
-// One container of Cpu dedicated cpus, Ram GB of RAM and a Disk GB disk, min equal to max so the workspace never scales: the orchestrator holds the sqlite file and the guests, a second container or a resize would not carry them. The defaults live in cmd/setup.go (24 cpu, 128 GB, 250 GB since 2026-09-22, sized for the alpha metal nodes), `--cpu`, `--ram` and `--disk` go smaller.
-// Two http ports with subdomain access give two hosts in zeropsSubdomain: the API host first, the ingress host second. The orchestrator reads both itself.
-// The workspace API key is the service env ZBOX_WORKSPACE_API_KEY, a sensitive system env the Sandbox Workspace controller generates at service create (like the Qdrant apiKey), so the import carries no key of its own; the orchestrator reads it from its environment.
-// The orchestrator needs root on this type (network namespaces, taps, nftables, the jailer) and elevates itself: every subcommand re-execs under sudo with an explicit env list when it is not root. The image ships sudo-rs, which ignores `sudo -E`, so the template must not use it or the orchestrator never sees its key. The image mounts /var/lib/zbox itself.
-// The orchestrator does not migrate its database at start: `migrate` creates the sqlite file when missing and applies the pending migrations, exiting non-zero on failure so a broken schema never reaches `run`.
-// `run` does not prepare the host either: `host prepare` does (guest kernel, rw disk, cgroups, nft base table) and leaves a stamp without which `run` refuses to start, so the line is mandatory and comes right after `migrate`. `base ensure` and `template ensure` are the init-time twins of POST /base and POST /template, idempotent, so the workspace has its base (and the asked-for warm templates, each waited for) before the API answers. All of them elevate themselves like `run`, `migrate` included, so /var/lib/zbox has one owner.
+// The workspace is a Sandbox Workspace service (zbox@1), a managed (STANDARD) service type since 2026-10-06: an Ubuntu VM in which zsc runs the orchestrator from the image as root (`zerops-zbox-orchestrator prepare`, then the systemd unit with `run`), so the import carries no appVersion, no zerops.yml, no commands and nothing is deployed; a new orchestrator build reaches the workspace with the platform. The orchestrator runs Firecracker guests inside that VM, its only substrate, there is no docker.
+// One container of Cpu dedicated cpus, Ram GB of RAM and a Disk GB disk, min equal to max so the workspace never scales: the orchestrator holds the sqlite file and the guests, a second container or a resize would not carry them. The defaults live in cmd/setup.go (24 cpu, 128 GB, 250 GB since 2026-09-22, sized for the alpha metal nodes), `--cpu`, `--ram` and `--disk` go smaller. The type takes no minContainers or maxContainers, the import refuses them.
+// The controller publishes the two http ports itself (8080 API, 8081 ingress) and writes zeropsSubdomain as two lines, the API host first.
+// The workspace API key is the service env ZBOX_WORKSPACE_API_KEY, a sensitive system env the controller generates at service create (like the Qdrant apiKey), so the import carries no key of its own. The orchestrator reads no service env: before every start zsc writes the key, the two hosts and the bases into /etc/zerops-zbox-orchestrator/config.yml, the only configuration the orchestrator reads.
+// The bases come from the plain user env ZBOX_WORKSPACE_BASES: image references or `docker save` tarball URLs separated by whitespace or commas. `run` pulls each in the background once the API listens (a failed pull is logged and tried again at the next start, a base registered earlier under the same reference is kept), so a slow registry never gates the service start. The platform has no default, so the import sets the first base; an edit of the env or of the key applies at the next explicit restart, stop and start, or reload of the service (reload keeps the sandboxes up, a restart reboots the VM), never on its own. Templates are not built at start, cmd/setup.go creates them through the API once the base is READY.
 // An empty ProjectName drops the project section, which is the shape the service-stack import into an existing project expects.
-// zeropsSetup is spelled out because the hostname is free to differ from the setup name, and without it Zerops would look for a setup named after the hostname.
 const importTemplate = `{{with .ProjectName}}project:
   name: {{.}}
 {{end}}services:
   - hostname: {{.Hostname}}
     type: zbox@1
     enableSubdomainAccess: true
-    zeropsSetup: zbox
-    minContainers: 1
-    maxContainers: 1
     verticalAutoscaling:
       cpuMode: DEDICATED
       minCpu: {{.Cpu}}
@@ -34,24 +27,8 @@ const importTemplate = `{{with .ProjectName}}project:
       maxRam: {{.Ram}}
       minDisk: {{.Disk}}
       maxDisk: {{.Disk}}
-    zeropsYaml:
-      zerops:
-        - setup: zbox
-          run:
-            base: zbox@1
-            ports:
-              - port: 8080
-                httpSupport: true
-              - port: 8081
-                httpSupport: true
-            initCommands:
-              - /opt/zerops/bin/zerops-zbox-orchestrator migrate
-              - /opt/zerops/bin/zerops-zbox-orchestrator host prepare
-              - /opt/zerops/bin/zerops-zbox-orchestrator base ensure {{.Image}}
-{{- range .Templates}}
-              - {{.Line $.Image}}
-{{- end}}
-            start: /opt/zerops/bin/zerops-zbox-orchestrator run
+    envVariables:
+      ZBOX_WORKSPACE_BASES: {{.Image}}
 `
 
 type ImportParams struct {
@@ -61,46 +38,12 @@ type ImportParams struct {
 	Cpu  int
 	Ram  int
 	Disk int
-	// Image is the first base of the workspace, a registry reference or the URL of a `docker save` tarball.
+	// Image is the first base of the workspace, a registry reference or the URL of a `docker save` tarball, the value of ZBOX_WORKSPACE_BASES.
 	Image string
-	// Templates are warmed from Image before the orchestrator starts.
-	Templates []ImportTemplate
 }
 
-// ImportTemplate is one `template ensure` line. Zero MemoryBytes or Cpus leave the sandbox default. Warmup is the shell command run in the build guest before its memory is captured, empty for none.
-type ImportTemplate struct {
-	Name        string
-	MemoryBytes int64
-	Cpus        int
-	Warmup      string
-}
-
-// Line is the init command of the template: a plain YAML scalar without a warm-up, a double-quoted one with it, since the shell-quoted command may hold anything a plain scalar would read into.
-func (t ImportTemplate) Line(image string) string {
-	line := "/opt/zerops/bin/zerops-zbox-orchestrator template ensure --name " + t.Name + " --base " + image
-	if t.MemoryBytes != 0 {
-		line += fmt.Sprintf(" --memory %d", t.MemoryBytes)
-	}
-	if t.Cpus != 0 {
-		line += fmt.Sprintf(" --cpus %d", t.Cpus)
-	}
-	if t.Warmup == "" {
-		return line
-	}
-	line += " --warmup " + shellQuote(t.Warmup)
-	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(line) + `"`
-}
-
-// shellQuote wraps a command in single quotes for the shell the init command runs through, the only quoting that keeps every other character literal.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
-
-// The values land unquoted in a command line inside the YAML, so they are held to what neither YAML nor a shell reads anything into.
-var (
-	importImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@+=-]*$`)
-	importName  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-)
+// The image lands as a plain scalar in the YAML and is split on whitespace and commas by the orchestrator, so it is held to what neither reads anything into.
+var importImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@+=-]*$`)
 
 func RenderImport(p ImportParams) (string, error) {
 	if p.Cpu < 2 || p.Ram < 2 || p.Disk < 10 {
@@ -108,15 +51,6 @@ func RenderImport(p ImportParams) (string, error) {
 	}
 	if !importImage.MatchString(p.Image) {
 		return "", fmt.Errorf("image %q cannot go into the workspace yaml, use a plain registry reference or URL", p.Image)
-	}
-	for _, t := range p.Templates {
-		if !importName.MatchString(t.Name) {
-			return "", fmt.Errorf("template name %q cannot go into the workspace yaml, use letters, digits, dots, dashes and underscores", t.Name)
-		}
-		// The warm-up is quoted, so it may hold anything printable; a control character or a newline would end the command line or the scalar early.
-		if strings.ContainsFunc(t.Warmup, func(r rune) bool { return r < ' ' || r == 0x7f }) {
-			return "", fmt.Errorf("warm-up of template %q holds a control character, keep it one line", t.Name)
-		}
 	}
 	t, err := template.New("import").Parse(importTemplate)
 	if err != nil {

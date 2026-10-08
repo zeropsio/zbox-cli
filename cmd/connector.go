@@ -36,7 +36,7 @@ var connectorLsCmd = &cobra.Command{
 		return emit(list, func() {
 			table("NAME\tTITLE\tSTATUS\tKIND\tCREDENTIAL ENV\tINTEGRATIONS\tLOGIN", func(w io.Writer) {
 				for _, c := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", c.Name, c.Title, c.Status, dash(str(c.CredentialKind)), c.CredentialEnv, strings.Join(c.Integrations, ","), yesNo(c.LoginAvailable))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", c.Name, c.Title, c.Status, dash(kindStr(c.CredentialKind)), c.CredentialEnv, strings.Join(c.Integrations, ","), yesNo(c.LoginAvailable))
 				}
 			})
 		})
@@ -74,7 +74,12 @@ var connectorSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c, err := ws.SetConnectorCredential(cmd.Context(), args[0], api.RequestPutConnectorCredential{Value: value, Kind: optional(flagConnectorKind)})
+		var kind *api.RequestPutConnectorCredentialKind
+		if flagConnectorKind != "" {
+			k := api.RequestPutConnectorCredentialKind(flagConnectorKind)
+			kind = &k
+		}
+		c, err := ws.SetConnectorCredential(cmd.Context(), args[0], api.RequestPutConnectorCredential{Value: value, Kind: kind})
 		if err != nil {
 			return err
 		}
@@ -165,10 +170,17 @@ func readCredential(name string) (string, error) {
 }
 
 func printConnector(c *api.BaseConnector) {
-	fields("Name", c.Name, "Title", c.Title, "Status", string(c.Status), "Kind", dash(str(c.CredentialKind)), "Credential env", c.CredentialEnv, "Integrations", dash(strings.Join(c.Integrations, ", ")), "Guest env", dash(strings.Join(c.GuestEnv, ", ")), "Browser login", yesNo(c.LoginAvailable))
+	fields("Name", c.Name, "Title", c.Title, "Status", string(c.Status), "Kind", dash(kindStr(c.CredentialKind)), "Credential env", c.CredentialEnv, "Integrations", dash(strings.Join(c.Integrations, ", ")), "Guest env", dash(strings.Join(c.GuestEnv, ", ")), "Browser login", yesNo(c.LoginAvailable))
 	if c.Status == "CONNECTED" {
 		fmt.Printf("`zbox new --integration %s` gives a sandbox the proxied endpoint with a placeholder token.\n", strings.Join(c.Integrations, " --integration "))
 	}
+}
+
+func kindStr(k *api.BaseConnectorCredentialKind) string {
+	if k == nil {
+		return ""
+	}
+	return string(*k)
 }
 
 func yesNo(b bool) string {

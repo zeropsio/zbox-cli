@@ -18,7 +18,6 @@ var (
 	flagExportDest    string
 	flagExportLineage string
 	flagImportSource  string
-	flagImportKeyEnv  string
 )
 
 var snapshotCmd = &cobra.Command{
@@ -266,17 +265,17 @@ func printExport(e *api.BaseExport) {
 var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "Import an exported lineage into this workspace",
-	Long:  "The export is useless without the source workspace's master key: name the env of this workspace that holds it.",
+	Long:  "Import an export of a lineage by its object storage key.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if flagImportSource == "" || flagImportKeyEnv == "" {
-			return errors.New("--source and --master-key-env are required")
+		if flagImportSource == "" {
+			return errors.New("--source is required")
 		}
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
 		return runOperation(cmd, ws, "imported", func() (*api.BaseOperation, error) {
-			return ws.Import(cmd.Context(), api.RequestPostImport{Source: flagImportSource, MasterKeyEnv: flagImportKeyEnv})
+			return ws.Import(cmd.Context(), api.RequestPostImport{Source: flagImportSource})
 		})
 	},
 }
@@ -297,7 +296,6 @@ func init() {
 	exportCmd.AddCommand(exportLsCmd, exportGetCmd)
 
 	importCmd.Flags().StringVar(&flagImportSource, "source", "", "object storage key of the export")
-	importCmd.Flags().StringVar(&flagImportKeyEnv, "master-key-env", "", "env of this workspace holding the source workspace's master key")
 	importCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return the operation without waiting for it")
 	rootCmd.AddCommand(snapshotCmd, lineageCmd, exportCmd, importCmd)
 }

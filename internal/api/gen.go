@@ -44,6 +44,24 @@ func (e BaseBaseStatus) Valid() bool {
 	}
 }
 
+// Defines values for BaseConnectorCredentialKind.
+const (
+	BaseConnectorCredentialKindAPIKEY     BaseConnectorCredentialKind = "API_KEY"
+	BaseConnectorCredentialKindOAUTHTOKEN BaseConnectorCredentialKind = "OAUTH_TOKEN"
+)
+
+// Valid indicates whether the value is a known member of the BaseConnectorCredentialKind enum.
+func (e BaseConnectorCredentialKind) Valid() bool {
+	switch e {
+	case BaseConnectorCredentialKindAPIKEY:
+		return true
+	case BaseConnectorCredentialKindOAUTHTOKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BaseConnectorStatus.
 const (
 	BaseConnectorStatusCONNECTED    BaseConnectorStatus = "CONNECTED"
@@ -505,19 +523,16 @@ func (e BaseOperationStatus) Valid() bool {
 
 // Defines values for BaseQuarantineKind.
 const (
-	BaseQuarantineKindCONTAINER BaseQuarantineKind = "CONTAINER"
-	BaseQuarantineKindJAIL      BaseQuarantineKind = "JAIL"
-	BaseQuarantineKindSLOT      BaseQuarantineKind = "SLOT"
-	BaseQuarantineKindSNAPSHOT  BaseQuarantineKind = "SNAPSHOT"
-	BaseQuarantineKindVMM       BaseQuarantineKind = "VMM"
-	BaseQuarantineKindZVOL      BaseQuarantineKind = "ZVOL"
+	BaseQuarantineKindJAIL     BaseQuarantineKind = "JAIL"
+	BaseQuarantineKindSLOT     BaseQuarantineKind = "SLOT"
+	BaseQuarantineKindSNAPSHOT BaseQuarantineKind = "SNAPSHOT"
+	BaseQuarantineKindVMM      BaseQuarantineKind = "VMM"
+	BaseQuarantineKindZVOL     BaseQuarantineKind = "ZVOL"
 )
 
 // Valid indicates whether the value is a known member of the BaseQuarantineKind enum.
 func (e BaseQuarantineKind) Valid() bool {
 	switch e {
-	case BaseQuarantineKindCONTAINER:
-		return true
 	case BaseQuarantineKindJAIL:
 		return true
 	case BaseQuarantineKindSLOT:
@@ -779,6 +794,24 @@ func (e RequestPostSandboxNetworkMode) Valid() bool {
 	}
 }
 
+// Defines values for RequestPutConnectorCredentialKind.
+const (
+	RequestPutConnectorCredentialKindAPIKEY     RequestPutConnectorCredentialKind = "API_KEY"
+	RequestPutConnectorCredentialKindOAUTHTOKEN RequestPutConnectorCredentialKind = "OAUTH_TOKEN"
+)
+
+// Valid indicates whether the value is a known member of the RequestPutConnectorCredentialKind enum.
+func (e RequestPutConnectorCredentialKind) Valid() bool {
+	switch e {
+	case RequestPutConnectorCredentialKindAPIKEY:
+		return true
+	case RequestPutConnectorCredentialKindOAUTHTOKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequestPutWorkspacePolicyDomainFilterEnforcement.
 const (
 	RequestPutWorkspacePolicyDomainFilterEnforcementADVISORY RequestPutWorkspacePolicyDomainFilterEnforcement = "ADVISORY"
@@ -818,6 +851,24 @@ func (e ResponseBaseStatus) Valid() bool {
 	case ResponseBaseStatusPULLING:
 		return true
 	case ResponseBaseStatusREADY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResponseConnectorCredentialKind.
+const (
+	ResponseConnectorCredentialKindAPIKEY     ResponseConnectorCredentialKind = "API_KEY"
+	ResponseConnectorCredentialKindOAUTHTOKEN ResponseConnectorCredentialKind = "OAUTH_TOKEN"
+)
+
+// Valid indicates whether the value is a known member of the ResponseConnectorCredentialKind enum.
+func (e ResponseConnectorCredentialKind) Valid() bool {
+	switch e {
+	case ResponseConnectorCredentialKindAPIKEY:
+		return true
+	case ResponseConnectorCredentialKindOAUTHTOKEN:
 		return true
 	default:
 		return false
@@ -1320,8 +1371,8 @@ type BaseConnector struct {
 	// CredentialEnv The Workspace environment variable the credential lives in.
 	CredentialEnv string `json:"credentialEnv"`
 
-	// CredentialKind OAUTH_TOKEN or API_KEY, what the stored credential is. Null while disconnected.
-	CredentialKind *string `json:"credentialKind,omitempty"`
+	// CredentialKind What the stored credential is. Null while disconnected.
+	CredentialKind *BaseConnectorCredentialKind `json:"credentialKind,omitempty"`
 
 	// GuestEnv Environment variables a sandbox receives when it attaches the connector's integrations at create.
 	GuestEnv []string `json:"guestEnv"`
@@ -1339,6 +1390,9 @@ type BaseConnector struct {
 	Status BaseConnectorStatus `json:"status"`
 	Title  string              `json:"title"`
 }
+
+// BaseConnectorCredentialKind What the stored credential is. Null while disconnected.
+type BaseConnectorCredentialKind string
 
 // BaseConnectorStatus CONNECTED when the Workspace env holds a credential for the connector.
 type BaseConnectorStatus string
@@ -1640,7 +1694,7 @@ type BaseQuarantine struct {
 	Kind    BaseQuarantineKind `json:"kind"`
 	Note    *string            `json:"note,omitempty"`
 
-	// Ref The host-side identifier: jail id, dataset name, container name.
+	// Ref The host-side identifier: jail id, dataset name.
 	Ref string `json:"ref"`
 }
 
@@ -1897,9 +1951,6 @@ type RequestPostExec struct {
 
 // RequestPostImport defines model for RequestPostImport.
 type RequestPostImport struct {
-	// MasterKeyEnv Name of the environment variable holding the source Workspace's master key.
-	MasterKeyEnv string `json:"masterKeyEnv"`
-
 	// Source Object storage key of the export.
 	Source string `json:"source"`
 }
@@ -2030,12 +2081,15 @@ type RequestPostWebhook struct {
 
 // RequestPutConnectorCredential defines model for RequestPutConnectorCredential.
 type RequestPutConnectorCredential struct {
-	// Kind OAUTH_TOKEN or API_KEY. Detected from the value when omitted.
-	Kind *string `json:"kind,omitempty"`
+	// Kind Detected from the value when omitted.
+	Kind *RequestPutConnectorCredentialKind `json:"kind,omitempty"`
 
 	// Value The credential as issued by the provider: an OAuth token from the provider's CLI login, an API key or a fine-grained token.
 	Value string `json:"value"`
 }
+
+// RequestPutConnectorCredentialKind Detected from the value when omitted.
+type RequestPutConnectorCredentialKind string
 
 // RequestPutIntegration defines model for RequestPutIntegration.
 type RequestPutIntegration struct {
@@ -2126,8 +2180,8 @@ type ResponseConnector struct {
 	// CredentialEnv The Workspace environment variable the credential lives in.
 	CredentialEnv string `json:"credentialEnv"`
 
-	// CredentialKind OAUTH_TOKEN or API_KEY, what the stored credential is. Null while disconnected.
-	CredentialKind *string `json:"credentialKind,omitempty"`
+	// CredentialKind What the stored credential is. Null while disconnected.
+	CredentialKind *ResponseConnectorCredentialKind `json:"credentialKind,omitempty"`
 
 	// GuestEnv Environment variables a sandbox receives when it attaches the connector's integrations at create.
 	GuestEnv []string `json:"guestEnv"`
@@ -2145,6 +2199,9 @@ type ResponseConnector struct {
 	Status ResponseConnectorStatus `json:"status"`
 	Title  string                  `json:"title"`
 }
+
+// ResponseConnectorCredentialKind What the stored credential is. Null while disconnected.
+type ResponseConnectorCredentialKind string
 
 // ResponseConnectorStatus CONNECTED when the Workspace env holds a credential for the connector.
 type ResponseConnectorStatus string

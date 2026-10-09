@@ -15,6 +15,9 @@ import (
 
 var (
 	flagBaseCredentialEnv string
+	flagBaseName          string
+	flagBuildVerbose      bool
+	flagBuildDryRun       bool
 	flagTemplateBase      string
 	flagTemplateName      string
 	flagTemplateWarm      bool
@@ -38,16 +41,124 @@ var baseAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		b, err := ws.CreateBase(cmd.Context(), api.RequestPostBase{ImageRef: args[0], RegistryCredentialEnv: optional(flagBaseCredentialEnv)})
+		op, err := ws.CreateBase(cmd.Context(), api.RequestPostBase{ImageRef: args[0], RegistryCredentialEnv: optional(flagBaseCredentialEnv), Name: optional(flagBaseName)})
 		if err != nil {
 			return err
 		}
-		if !flagNoWait {
-			if b, err = waitForBase(cmd.Context(), ws, b.Digest, setupBaseTimeout); err != nil {
-				return err
-			}
+		if flagNoWait {
+			return emit(op, func() { printOperation(op) })
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "pulling, operation %s\n", op.Id)
+		if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
+			return err
+		}
+		b, err := ws.BaseOf(cmd.Context(), op)
+		if err != nil {
+			return err
+		}
+		return emit(b, func() {
+			printBase(b)
+			fmt.Println("Took:", took(op.Created, op.Finished))
+		})
+	},
+}
+
+var baseBuildCmd = &cobra.Command{
+	Use:   "build [dir|archive]",
+	Short: "Build a base from a Dockerfile on the workspace",
+	Long: `Packs the directory (the current one by default) into a tar.gz, or sends a ready .tar, .tar.gz or .zip, and the orchestrator runs its Dockerfile
+through BuildKit and registers the image as a base. The Dockerfile sits at the root of the context. What stays out is what docker build leaves out:
+the root .dockerignore when there is one, the tree's .gitignore files otherwise, .git always; the Dockerfile and the .dockerignore are always sent.
+One line says how much was packed and what governed it, --verbose lists every member, --dry-run only lists. A name given with --name is taken
+over from the base that held it, so a rebuild replaces the earlier build for 'zbox new --base <name>'. The layer cache stays on the workspace
+until 'zbox base prune'.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		source := "."
+		if len(args) == 1 {
+			source = args[0]
+		}
+		body, size, report, err := buildContext(source)
+		if err != nil {
+			return err
+		}
+		defer body.Close()
+		report.print(cmd.ErrOrStderr(), flagBuildVerbose || flagBuildDryRun)
+		if flagBuildDryRun {
+			return nil
+		}
+		op, err := ws.BuildBase(cmd.Context(), flagBaseName, body, size)
+		if err != nil {
+			return err
+		}
+		if flagNoWait {
+			return emit(op, func() { printOperation(op) })
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "building, operation %s\n", op.Id)
+		if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
+			return err
+		}
+		b, err := ws.BaseOf(cmd.Context(), op)
+		if err != nil {
+			return err
+		}
+		return emit(b, func() {
+			printBase(b)
+			fmt.Println("Took:", took(op.Created, op.Finished))
+		})
+	},
+}
+
+var baseSetCmd = &cobra.Command{
+	Use:   "set <base>",
+	Short: "Rename a base, --name '' drops the name",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		if !cmd.Flags().Changed("name") {
+			return fmt.Errorf("nothing to set, give --name")
+		}
+		b, err := findBase(cmd, ws, args[0])
+		if err != nil {
+			return err
+		}
+		b, err = ws.UpdateBase(cmd.Context(), b.Digest, api.RequestPutBase{Name: optional(flagBaseName)})
+		if err != nil {
+			return err
 		}
 		return emit(b, func() { printBase(b) })
+	},
+}
+
+var basePruneCmd = &cobra.Command{
+	Use:   "prune",
+	Short: "Remove the whole layer cache of the Dockerfile builds",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		cache, err := ws.BuildCache(cmd.Context())
+		if err != nil {
+			return err
+		}
+		if cache.SizeBytes == 0 {
+			fmt.Println("no build cache")
+			return nil
+		}
+		if err := ws.PruneBuildCache(cmd.Context()); err != nil {
+			return err
+		}
+		fmt.Printf("build cache removed, %s freed\n", bytesString(cache.SizeBytes))
+		return nil
 	},
 }
 
@@ -64,9 +175,9 @@ var baseLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("DIGEST\tIMAGE\tSTATUS\tSIZE\tEXPOSES\tAGE", func(w io.Writer) {
+			table("DIGEST\tNAME\tIMAGE\tSTATUS\tSIZE\tEXPOSES\tAGE", func(w io.Writer) {
 				for _, b := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", short(b.Digest), b.ImageRef, b.Status, bytesPtr(b.SizeBytes), ints(b.ExposePorts), age(b.Created))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", short(b.Digest), dash(str(b.Name)), b.ImageRef, b.Status, bytesPtr(b.SizeBytes), ints(b.ExposePorts), age(b.Created))
 				}
 			})
 		})
@@ -114,7 +225,7 @@ var baseRmCmd = &cobra.Command{
 }
 
 func printBase(b *api.BaseBase) {
-	pairs := []string{"Digest", b.Digest, "Image", b.ImageRef, "Status", string(b.Status)}
+	pairs := []string{"Digest", b.Digest, "Name", dash(str(b.Name)), "Image", b.ImageRef, "Status", string(b.Status)}
 	if b.FailedReason != nil {
 		pairs = append(pairs, "Reason", *b.FailedReason)
 	}
@@ -332,8 +443,14 @@ func templateSize(t api.BaseTemplate) string {
 
 func init() {
 	baseAddCmd.Flags().StringVar(&flagBaseCredentialEnv, "registry-credential-env", "", "workspace env holding the credentials of a private registry")
-	baseAddCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the pull started")
-	baseCmd.AddCommand(baseAddCmd, baseLsCmd, baseGetCmd, baseRmCmd)
+	baseAddCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the pull started, with its operation")
+	baseAddCmd.Flags().StringVar(&flagBaseName, "name", "", "name the base takes, moved from the base that held it")
+	baseBuildCmd.Flags().StringVar(&flagBaseName, "name", "", "name the built base takes, moved from the base that held it")
+	baseBuildCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the build started, with its operation")
+	baseBuildCmd.Flags().BoolVarP(&flagBuildVerbose, "verbose", "v", false, "list every packed member and every file or tree left out")
+	baseBuildCmd.Flags().BoolVar(&flagBuildDryRun, "dry-run", false, "pack and list, upload nothing")
+	baseSetCmd.Flags().StringVar(&flagBaseName, "name", "", "new name, refused while another base holds it")
+	baseCmd.AddCommand(baseAddCmd, baseBuildCmd, baseLsCmd, baseGetCmd, baseSetCmd, basePruneCmd, baseRmCmd)
 
 	templateCreateCmd.Flags().StringVar(&flagTemplateBase, "base", "", "base the template is built on: digest, prefix or image ref")
 	templateCreateCmd.Flags().StringVar(&flagTemplateName, "name", "", "template name")

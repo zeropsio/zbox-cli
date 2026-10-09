@@ -33,6 +33,8 @@ var (
 	flagLsStatus       []string
 	flagLsLineage      string
 	flagLsParent       string
+	flagLsLimit        int
+	flagLsBefore       string
 	flagSetName        string
 	flagSetIdleTtl     time.Duration
 	flagSetAbsoluteTtl time.Duration
@@ -155,14 +157,15 @@ Arguments after -- replace the image's command.`,
 
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "List sandboxes",
+	Short: "List sandboxes, newest first",
+	Long:  "The list is every matching sandbox unless --limit says otherwise; --before <id> continues with the sandboxes created before that one, so the last id of one page starts the next.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		p := api.GetSandboxListParams{Status: statusList(flagLsStatus), LineageId: optional(flagLsLineage), ParentId: optional(flagLsParent)}
-		list, err := ws.Sandboxes(cmd.Context(), p)
+		p := api.GetSandboxListParams{Status: statusList(flagLsStatus), LineageId: optional(flagLsLineage), ParentId: optional(flagLsParent), BeforeId: optional(flagLsBefore)}
+		list, err := listSandboxes(cmd, ws, p)
 		if err != nil {
 			return err
 		}
@@ -174,6 +177,31 @@ var lsCmd = &cobra.Command{
 			})
 		})
 	},
+}
+
+// sandboxPageMax is the largest page GET /sandbox-list answers.
+const sandboxPageMax = 1000
+
+// listSandboxes reads the sandboxes newest first: every matching row with no --limit (the API pages only when asked to), otherwise as many as asked for, paging back with beforeId when that is more than one page. An unknown --before is the API's sandboxNotFound.
+func listSandboxes(cmd *cobra.Command, ws *api.Workspace, p api.GetSandboxListParams) ([]api.BaseSandbox, error) {
+	if flagLsLimit <= 0 {
+		return ws.Sandboxes(cmd.Context(), p)
+	}
+	var list []api.BaseSandbox
+	for len(list) < flagLsLimit {
+		page := min(sandboxPageMax, flagLsLimit-len(list))
+		p.Limit = &page
+		rows, err := ws.Sandboxes(cmd.Context(), p)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, rows...)
+		if len(rows) < page {
+			break
+		}
+		p.BeforeId = &rows[len(rows)-1].Id
+	}
+	return list, nil
 }
 
 var getCmd = &cobra.Command{
@@ -547,7 +575,7 @@ func findBase(cmd *cobra.Command, ws *api.Workspace, ref string) (*api.BaseBase,
 	for _, b := range bases {
 		switch {
 		case ref == "" && b.Status == api.BaseBaseStatusREADY,
-			ref != "" && (b.Digest == ref || b.ImageRef == ref || strings.HasPrefix(strings.TrimPrefix(b.Digest, "sha256:"), ref)):
+			ref != "" && (str(b.Name) == ref || b.Digest == ref || b.ImageRef == ref || strings.HasPrefix(strings.TrimPrefix(b.Digest, "sha256:"), ref)):
 			matches = append(matches, b)
 		}
 	}
@@ -605,6 +633,8 @@ func init() {
 	lsCmd.Flags().StringArrayVar(&flagLsStatus, "status", nil, "only sandboxes in any of these statuses, repeatable or comma-separated: creating, running, parking, parked, waking, forking, restoring, failed, terminated, archived (default: the live ones, terminated and archived excluded)")
 	lsCmd.Flags().StringVar(&flagLsLineage, "lineage", "", "only sandboxes of this lineage")
 	lsCmd.Flags().StringVar(&flagLsParent, "parent", "", "only children of this sandbox")
+	lsCmd.Flags().IntVar(&flagLsLimit, "limit", 0, "at most this many, the newest first; every matching sandbox when omitted")
+	lsCmd.Flags().StringVar(&flagLsBefore, "before", "", "only sandboxes created before this one (the last id of the previous page)")
 
 	setCmd.Flags().StringVar(&flagSetName, "name", "", "new name")
 	setCmd.Flags().DurationVar(&flagSetIdleTtl, "idle-ttl", 0, "new idle TTL")

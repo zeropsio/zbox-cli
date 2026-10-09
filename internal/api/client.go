@@ -198,8 +198,43 @@ func (c *Workspace) PutWorkspacePolicy(ctx context.Context, body RequestPutWorks
 
 // ---- base and template
 
-func (c *Workspace) CreateBase(ctx context.Context, body RequestPostBase) (*BaseBase, error) {
-	return ok[BaseBase](c.gen.PostBase(ctx, &PostBaseParams{IdempotencyKey: Key()}, body))
+// CreateBase answers the PULL_BASE operation, the pull runs on: a tarball takes longer than the edge holds a request.
+func (c *Workspace) CreateBase(ctx context.Context, body RequestPostBase) (*BaseOperation, error) {
+	return ok[BaseOperation](c.gen.PostBase(ctx, &PostBaseParams{IdempotencyKey: Key()}, body))
+}
+
+// BaseOf answers the base a finished base operation (pull or build) produced, by the digest in its result.
+func (c *Workspace) BaseOf(ctx context.Context, op *BaseOperation) (*BaseBase, error) {
+	if op.Result == nil {
+		return nil, fmt.Errorf("operation %s has no result", op.Id)
+	}
+	digest, _ := (*op.Result)["digest"].(string)
+	return c.Base(ctx, digest)
+}
+
+// BuildBase posts a build context archive (tar, tar.gz or zip with a Dockerfile) and answers the BUILD_BASE operation.
+// size sets the Content-Length, a file body would go chunked otherwise.
+func (c *Workspace) BuildBase(ctx context.Context, name string, body io.Reader, size int64) (*BaseOperation, error) {
+	p := PostBaseBuildParams{}
+	if name != "" {
+		p.Name = &name
+	}
+	return ok[BaseOperation](c.gen.PostBaseBuildWithBody(ctx, &p, "application/octet-stream", body, func(_ context.Context, req *http.Request) error {
+		req.ContentLength = size
+		return nil
+	}))
+}
+
+func (c *Workspace) BuildCache(ctx context.Context) (*ResponseBaseBuildCache, error) {
+	return ok[ResponseBaseBuildCache](c.gen.GetBaseBuildCache(ctx))
+}
+
+func (c *Workspace) PruneBuildCache(ctx context.Context) error {
+	return done(c.gen.DeleteBaseBuildCache(ctx))
+}
+
+func (c *Workspace) UpdateBase(ctx context.Context, digest string, body RequestPutBase) (*BaseBase, error) {
+	return ok[BaseBase](c.gen.PutBase(ctx, digest, body))
 }
 
 func (c *Workspace) Bases(ctx context.Context) ([]BaseBase, error) {

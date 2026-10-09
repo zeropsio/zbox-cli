@@ -454,6 +454,7 @@ func (e BaseInjectType) Valid() bool {
 
 // Defines values for BaseOperationKind.
 const (
+	BaseOperationKindBUILDBASE     BaseOperationKind = "BUILD_BASE"
 	BaseOperationKindBUILDTEMPLATE BaseOperationKind = "BUILD_TEMPLATE"
 	BaseOperationKindCREATE        BaseOperationKind = "CREATE"
 	BaseOperationKindEXPORT        BaseOperationKind = "EXPORT"
@@ -470,6 +471,8 @@ const (
 // Valid indicates whether the value is a known member of the BaseOperationKind enum.
 func (e BaseOperationKind) Valid() bool {
 	switch e {
+	case BaseOperationKindBUILDBASE:
+		return true
 	case BaseOperationKindBUILDTEMPLATE:
 		return true
 	case BaseOperationKindCREATE:
@@ -991,6 +994,7 @@ func (e ResponseGuestSessionStatus) Valid() bool {
 
 // Defines values for ResponseOperationKind.
 const (
+	ResponseOperationKindBUILDBASE     ResponseOperationKind = "BUILD_BASE"
 	ResponseOperationKindBUILDTEMPLATE ResponseOperationKind = "BUILD_TEMPLATE"
 	ResponseOperationKindCREATE        ResponseOperationKind = "CREATE"
 	ResponseOperationKindEXPORT        ResponseOperationKind = "EXPORT"
@@ -1007,6 +1011,8 @@ const (
 // Valid indicates whether the value is a known member of the ResponseOperationKind enum.
 func (e ResponseOperationKind) Valid() bool {
 	switch e {
+	case ResponseOperationKindBUILDBASE:
+		return true
 	case ResponseOperationKindBUILDTEMPLATE:
 		return true
 	case ResponseOperationKindCREATE:
@@ -1255,6 +1261,7 @@ func (e GetOperationListParamsStatus) Valid() bool {
 
 // Defines values for GetOperationListParamsKind.
 const (
+	GetOperationListParamsKindBUILDBASE     GetOperationListParamsKind = "BUILD_BASE"
 	GetOperationListParamsKindBUILDTEMPLATE GetOperationListParamsKind = "BUILD_TEMPLATE"
 	GetOperationListParamsKindCREATE        GetOperationListParamsKind = "CREATE"
 	GetOperationListParamsKindEXPORT        GetOperationListParamsKind = "EXPORT"
@@ -1271,6 +1278,8 @@ const (
 // Valid indicates whether the value is a known member of the GetOperationListParamsKind enum.
 func (e GetOperationListParamsKind) Valid() bool {
 	switch e {
+	case GetOperationListParamsKindBUILDBASE:
+		return true
 	case GetOperationListParamsKindBUILDTEMPLATE:
 		return true
 	case GetOperationListParamsKindCREATE:
@@ -1367,15 +1376,20 @@ type BaseBandwidth struct {
 
 // BaseBase defines model for BaseBase.
 type BaseBase struct {
-	Created        string                 `json:"created"`
-	Digest         string                 `json:"digest"`
-	ExposePorts    []int                  `json:"exposePorts"`
-	FailedReason   *string                `json:"failedReason,omitempty"`
+	Created      string  `json:"created"`
+	Digest       string  `json:"digest"`
+	ExposePorts  []int   `json:"exposePorts"`
+	FailedReason *string `json:"failedReason,omitempty"`
+
+	// ImageRef The registry reference or archive URL the base was pulled from, `build:<operationId>` for one built from a Dockerfile.
 	ImageRef       string                 `json:"imageRef"`
 	KernelDigest   *string                `json:"kernelDigest,omitempty"`
 	Labels         map[string]interface{} `json:"labels"`
 	LaunchContract BaseLaunchContract     `json:"launchContract"`
-	SizeBytes      *int64                 `json:"sizeBytes,omitempty"`
+
+	// Name Unique among the live bases. A pull or build that names an existing name takes it over, the earlier base stays unnamed.
+	Name      *string `json:"name,omitempty"`
+	SizeBytes *int64  `json:"sizeBytes,omitempty"`
 
 	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 	Status BaseBaseStatus `json:"status"`
@@ -2004,6 +2018,9 @@ type RequestFileUpload = openapi_types.File
 type RequestPostBase struct {
 	ImageRef string `json:"imageRef"`
 
+	// Name Name the base takes, moved from the base that held it.
+	Name *string `json:"name,omitempty"`
+
 	// RegistryCredentialEnv Name of the Workspace environment variable holding private registry credentials.
 	RegistryCredentialEnv *string `json:"registryCredentialEnv,omitempty"`
 }
@@ -2147,6 +2164,12 @@ type RequestPostWebhook struct {
 	Url     string   `json:"url"`
 }
 
+// RequestPutBase defines model for RequestPutBase.
+type RequestPutBase struct {
+	// Name Refused with nameConflict while another base holds it, null drops the name.
+	Name *string `json:"name,omitempty"`
+}
+
 // RequestPutConnectorCredential defines model for RequestPutConnectorCredential.
 type RequestPutConnectorCredential struct {
 	// Kind Detected from the value when omitted.
@@ -2221,15 +2244,20 @@ type RequestPutWorkspacePolicyDomainFilterEnforcement string
 
 // ResponseBase defines model for ResponseBase.
 type ResponseBase struct {
-	Created        string                 `json:"created"`
-	Digest         string                 `json:"digest"`
-	ExposePorts    []int                  `json:"exposePorts"`
-	FailedReason   *string                `json:"failedReason,omitempty"`
+	Created      string  `json:"created"`
+	Digest       string  `json:"digest"`
+	ExposePorts  []int   `json:"exposePorts"`
+	FailedReason *string `json:"failedReason,omitempty"`
+
+	// ImageRef The registry reference or archive URL the base was pulled from, `build:<operationId>` for one built from a Dockerfile.
 	ImageRef       string                 `json:"imageRef"`
 	KernelDigest   *string                `json:"kernelDigest,omitempty"`
 	Labels         map[string]interface{} `json:"labels"`
 	LaunchContract BaseLaunchContract     `json:"launchContract"`
-	SizeBytes      *int64                 `json:"sizeBytes,omitempty"`
+
+	// Name Unique among the live bases. A pull or build that names an existing name takes it over, the earlier base stays unnamed.
+	Name      *string `json:"name,omitempty"`
+	SizeBytes *int64  `json:"sizeBytes,omitempty"`
 
 	// Status DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 	Status ResponseBaseStatus `json:"status"`
@@ -2237,6 +2265,12 @@ type ResponseBase struct {
 
 // ResponseBaseStatus DELETED is never listed: the image is gone and the row only stays because terminated sandboxes still name it.
 type ResponseBaseStatus string
+
+// ResponseBaseBuildCache defines model for ResponseBaseBuildCache.
+type ResponseBaseBuildCache struct {
+	// SizeBytes Bytes the Dockerfile builds' layer cache takes on the data volume, 0 when there is none.
+	SizeBytes int64 `json:"sizeBytes"`
+}
 
 // ResponseBaseList defines model for ResponseBaseList.
 type ResponseBaseList struct {
@@ -2686,7 +2720,7 @@ type LineageId = string
 // Mode Octal file mode, defaults to 0644.
 type Mode = string
 
-// Name defines model for name.
+// Name Name the built base takes, moved from the base that held it, so a rebuild under the same name replaces it for `zbox new --base`.
 type Name = string
 
 // NewestFirst Answer the newest events first instead of the oldest. waitSeconds is ignored in this order.
@@ -2722,6 +2756,12 @@ type WaitSeconds = int
 // PostBaseParams defines parameters for PostBase.
 type PostBaseParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// PostBaseBuildParams defines parameters for PostBaseBuild.
+type PostBaseBuildParams struct {
+	// Name Name the built base takes, moved from the base that held it, so a rebuild under the same name replaces it for `zbox new --base`.
+	Name *Name `form:"name,omitempty" json:"name,omitempty"`
 }
 
 // GetEventListParams defines parameters for GetEventList.
@@ -2798,6 +2838,12 @@ type GetSandboxListParams struct {
 	Status    *[]string  `form:"status,omitempty" json:"status,omitempty"`
 	LineageId *LineageId `form:"lineageId,omitempty" json:"lineageId,omitempty"`
 	ParentId  *ParentId  `form:"parentId,omitempty" json:"parentId,omitempty"`
+
+	// BeforeId Cursor: the id of the last sandbox of the previous page, the answer continues with the sandboxes created before it.
+	BeforeId *string `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+
+	// Limit Page size, 1000 at most. Without it the answer holds every matching sandbox. The list is ordered newest first.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // DeleteSandboxParams defines parameters for DeleteSandbox.
@@ -2925,6 +2971,9 @@ type GetWebhookDeliveryListParamsStatus string
 
 // PostBaseJSONRequestBody defines body for PostBase for application/json ContentType.
 type PostBaseJSONRequestBody = RequestPostBase
+
+// PutBaseJSONRequestBody defines body for PutBase for application/json ContentType.
+type PutBaseJSONRequestBody = RequestPutBase
 
 // PutConnectorCredentialJSONRequestBody defines body for PutConnectorCredential for application/json ContentType.
 type PutConnectorCredentialJSONRequestBody = RequestPutConnectorCredential
@@ -3077,6 +3126,16 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	PostBase(ctx context.Context, params *PostBaseParams, body PostBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostBaseBuildWithBody performs a POST /api/rest/base-build (the `PostBaseBuild` operationId) request,
+	// with any type of body and a specified content type.
+	PostBaseBuildWithBody(ctx context.Context, params *PostBaseBuildParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteBaseBuildCache performs a DELETE /api/rest/base-build-cache (the `DeleteBaseBuildCache` operationId) request.
+	DeleteBaseBuildCache(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetBaseBuildCache performs a GET /api/rest/base-build-cache (the `GetBaseBuildCache` operationId) request.
+	GetBaseBuildCache(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetBaseList performs a GET /api/rest/base-list (the `GetBaseList` operationId) request.
 	GetBaseList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3086,25 +3145,33 @@ type ClientInterface interface {
 	// GetBase performs a GET /api/rest/base/{digest} (the `GetBase` operationId) request.
 	GetBase(ctx context.Context, digest Digest, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PutBaseWithBody performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request,
+	// with any type of body and a specified content type.
+	PutBaseWithBody(ctx context.Context, digest Digest, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutBase performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request.
+	// Takes a body of the `application/json` content type.
+	PutBase(ctx context.Context, digest Digest, body PutBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetConnectorList performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
 	GetConnectorList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetConnector performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
-	GetConnector(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetConnector(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteConnectorCredential performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
-	DeleteConnectorCredential(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteConnectorCredential(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutConnectorCredentialWithBody performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
 	// with any type of body and a specified content type.
-	PutConnectorCredentialWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutConnectorCredentialWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutConnectorCredential performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
 	// Takes a body of the `application/json` content type.
-	PutConnectorCredential(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutConnectorCredential(ctx context.Context, name string, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostConnectorLogin performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
-	PostConnectorLogin(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostConnectorLogin(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetEventList performs a GET /api/rest/event-list (the `GetEventList` operationId) request.
 	GetEventList(ctx context.Context, params *GetEventListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3141,18 +3208,18 @@ type ClientInterface interface {
 	GetIntegrationList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteIntegration performs a DELETE /api/rest/integration/{name} (the `DeleteIntegration` operationId) request.
-	DeleteIntegration(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteIntegration(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetIntegration performs a GET /api/rest/integration/{name} (the `GetIntegration` operationId) request.
-	GetIntegration(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetIntegration(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutIntegrationWithBody performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request,
 	// with any type of body and a specified content type.
-	PutIntegrationWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutIntegrationWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutIntegration performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request.
 	// Takes a body of the `application/json` content type.
-	PutIntegration(ctx context.Context, name Name, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutIntegration(ctx context.Context, name string, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetLineageList performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
 	GetLineageList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3274,7 +3341,7 @@ type ClientInterface interface {
 	GetSandboxIntegrationAttachmentList(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSandboxIntegrationAttachment performs a DELETE /api/rest/sandbox/{id}/integration-attachment/{name} (the `DeleteSandboxIntegrationAttachment` operationId) request.
-	DeleteSandboxIntegrationAttachment(ctx context.Context, id Id, name Name, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteSandboxIntegrationAttachment(ctx context.Context, id Id, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSandboxMetricList performs a GET /api/rest/sandbox/{id}/metric-list (the `GetSandboxMetricList` operationId) request.
 	GetSandboxMetricList(ctx context.Context, id Id, params *GetSandboxMetricListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3450,6 +3517,46 @@ func (c *Client) PostBase(ctx context.Context, params *PostBaseParams, body Post
 	return c.Client.Do(req)
 }
 
+// PostBaseBuildWithBody performs a POST /api/rest/base-build (the `PostBaseBuild` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PostBaseBuildWithBody(ctx context.Context, params *PostBaseBuildParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostBaseBuildRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteBaseBuildCache performs a DELETE /api/rest/base-build-cache (the `DeleteBaseBuildCache` operationId) request.
+func (c *Client) DeleteBaseBuildCache(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBaseBuildCacheRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetBaseBuildCache performs a GET /api/rest/base-build-cache (the `GetBaseBuildCache` operationId) request.
+func (c *Client) GetBaseBuildCache(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBaseBuildCacheRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetBaseList performs a GET /api/rest/base-list (the `GetBaseList` operationId) request.
 func (c *Client) GetBaseList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBaseListRequest(c.Server)
@@ -3489,6 +3596,34 @@ func (c *Client) GetBase(ctx context.Context, digest Digest, reqEditors ...Reque
 	return c.Client.Do(req)
 }
 
+// PutBaseWithBody performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PutBaseWithBody(ctx context.Context, digest Digest, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutBaseRequestWithBody(c.Server, digest, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutBase performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) PutBase(ctx context.Context, digest Digest, body PutBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutBaseRequest(c.Server, digest, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetConnectorList performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
 func (c *Client) GetConnectorList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetConnectorListRequest(c.Server)
@@ -3503,7 +3638,7 @@ func (c *Client) GetConnectorList(ctx context.Context, reqEditors ...RequestEdit
 }
 
 // GetConnector performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
-func (c *Client) GetConnector(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetConnector(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetConnectorRequest(c.Server, name)
 	if err != nil {
 		return nil, err
@@ -3516,7 +3651,7 @@ func (c *Client) GetConnector(ctx context.Context, name Name, reqEditors ...Requ
 }
 
 // DeleteConnectorCredential performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
-func (c *Client) DeleteConnectorCredential(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) DeleteConnectorCredential(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteConnectorCredentialRequest(c.Server, name)
 	if err != nil {
 		return nil, err
@@ -3530,7 +3665,7 @@ func (c *Client) DeleteConnectorCredential(ctx context.Context, name Name, reqEd
 
 // PutConnectorCredentialWithBody performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
 // with any type of body and a specified content type.
-func (c *Client) PutConnectorCredentialWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutConnectorCredentialWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutConnectorCredentialRequestWithBody(c.Server, name, contentType, body)
 	if err != nil {
 		return nil, err
@@ -3544,7 +3679,7 @@ func (c *Client) PutConnectorCredentialWithBody(ctx context.Context, name Name, 
 
 // PutConnectorCredential performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
 // Takes a body of the `application/json` content type.
-func (c *Client) PutConnectorCredential(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutConnectorCredential(ctx context.Context, name string, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutConnectorCredentialRequest(c.Server, name, body)
 	if err != nil {
 		return nil, err
@@ -3557,7 +3692,7 @@ func (c *Client) PutConnectorCredential(ctx context.Context, name Name, body Put
 }
 
 // PostConnectorLogin performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
-func (c *Client) PostConnectorLogin(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PostConnectorLogin(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostConnectorLoginRequest(c.Server, name)
 	if err != nil {
 		return nil, err
@@ -3704,7 +3839,7 @@ func (c *Client) GetIntegrationList(ctx context.Context, reqEditors ...RequestEd
 }
 
 // DeleteIntegration performs a DELETE /api/rest/integration/{name} (the `DeleteIntegration` operationId) request.
-func (c *Client) DeleteIntegration(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) DeleteIntegration(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteIntegrationRequest(c.Server, name)
 	if err != nil {
 		return nil, err
@@ -3717,7 +3852,7 @@ func (c *Client) DeleteIntegration(ctx context.Context, name Name, reqEditors ..
 }
 
 // GetIntegration performs a GET /api/rest/integration/{name} (the `GetIntegration` operationId) request.
-func (c *Client) GetIntegration(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetIntegration(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetIntegrationRequest(c.Server, name)
 	if err != nil {
 		return nil, err
@@ -3731,7 +3866,7 @@ func (c *Client) GetIntegration(ctx context.Context, name Name, reqEditors ...Re
 
 // PutIntegrationWithBody performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request,
 // with any type of body and a specified content type.
-func (c *Client) PutIntegrationWithBody(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutIntegrationWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutIntegrationRequestWithBody(c.Server, name, contentType, body)
 	if err != nil {
 		return nil, err
@@ -3745,7 +3880,7 @@ func (c *Client) PutIntegrationWithBody(ctx context.Context, name Name, contentT
 
 // PutIntegration performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request.
 // Takes a body of the `application/json` content type.
-func (c *Client) PutIntegration(ctx context.Context, name Name, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutIntegration(ctx context.Context, name string, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutIntegrationRequest(c.Server, name, body)
 	if err != nil {
 		return nil, err
@@ -4217,7 +4352,7 @@ func (c *Client) GetSandboxIntegrationAttachmentList(ctx context.Context, id Id,
 }
 
 // DeleteSandboxIntegrationAttachment performs a DELETE /api/rest/sandbox/{id}/integration-attachment/{name} (the `DeleteSandboxIntegrationAttachment` operationId) request.
-func (c *Client) DeleteSandboxIntegrationAttachment(ctx context.Context, id Id, name Name, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) DeleteSandboxIntegrationAttachment(ctx context.Context, id Id, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteSandboxIntegrationAttachmentRequest(c.Server, id, name)
 	if err != nil {
 		return nil, err
@@ -4837,6 +4972,116 @@ func NewPostBaseRequestWithBody(server string, params *PostBaseParams, contentTy
 	return req, nil
 }
 
+// NewPostBaseBuildRequestWithBody constructs an http.Request for the PostBaseBuild method, with any body, and a specified content type
+func NewPostBaseBuildRequestWithBody(server string, params *PostBaseBuildParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/base-build")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Name != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "name", *params.Name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteBaseBuildCacheRequest constructs an http.Request for the DeleteBaseBuildCache method
+func NewDeleteBaseBuildCacheRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/base-build-cache")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBaseBuildCacheRequest constructs an http.Request for the GetBaseBuildCache method
+func NewGetBaseBuildCacheRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/base-build-cache")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetBaseListRequest constructs an http.Request for the GetBaseList method
 func NewGetBaseListRequest(server string) (*http.Request, error) {
 	var err error
@@ -4932,6 +5177,53 @@ func NewGetBaseRequest(server string, digest Digest) (*http.Request, error) {
 	return req, nil
 }
 
+// NewPutBaseRequest calls the generic PutBase builder with application/json body
+func NewPutBaseRequest(server string, digest Digest, body PutBaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutBaseRequestWithBody(server, digest, "application/json", bodyReader)
+}
+
+// NewPutBaseRequestWithBody constructs an http.Request for the PutBase method, with any body, and a specified content type
+func NewPutBaseRequestWithBody(server string, digest Digest, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "digest", digest, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/base/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetConnectorListRequest constructs an http.Request for the GetConnectorList method
 func NewGetConnectorListRequest(server string) (*http.Request, error) {
 	var err error
@@ -4960,7 +5252,7 @@ func NewGetConnectorListRequest(server string) (*http.Request, error) {
 }
 
 // NewGetConnectorRequest constructs an http.Request for the GetConnector method
-func NewGetConnectorRequest(server string, name Name) (*http.Request, error) {
+func NewGetConnectorRequest(server string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -4994,7 +5286,7 @@ func NewGetConnectorRequest(server string, name Name) (*http.Request, error) {
 }
 
 // NewDeleteConnectorCredentialRequest constructs an http.Request for the DeleteConnectorCredential method
-func NewDeleteConnectorCredentialRequest(server string, name Name) (*http.Request, error) {
+func NewDeleteConnectorCredentialRequest(server string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5028,7 +5320,7 @@ func NewDeleteConnectorCredentialRequest(server string, name Name) (*http.Reques
 }
 
 // NewPutConnectorCredentialRequest calls the generic PutConnectorCredential builder with application/json body
-func NewPutConnectorCredentialRequest(server string, name Name, body PutConnectorCredentialJSONRequestBody) (*http.Request, error) {
+func NewPutConnectorCredentialRequest(server string, name string, body PutConnectorCredentialJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
@@ -5039,7 +5331,7 @@ func NewPutConnectorCredentialRequest(server string, name Name, body PutConnecto
 }
 
 // NewPutConnectorCredentialRequestWithBody constructs an http.Request for the PutConnectorCredential method, with any body, and a specified content type
-func NewPutConnectorCredentialRequestWithBody(server string, name Name, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutConnectorCredentialRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5075,7 +5367,7 @@ func NewPutConnectorCredentialRequestWithBody(server string, name Name, contentT
 }
 
 // NewPostConnectorLoginRequest constructs an http.Request for the PostConnectorLogin method
-func NewPostConnectorLoginRequest(server string, name Name) (*http.Request, error) {
+func NewPostConnectorLoginRequest(server string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5531,7 +5823,7 @@ func NewGetIntegrationListRequest(server string) (*http.Request, error) {
 }
 
 // NewDeleteIntegrationRequest constructs an http.Request for the DeleteIntegration method
-func NewDeleteIntegrationRequest(server string, name Name) (*http.Request, error) {
+func NewDeleteIntegrationRequest(server string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5565,7 +5857,7 @@ func NewDeleteIntegrationRequest(server string, name Name) (*http.Request, error
 }
 
 // NewGetIntegrationRequest constructs an http.Request for the GetIntegration method
-func NewGetIntegrationRequest(server string, name Name) (*http.Request, error) {
+func NewGetIntegrationRequest(server string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5599,7 +5891,7 @@ func NewGetIntegrationRequest(server string, name Name) (*http.Request, error) {
 }
 
 // NewPutIntegrationRequest calls the generic PutIntegration builder with application/json body
-func NewPutIntegrationRequest(server string, name Name, body PutIntegrationJSONRequestBody) (*http.Request, error) {
+func NewPutIntegrationRequest(server string, name string, body PutIntegrationJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
@@ -5610,7 +5902,7 @@ func NewPutIntegrationRequest(server string, name Name, body PutIntegrationJSONR
 }
 
 // NewPutIntegrationRequestWithBody constructs an http.Request for the PutIntegration method, with any body, and a specified content type
-func NewPutIntegrationRequestWithBody(server string, name Name, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutIntegrationRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6172,6 +6464,30 @@ func NewGetSandboxListRequest(server string, params *GetSandboxListParams) (*htt
 		if params.ParentId != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "parentId", *params.ParentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.BeforeId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "beforeId", *params.BeforeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -7028,7 +7344,7 @@ func NewGetSandboxIntegrationAttachmentListRequest(server string, id Id) (*http.
 }
 
 // NewDeleteSandboxIntegrationAttachmentRequest constructs an http.Request for the DeleteSandboxIntegrationAttachment method
-func NewDeleteSandboxIntegrationAttachmentRequest(server string, id Id, name Name) (*http.Request, error) {
+func NewDeleteSandboxIntegrationAttachmentRequest(server string, id Id, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -8488,6 +8804,22 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PostBaseWithResponse(ctx context.Context, params *PostBaseParams, body PostBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*PostBaseResponse, error)
 
+	// PostBaseBuildWithBodyWithResponse performs a POST /api/rest/base-build (the `PostBaseBuild` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PostBaseBuildWithBodyWithResponse(ctx context.Context, params *PostBaseBuildParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostBaseBuildResponse, error)
+
+	// DeleteBaseBuildCacheWithResponse performs a DELETE /api/rest/base-build-cache (the `DeleteBaseBuildCache` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteBaseBuildCacheWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteBaseBuildCacheResponse, error)
+
+	// GetBaseBuildCacheWithResponse performs a GET /api/rest/base-build-cache (the `GetBaseBuildCache` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetBaseBuildCacheWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBaseBuildCacheResponse, error)
+
 	// GetBaseListWithResponse performs a GET /api/rest/base-list (the `GetBaseList` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -8503,6 +8835,16 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetBaseWithResponse(ctx context.Context, digest Digest, reqEditors ...RequestEditorFn) (*GetBaseResponse, error)
 
+	// PutBaseWithBodyWithResponse performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PutBaseWithBodyWithResponse(ctx context.Context, digest Digest, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutBaseResponse, error)
+
+	// PutBaseWithResponse performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PutBaseWithResponse(ctx context.Context, digest Digest, body PutBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*PutBaseResponse, error)
+
 	// GetConnectorListWithResponse performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -8511,27 +8853,27 @@ type ClientWithResponsesInterface interface {
 	// GetConnectorWithResponse performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetConnectorWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error)
+	GetConnectorWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error)
 
 	// DeleteConnectorCredentialWithResponse performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	DeleteConnectorCredentialWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error)
+	DeleteConnectorCredentialWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error)
 
 	// PutConnectorCredentialWithBodyWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request,
 	// with any type of body and a specified content type.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
+	PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
 
 	// PutConnectorCredentialWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	PutConnectorCredentialWithResponse(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
+	PutConnectorCredentialWithResponse(ctx context.Context, name string, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error)
 
 	// PostConnectorLoginWithResponse performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	PostConnectorLoginWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error)
+	PostConnectorLoginWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error)
 
 	// GetEventListWithResponse performs a GET /api/rest/event-list (the `GetEventList` operationId) request.
 	//
@@ -8586,22 +8928,22 @@ type ClientWithResponsesInterface interface {
 	// DeleteIntegrationWithResponse performs a DELETE /api/rest/integration/{name} (the `DeleteIntegration` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	DeleteIntegrationWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteIntegrationResponse, error)
+	DeleteIntegrationWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteIntegrationResponse, error)
 
 	// GetIntegrationWithResponse performs a GET /api/rest/integration/{name} (the `GetIntegration` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetIntegrationWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetIntegrationResponse, error)
+	GetIntegrationWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetIntegrationResponse, error)
 
 	// PutIntegrationWithBodyWithResponse performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request,
 	// with any type of body and a specified content type.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	PutIntegrationWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error)
+	PutIntegrationWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error)
 
 	// PutIntegrationWithResponse performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	PutIntegrationWithResponse(ctx context.Context, name Name, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error)
+	PutIntegrationWithResponse(ctx context.Context, name string, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error)
 
 	// GetLineageListWithResponse performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
 	//
@@ -8777,7 +9119,7 @@ type ClientWithResponsesInterface interface {
 	// DeleteSandboxIntegrationAttachmentWithResponse performs a DELETE /api/rest/sandbox/{id}/integration-attachment/{name} (the `DeleteSandboxIntegrationAttachment` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	DeleteSandboxIntegrationAttachmentWithResponse(ctx context.Context, id Id, name Name, reqEditors ...RequestEditorFn) (*DeleteSandboxIntegrationAttachmentResponse, error)
+	DeleteSandboxIntegrationAttachmentWithResponse(ctx context.Context, id Id, name string, reqEditors ...RequestEditorFn) (*DeleteSandboxIntegrationAttachmentResponse, error)
 
 	// GetSandboxMetricListWithResponse performs a GET /api/rest/sandbox/{id}/metric-list (the `GetSandboxMetricList` operationId) request.
 	//
@@ -8989,7 +9331,7 @@ type PostBaseResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *ResponseBase
+	JSON200 *ResponseOperation
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
@@ -9003,7 +9345,7 @@ type PostBaseResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r PostBaseResponse) GetJSON200() *ResponseBase {
+func (r PostBaseResponse) GetJSON200() *ResponseOperation {
 	return r.JSON200
 }
 
@@ -9055,6 +9397,192 @@ func (r PostBaseResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PostBaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PostBaseBuildResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseOperation
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PostBaseBuildResponse) GetJSON200() *ResponseOperation {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PostBaseBuildResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PostBaseBuildResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r PostBaseBuildResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PostBaseBuildResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PostBaseBuildResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PostBaseBuildResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostBaseBuildResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostBaseBuildResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteBaseBuildCacheResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseSuccess
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeleteBaseBuildCacheResponse) GetJSON200() *ResponseSuccess {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteBaseBuildCacheResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r DeleteBaseBuildCacheResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteBaseBuildCacheResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteBaseBuildCacheResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBaseBuildCacheResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBaseBuildCacheResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteBaseBuildCacheResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetBaseBuildCacheResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseBaseBuildCache
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBaseBuildCacheResponse) GetJSON200() *ResponseBaseBuildCache {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBaseBuildCacheResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBaseBuildCacheResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBaseBuildCacheResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBaseBuildCacheResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBaseBuildCacheResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBaseBuildCacheResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9248,6 +9776,82 @@ func (r GetBaseResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetBaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PutBaseResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseBase
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PutBaseResponse) GetJSON200() *ResponseBase {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PutBaseResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PutBaseResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PutBaseResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r PutBaseResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PutBaseResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PutBaseResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PutBaseResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutBaseResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PutBaseResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -14362,6 +14966,40 @@ func (c *ClientWithResponses) PostBaseWithResponse(ctx context.Context, params *
 	return ParsePostBaseResponse(rsp)
 }
 
+// PostBaseBuildWithBodyWithResponse performs a POST /api/rest/base-build (the `PostBaseBuild` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostBaseBuildWithBodyWithResponse(ctx context.Context, params *PostBaseBuildParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostBaseBuildResponse, error) {
+	rsp, err := c.PostBaseBuildWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostBaseBuildResponse(rsp)
+}
+
+// DeleteBaseBuildCacheWithResponse performs a DELETE /api/rest/base-build-cache (the `DeleteBaseBuildCache` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteBaseBuildCacheWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteBaseBuildCacheResponse, error) {
+	rsp, err := c.DeleteBaseBuildCache(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBaseBuildCacheResponse(rsp)
+}
+
+// GetBaseBuildCacheWithResponse performs a GET /api/rest/base-build-cache (the `GetBaseBuildCache` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetBaseBuildCacheWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBaseBuildCacheResponse, error) {
+	rsp, err := c.GetBaseBuildCache(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBaseBuildCacheResponse(rsp)
+}
+
 // GetBaseListWithResponse performs a GET /api/rest/base-list (the `GetBaseList` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -14395,6 +15033,28 @@ func (c *ClientWithResponses) GetBaseWithResponse(ctx context.Context, digest Di
 	return ParseGetBaseResponse(rsp)
 }
 
+// PutBaseWithBodyWithResponse performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutBaseWithBodyWithResponse(ctx context.Context, digest Digest, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutBaseResponse, error) {
+	rsp, err := c.PutBaseWithBody(ctx, digest, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutBaseResponse(rsp)
+}
+
+// PutBaseWithResponse performs a PUT /api/rest/base/{digest} (the `PutBase` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutBaseWithResponse(ctx context.Context, digest Digest, body PutBaseJSONRequestBody, reqEditors ...RequestEditorFn) (*PutBaseResponse, error) {
+	rsp, err := c.PutBase(ctx, digest, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutBaseResponse(rsp)
+}
+
 // GetConnectorListWithResponse performs a GET /api/rest/connector-list (the `GetConnectorList` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -14409,7 +15069,7 @@ func (c *ClientWithResponses) GetConnectorListWithResponse(ctx context.Context, 
 // GetConnectorWithResponse performs a GET /api/rest/connector/{name} (the `GetConnector` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetConnectorWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error) {
+func (c *ClientWithResponses) GetConnectorWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetConnectorResponse, error) {
 	rsp, err := c.GetConnector(ctx, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14420,7 +15080,7 @@ func (c *ClientWithResponses) GetConnectorWithResponse(ctx context.Context, name
 // DeleteConnectorCredentialWithResponse performs a DELETE /api/rest/connector/{name}/credential (the `DeleteConnectorCredential` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) DeleteConnectorCredentialWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error) {
+func (c *ClientWithResponses) DeleteConnectorCredentialWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteConnectorCredentialResponse, error) {
 	rsp, err := c.DeleteConnectorCredential(ctx, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14432,7 +15092,7 @@ func (c *ClientWithResponses) DeleteConnectorCredentialWithResponse(ctx context.
 // with any type of body and a specified content type.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
+func (c *ClientWithResponses) PutConnectorCredentialWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
 	rsp, err := c.PutConnectorCredentialWithBody(ctx, name, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14442,7 +15102,7 @@ func (c *ClientWithResponses) PutConnectorCredentialWithBodyWithResponse(ctx con
 
 // PutConnectorCredentialWithResponse performs a PUT /api/rest/connector/{name}/credential (the `PutConnectorCredential` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PutConnectorCredentialWithResponse(ctx context.Context, name Name, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
+func (c *ClientWithResponses) PutConnectorCredentialWithResponse(ctx context.Context, name string, body PutConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*PutConnectorCredentialResponse, error) {
 	rsp, err := c.PutConnectorCredential(ctx, name, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14453,7 +15113,7 @@ func (c *ClientWithResponses) PutConnectorCredentialWithResponse(ctx context.Con
 // PostConnectorLoginWithResponse performs a POST /api/rest/connector/{name}/login (the `PostConnectorLogin` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PostConnectorLoginWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error) {
+func (c *ClientWithResponses) PostConnectorLoginWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*PostConnectorLoginResponse, error) {
 	rsp, err := c.PostConnectorLogin(ctx, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14574,7 +15234,7 @@ func (c *ClientWithResponses) GetIntegrationListWithResponse(ctx context.Context
 // DeleteIntegrationWithResponse performs a DELETE /api/rest/integration/{name} (the `DeleteIntegration` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) DeleteIntegrationWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*DeleteIntegrationResponse, error) {
+func (c *ClientWithResponses) DeleteIntegrationWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteIntegrationResponse, error) {
 	rsp, err := c.DeleteIntegration(ctx, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14585,7 +15245,7 @@ func (c *ClientWithResponses) DeleteIntegrationWithResponse(ctx context.Context,
 // GetIntegrationWithResponse performs a GET /api/rest/integration/{name} (the `GetIntegration` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetIntegrationWithResponse(ctx context.Context, name Name, reqEditors ...RequestEditorFn) (*GetIntegrationResponse, error) {
+func (c *ClientWithResponses) GetIntegrationWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetIntegrationResponse, error) {
 	rsp, err := c.GetIntegration(ctx, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14597,7 +15257,7 @@ func (c *ClientWithResponses) GetIntegrationWithResponse(ctx context.Context, na
 // with any type of body and a specified content type.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PutIntegrationWithBodyWithResponse(ctx context.Context, name Name, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error) {
+func (c *ClientWithResponses) PutIntegrationWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error) {
 	rsp, err := c.PutIntegrationWithBody(ctx, name, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14607,7 +15267,7 @@ func (c *ClientWithResponses) PutIntegrationWithBodyWithResponse(ctx context.Con
 
 // PutIntegrationWithResponse performs a PUT /api/rest/integration/{name} (the `PutIntegration` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PutIntegrationWithResponse(ctx context.Context, name Name, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error) {
+func (c *ClientWithResponses) PutIntegrationWithResponse(ctx context.Context, name string, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*PutIntegrationResponse, error) {
 	rsp, err := c.PutIntegration(ctx, name, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -14993,7 +15653,7 @@ func (c *ClientWithResponses) GetSandboxIntegrationAttachmentListWithResponse(ct
 // DeleteSandboxIntegrationAttachmentWithResponse performs a DELETE /api/rest/sandbox/{id}/integration-attachment/{name} (the `DeleteSandboxIntegrationAttachment` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) DeleteSandboxIntegrationAttachmentWithResponse(ctx context.Context, id Id, name Name, reqEditors ...RequestEditorFn) (*DeleteSandboxIntegrationAttachmentResponse, error) {
+func (c *ClientWithResponses) DeleteSandboxIntegrationAttachmentWithResponse(ctx context.Context, id Id, name string, reqEditors ...RequestEditorFn) (*DeleteSandboxIntegrationAttachmentResponse, error) {
 	rsp, err := c.DeleteSandboxIntegrationAttachment(ctx, id, name, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -15467,7 +16127,7 @@ func ParsePostBaseResponse(rsp *http.Response) (*PostBaseResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ResponseBase
+		var dest ResponseOperation
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -15500,6 +16160,147 @@ func ParsePostBaseResponse(rsp *http.Response) (*PostBaseResponse, error) {
 			return nil, err
 		}
 		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostBaseBuildResponse parses an HTTP response from a PostBaseBuildWithResponse call
+func ParsePostBaseBuildResponse(rsp *http.Response) (*PostBaseBuildResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostBaseBuildResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseOperation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteBaseBuildCacheResponse parses an HTTP response from a DeleteBaseBuildCacheWithResponse call
+func ParseDeleteBaseBuildCacheResponse(rsp *http.Response) (*DeleteBaseBuildCacheResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBaseBuildCacheResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSuccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBaseBuildCacheResponse parses an HTTP response from a GetBaseBuildCacheWithResponse call
+func ParseGetBaseBuildCacheResponse(rsp *http.Response) (*GetBaseBuildCacheResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBaseBuildCacheResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseBaseBuildCache
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
@@ -15648,6 +16449,67 @@ func ParseGetBaseResponse(rsp *http.Response) (*GetBaseResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutBaseResponse parses an HTTP response from a PutBaseWithResponse call
+func ParsePutBaseResponse(rsp *http.Response) (*PutBaseResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutBaseResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseBase
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error

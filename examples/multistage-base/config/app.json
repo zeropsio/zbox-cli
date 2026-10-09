@@ -1,0 +1,1 @@
+{ "name": "multistage example", "features": ["assets", "config", "healthz"], "port": 8080 }

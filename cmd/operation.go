@@ -59,7 +59,7 @@ var opLsCmd = &cobra.Command{
 		return emit(list, func() {
 			table("ID\tKIND\tSANDBOX\tSTATUS\tCREATED\tFINISHED\tTOOK\tERROR", func(w io.Writer) {
 				for _, op := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", op.Id, op.Kind, dash(str(op.SandboxId)), op.Status, when(op.Created), whenPtr(op.Finished), took(op.Created, op.Finished), dash(str(op.Error)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", op.Id, op.Kind, dash(str(op.SandboxId)), op.Status, when(op.Created), whenPtr(op.Finished), took(op.Created, op.Finished), dash(firstLine(str(op.Error))))
 				}
 			})
 		})

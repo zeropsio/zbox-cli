@@ -186,6 +186,14 @@ func dash(s string) string {
 	return s
 }
 
+// firstLine keeps a table cell on one row: a build failure carries the build log, `operation get` prints all of it.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i] + " …"
+	}
+	return s
+}
+
 func when(s string) string {
 	t := api.Time(s)
 	if t.IsZero() {

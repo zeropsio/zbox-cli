@@ -1,0 +1,4 @@
+# What the build must not see: notes, logs, the README. The Dockerfile and the sources stay.
+notes/
+*.log
+README.md

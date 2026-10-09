@@ -734,6 +734,24 @@ func (e BaseWebhookDeliveryStatus) Valid() bool {
 	}
 }
 
+// Defines values for BaseWorkspaceHostCpuVendor.
+const (
+	AMD   BaseWorkspaceHostCpuVendor = "AMD"
+	INTEL BaseWorkspaceHostCpuVendor = "INTEL"
+)
+
+// Valid indicates whether the value is a known member of the BaseWorkspaceHostCpuVendor enum.
+func (e BaseWorkspaceHostCpuVendor) Valid() bool {
+	switch e {
+	case AMD:
+		return true
+	case INTEL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BaseWorkspacePolicyDomainFilterEnforcement.
 const (
 	BaseWorkspacePolicyDomainFilterEnforcementADVISORY BaseWorkspacePolicyDomainFilterEnforcement = "ADVISORY"
@@ -1882,6 +1900,56 @@ type BaseWorkspaceCapacity struct {
 	MemoryBytes int64 `json:"memoryBytes"`
 }
 
+// BaseWorkspaceHost defines model for BaseWorkspaceHost.
+type BaseWorkspaceHost struct {
+	// AgentDigest Digest of the guest agent flattened into every base.
+	AgentDigest string `json:"agentDigest"`
+
+	// Apicv Nested APIC virtualization, without it every guest interrupt exits to the Workspace's KVM.
+	Apicv bool `json:"apicv"`
+
+	// AptSnapshot The apt archive snapshot the Workspace image was built from.
+	AptSnapshot *string                    `json:"aptSnapshot,omitempty"`
+	CpuModel    string                     `json:"cpuModel"`
+	CpuVendor   BaseWorkspaceHostCpuVendor `json:"cpuVendor"`
+
+	// Firecracker Release the firecracker binary answers.
+	Firecracker string `json:"firecracker"`
+
+	// GuestKernel Release of the kernel the sandboxes boot.
+	GuestKernel       *string `json:"guestKernel,omitempty"`
+	GuestKernelDigest string  `json:"guestKernelDigest"`
+
+	// ImageBuilt When the Workspace image was built, from its release record.
+	ImageBuilt *string `json:"imageBuilt,omitempty"`
+
+	// Kernel Kernel release of the Workspace VM.
+	Kernel string `json:"kernel"`
+
+	// Pml Page modification logging, without it a memory diff comes from mincore.
+	Pml bool `json:"pml"`
+
+	// RestoreBacking How a resumed guest's memory is backed: anonymous (THP) or file.
+	RestoreBacking string `json:"restoreBacking"`
+	ShadowVmcs     bool   `json:"shadowVmcs"`
+	SlotsLimit     int    `json:"slotsLimit"`
+
+	// SlotsUsed Network slots held by sandboxes, parked ones included.
+	SlotsUsed int `json:"slotsUsed"`
+
+	// StartedAt Start of the orchestrator process.
+	StartedAt string `json:"startedAt"`
+
+	// TransparentHugepages The Workspace's THP policy.
+	TransparentHugepages string `json:"transparentHugepages"`
+	VolumeDevice         string `json:"volumeDevice"`
+	VolumeEncrypted      bool   `json:"volumeEncrypted"`
+	VolumeFilesystem     string `json:"volumeFilesystem"`
+}
+
+// BaseWorkspaceHostCpuVendor defines model for BaseWorkspaceHost.CpuVendor.
+type BaseWorkspaceHostCpuVendor string
+
 // BaseWorkspacePolicy defines model for BaseWorkspacePolicy.
 type BaseWorkspacePolicy struct {
 	AllowedNetworkModes       *[]string                                   `json:"allowedNetworkModes,omitempty"`
@@ -2559,9 +2627,13 @@ type ResponseWebhookList struct {
 // ResponseWorkspace defines model for ResponseWorkspace.
 type ResponseWorkspace struct {
 	// AlwaysDenied The read-only always-denied egress set, design §6.5.
-	AlwaysDenied []string                   `json:"alwaysDenied"`
-	ApiHost      string                     `json:"apiHost"`
-	Capacity     BaseWorkspaceCapacity      `json:"capacity"`
+	AlwaysDenied []string              `json:"alwaysDenied"`
+	ApiHost      string                `json:"apiHost"`
+	Capacity     BaseWorkspaceCapacity `json:"capacity"`
+	Host         BaseWorkspaceHost     `json:"host"`
+
+	// ImageRelease The alias the Workspace image was built under, null on an image from before the record.
+	ImageRelease *string                    `json:"imageRelease,omitempty"`
 	IngressHost  string                     `json:"ingressHost"`
 	Policy       BaseWorkspacePolicy        `json:"policy"`
 	Substrate    ResponseWorkspaceSubstrate `json:"substrate"`

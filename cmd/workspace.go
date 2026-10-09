@@ -44,14 +44,58 @@ var workspaceCmd = &cobra.Command{
 				"Ingress host", info.IngressHost,
 				"Version", info.Version,
 				"Substrate", strings.ToLower(string(info.Substrate)),
+				"Image", dash(str(info.ImageRelease)),
 				"Capacity", capacityString(info.Capacity),
 				"In use", usageString(info.Usage),
 				"Always denied", dash(strings.Join(info.AlwaysDenied, ", ")),
 			)
+			fmt.Println("Host:")
+			printHost(info.Host)
 			fmt.Println("Policy:")
 			_ = printJson(info.Policy)
 		})
 	},
+}
+
+// printHost is what the orchestrator learnt about the workspace VM, the facts to compare when two workspaces behave differently.
+func printHost(h api.BaseWorkspaceHost) {
+	nested := "svm"
+	if h.CpuVendor != api.AMD {
+		var flags []string
+		for _, f := range []struct {
+			on   bool
+			name string
+		}{{h.Apicv, "apicv"}, {h.Pml, "pml"}, {h.ShadowVmcs, "shadow_vmcs"}} {
+			if f.on {
+				flags = append(flags, f.name)
+			}
+		}
+		nested = dash(strings.Join(flags, " "))
+	}
+	volume := h.VolumeFilesystem + ", not encrypted"
+	if h.VolumeEncrypted {
+		volume = h.VolumeFilesystem + " under LUKS2"
+	}
+	image := "not recorded"
+	if h.ImageBuilt != nil {
+		image = when(*h.ImageBuilt)
+		if h.AptSnapshot != nil {
+			image += ", apt snapshot " + *h.AptSnapshot
+		}
+	}
+	fields(
+		"  CPU", fmt.Sprintf("%s (%s)", h.CpuModel, strings.ToLower(string(h.CpuVendor))),
+		"  Nested virt", nested,
+		"  Kernel", h.Kernel,
+		"  Firecracker", h.Firecracker,
+		"  Guest kernel", fmt.Sprintf("%s (%s)", dash(str(h.GuestKernel)), short(h.GuestKernelDigest)),
+		"  Agent", short(h.AgentDigest),
+		"  Image built", image,
+		"  Data volume", fmt.Sprintf("%s on %s", volume, h.VolumeDevice),
+		"  Memory", fmt.Sprintf("%s restores, thp %s", h.RestoreBacking, h.TransparentHugepages),
+		"  Slots", fmt.Sprintf("%d of %d", h.SlotsUsed, h.SlotsLimit),
+		"  Started", when(h.StartedAt),
+	)
 }
 
 // capacityString is the VM as the host sees it: cores, MemTotal, the size of the data volume.

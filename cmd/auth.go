@@ -101,7 +101,7 @@ var registerCmd = &cobra.Command{
 
 // handoverToken runs the browser hand-over and returns the personal access token the GUI minted.
 func handoverToken(cmd *cobra.Command, c config.Config, intent browser.Intent) (string, error) {
-	values, err := browser.Handover(cmd.Context(), c.EffectiveGuiUrl(), intent, nil, 5*time.Minute, func(s string) { fmt.Println(s) })
+	values, err := browser.Handover(cmd.Context(), c.EffectiveGuiUrl(), intent, nil, 5*time.Minute, func(s string) { fmt.Fprintln(os.Stderr, s) })
 	if err != nil {
 		return "", err
 	}
@@ -125,7 +125,7 @@ var logoutCmd = &cobra.Command{
 		if err := c.Save(); err != nil {
 			return err
 		}
-		fmt.Println("Logged out.")
+		say("Logged out.")
 		return nil
 	},
 }
@@ -141,7 +141,7 @@ func storeLogin(cmd *cobra.Command, c config.Config, token string) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
-	fmt.Printf("Logged in as %s (%s).\n", user.Email, user.Account)
+	say("Logged in as %s (%s).", user.Email, user.Account)
 	return nil
 }
 
@@ -173,10 +173,10 @@ func askLine(label, given string) (string, error) {
 	if given != "" {
 		return given, nil
 	}
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", fmt.Errorf("%s is needed and stdin is not a terminal, pass it as a flag", strings.ToLower(label))
+	if !stdinTerminal {
+		return "", usagef("%s is needed and stdin is not a terminal, pass it as a flag", strings.ToLower(label))
 	}
-	fmt.Printf("%s: ", label)
+	fmt.Fprintf(os.Stderr, "%s: ", label)
 	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil && line == "" {
 		return "", err
@@ -190,12 +190,12 @@ func askLine(label, given string) (string, error) {
 
 // askSecret reads without echo; the password never shows on the terminal and never lands in the shell history unless the user chose --password.
 func askSecret(label string) (string, error) {
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", fmt.Errorf("%s is needed and stdin is not a terminal, pass it as a flag or use --token", strings.ToLower(label))
+	if !stdinTerminal {
+		return "", usagef("%s is needed and stdin is not a terminal, pass it as a flag or use --token", strings.ToLower(label))
 	}
-	fmt.Printf("%s: ", label)
+	fmt.Fprintf(os.Stderr, "%s: ", label)
 	b, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 	if err != nil {
 		return "", err
 	}

@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,12 +26,23 @@ var (
 	flagGuiUrl    string
 	flagWorkspace string
 	flagJson      bool
+	flagQuiet     bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:           "zbox",
-	Short:         "Agent sandboxes on Zerops",
-	Long:          "zbox creates a sandbox workspace in your Zerops account and manages the sandboxes inside it.",
+	Use:   "zbox",
+	Short: "Agent sandboxes on Zerops",
+	Long: `zbox creates a sandbox workspace in your Zerops account and manages the sandboxes inside it.
+
+Output: a table on a terminal, tab-separated values with a header line when stdout is a pipe,
+the API objects as JSON with --json, only the ids with --quiet. Progress and hints go to stderr.
+Errors under --json are one JSON object on stderr: {"error":{"code","message","status","meta","exitCode"}}.
+
+Exit codes: 0 ok, 1 failed, 2 usage, 3 not found, 4 conflict (state, name, an operation in flight),
+5 timed out, 6 not authorized, 7 unavailable (retry later), 130 interrupted.
+zbox exec exits with the command's own code, and with 125 when zbox itself failed.
+
+Sandboxes are named by id or name everywhere. Destructive commands ask on a terminal and need --yes otherwise.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }
@@ -40,25 +50,32 @@ var rootCmd = &cobra.Command{
 func Execute() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		var exit exitError
-		if errors.As(err, &exit) {
-			os.Exit(exit.code)
-		}
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return err
+	markUsage(rootCmd)
+	c, err := rootCmd.ExecuteContextC(ctx)
+	if err == nil {
+		return nil
 	}
-	return nil
+	var exit exitError
+	if errors.As(err, &exit) {
+		os.Exit(exit.code)
+	}
+	if ctx.Err() != nil {
+		err = interrupted{}
+	}
+	code := exitCode(err)
+	// zbox exec passes the command's exit code through, so its own failures take docker's 125 and cannot be mistaken for the command's.
+	if c == execCmd && code != exitUsage && code != exitTimeout && code != exitInterrupted {
+		code = exitExecFailed
+	}
+	reportError(err, code)
+	os.Exit(code)
+	return err
 }
-
-// exitError carries a remote exit code (zbox exec) to the process exit status without printing anything.
-type exitError struct{ code int }
-
-func (e exitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
 
 func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.BoolVar(&flagJson, "json", false, "print the API objects as JSON instead of text, for scripts and agents")
+	pf.BoolVarP(&flagQuiet, "quiet", "q", false, "print only the ids of what was listed, created or changed, one per line")
 	pf.StringVar(&flagWorkspace, "workspace", "", "work on this known workspace for one run and leave the current one as it is: its name, service id, project name or API host (env "+config.EnvWorkspace+")")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL, stored by `zbox login`")
 	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
@@ -100,7 +117,7 @@ func loadSelected() (config.Config, error) {
 	}
 	// The flag is the last word, but two env variables naming a workspace leave no way to tell which one was meant.
 	if source == config.EnvWorkspace && (os.Getenv(config.EnvWorkspaceUrl) != "" || os.Getenv(config.EnvWorkspaceKey) != "") {
-		return c, fmt.Errorf("%s and %s/%s both name the workspace, unset one of them", config.EnvWorkspace, config.EnvWorkspaceUrl, config.EnvWorkspaceKey)
+		return c, usagef("%s and %s/%s both name the workspace, unset one of them", config.EnvWorkspace, config.EnvWorkspaceUrl, config.EnvWorkspaceKey)
 	}
 	c, err = c.Pin(ref)
 	if err != nil {
@@ -112,7 +129,7 @@ func loadSelected() (config.Config, error) {
 // refuseOverride guards the commands whose whole effect is to change the current workspace, which a workspace named for one run is there to prevent.
 func refuseOverride(command string) error {
 	if ref, source := workspaceRef(); ref != "" {
-		return fmt.Errorf("`%s` changes the current workspace and %s (%s) names one for a single run, run it without", command, source, ref)
+		return usagef("`%s` changes the current workspace and %s (%s) names one for a single run, run it without", command, source, ref)
 	}
 	return nil
 }
@@ -120,7 +137,7 @@ func refuseOverride(command string) error {
 func zeropsClient(c config.Config) (*zerops.Client, error) {
 	token := c.EffectiveToken()
 	if token == "" {
-		return nil, errors.New("not logged in, run `zbox login` first")
+		return nil, notAuthorized{"not logged in, run `zbox login` first"}
 	}
 	return zerops.New(c.ApiUrl, token), nil
 }
@@ -132,7 +149,7 @@ func workspace() (*api.Workspace, error) {
 		return nil, err
 	}
 	if !c.HasWorkspace() {
-		return nil, errors.New("no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`")
+		return nil, notAuthorized{"no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`"}
 	}
 	url, key := c.EffectiveWorkspace()
 	return api.New(url, key), nil
@@ -155,23 +172,6 @@ func printJson(v any) error {
 	return enc.Encode(v)
 }
 
-// table writes a header and rows aligned in columns.
-func table(header string, rows func(w io.Writer)) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, header)
-	rows(w)
-	_ = w.Flush()
-}
-
-// fields prints label/value pairs aligned, the text form of one object.
-func fields(pairs ...string) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	for i := 0; i+1 < len(pairs); i += 2 {
-		fmt.Fprintf(w, "%s\t%s\n", pairs[i]+":", pairs[i+1])
-	}
-	_ = w.Flush()
-}
-
 func str(p *string) string {
 	if p == nil {
 		return ""
@@ -192,21 +192,6 @@ func firstLine(s string) string {
 		return s[:i] + " …"
 	}
 	return s
-}
-
-func when(s string) string {
-	t := api.Time(s)
-	if t.IsZero() {
-		return dash(s)
-	}
-	return t.Local().Format(time.RFC3339)
-}
-
-func whenPtr(p *string) string {
-	if p == nil {
-		return "-"
-	}
-	return when(*p)
 }
 
 // took is the span between two API timestamps at millisecond resolution: whole seconds hide that a wake takes 400 ms and a park 3 s (the user's rule of 2026-09-22, "1s is too high of resolution"). An unfinished span is a dash.
@@ -241,23 +226,6 @@ func tookNote(op *api.BaseOperation) string {
 		return ""
 	}
 	return " in " + took(op.Created, op.Finished)
-}
-
-func age(s string) string {
-	t := api.Time(s)
-	if t.IsZero() {
-		return "-"
-	}
-	d := time.Since(t).Round(time.Second)
-	switch {
-	case d < time.Minute:
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	case d < time.Hour:
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	case d < 24*time.Hour:
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
 func short(digest string) string {
@@ -305,7 +273,7 @@ func parseBytes(s string) (int64, error) {
 	s = strings.TrimRight(s, "bgmk")
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("%q is not a size, use for example 512m or 2g", s)
+		return 0, usagef("%q is not a size, use for example 512m or 2g", s)
 	}
 	return n * mult, nil
 }
@@ -333,7 +301,7 @@ func readJson(path string, out any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(out); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return usageError{fmt.Errorf("%s: %w", path, err)}
 	}
 	return nil
 }

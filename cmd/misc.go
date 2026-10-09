@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -37,10 +35,12 @@ var credentialCmd = &cobra.Command{
 var credentialIssueCmd = &cobra.Command{
 	Use:   "issue <sandbox-id|name>",
 	Short: "Issue a ticket or a token for a port, the secret is shown once",
-	Args:  cobra.ExactArgs(1),
+	Example: `  zbox cred issue app --port 3000
+  zbox cred issue app --port 3000 --kind token --ttl 1h`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagCredPort == 0 {
-			return errors.New("--port is required")
+			return usagef("--port is required")
 		}
 		ws, err := workspace()
 		if err != nil {
@@ -53,20 +53,21 @@ var credentialIssueCmd = &cobra.Command{
 		}
 		open := ""
 		if s, err := ws.Sandbox(cmd.Context(), args[0]); err == nil {
-			for _, h := range s.Hosts {
-				if h.Port == issued.Credential.Port {
-					for _, p := range declaredPorts(s) {
-						if p.Port == h.Port {
-							open = openUrl(h.Url, p.Access, issued.Secret)
-						}
-					}
+			for _, p := range declaredPorts(s) {
+				if p.Port == issued.Credential.Port {
+					open = openUrl(portUrl(s, p.Port), p.Access, issued.Secret)
 				}
 			}
 		}
 		return emit(issued, func() {
+			// The secret is shown only now, so it is what --quiet keeps, not the credential id.
+			if flagQuiet {
+				fmt.Println(issued.Secret)
+				return
+			}
 			c := issued.Credential
 			fields("ID", c.Id, "Kind", string(c.Kind), "Sandbox", c.SandboxId, "Port", fmt.Sprint(c.Port), "Name", dash(str(c.Name)), "Expires", when(c.Expires), "Secret", issued.Secret, "Open", dash(open))
-			fmt.Println("The secret is not stored anywhere, copy it now. The URL carries it once, the router swaps it for a session cookie.")
+			note("The secret is shown only now. The Open URL carries it once, the router swaps it for a session cookie.")
 		})
 	},
 }
@@ -85,11 +86,12 @@ var credentialLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tKIND\tPORT\tNAME\tEXPIRES\tUSED\tREVOKED", func(w io.Writer) {
-				for _, c := range list {
-					fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\t%s\n", c.Id, c.Kind, c.Port, dash(str(c.Name)), when(c.Expires), whenPtr(c.UsedAt), whenPtr(c.RevokedAt))
-				}
-			})
+			tb := newTable("ID", "KIND", "PORT", "NAME", "EXPIRES", "USED", "REVOKED")
+			for _, c := range list {
+				tb.row(c.Id, c.Kind, c.Port, dash(str(c.Name)), when(c.Expires), whenPtr(c.UsedAt), whenPtr(c.RevokedAt))
+			}
+			tb.ifEmpty("No credentials. `zbox cred issue %s --port <port>` issues one.", args[0])
+			tb.print()
 		})
 	},
 }
@@ -103,13 +105,9 @@ var credentialRevokeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, id := range args {
-			if err := ws.RevokeCredential(cmd.Context(), id); err != nil {
-				return err
-			}
-			fmt.Println("revoked", id)
-		}
-		return nil
+		return deleteEach("", "", args, "revoked", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.RevokeCredential(cmd.Context(), args[i])
+		})
 	},
 }
 
@@ -119,11 +117,12 @@ var webhookCmd = &cobra.Command{
 }
 
 var webhookCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Register a webhook endpoint, the signing secret is shown once",
+	Use:     "create",
+	Short:   "Register a webhook endpoint, the signing secret is shown once",
+	Example: `  zbox webhook create --url https://example.com/hook --event ready --event failed`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagHookUrl == "" {
-			return errors.New("--url is required")
+			return usagef("--url is required")
 		}
 		ws, err := workspace()
 		if err != nil {
@@ -139,8 +138,12 @@ var webhookCreateCmd = &cobra.Command{
 			return err
 		}
 		return emit(created, func() {
-			printWebhook(&created.Endpoint)
-			fmt.Printf("Signing secret: %s\nIt is not shown again, copy it now.\n", created.SigningSecret)
+			if flagQuiet {
+				fmt.Println(created.SigningSecret)
+				return
+			}
+			printWebhook(&created.Endpoint, "Signing secret", created.SigningSecret)
+			note("The signing secret is shown only now.")
 		})
 	},
 }
@@ -188,11 +191,12 @@ var webhookLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tURL\tENABLED\tEVENTS\tCREATED", func(w io.Writer) {
-				for _, h := range list {
-					fmt.Fprintf(w, "%s\t%s\t%v\t%s\t%s\n", h.Id, h.Url, h.Enabled, eventsText(h.Events, ","), when(h.Created))
-				}
-			})
+			tb := newTable("ID", "URL", "ENABLED", "EVENTS", "CREATED")
+			for _, h := range list {
+				tb.row(h.Id, h.Url, yesNo(h.Enabled), eventsText(h.Events, ","), when(h.Created))
+			}
+			tb.ifEmpty("No webhooks. `zbox webhook create --url <url>` registers one.")
+			tb.print()
 		})
 	},
 }
@@ -223,13 +227,9 @@ var webhookRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, id := range args {
-			if err := ws.DeleteWebhook(cmd.Context(), id); err != nil {
-				return err
-			}
-			fmt.Println("deleted", id)
-		}
-		return nil
+		return deleteEach("delete webhook "+strings.Join(args, ", "), "", args, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteWebhook(cmd.Context(), args[i])
+		})
 	},
 }
 
@@ -248,17 +248,18 @@ var webhookDeliveriesCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tEVENT\tSANDBOX\tSTATUS\tATTEMPTS\tLAST CODE\tDELIVERED\tNEXT\tERROR", func(w io.Writer) {
-				for _, d := range list {
-					fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n", d.Id, d.EventId, d.SandboxId, d.Status, d.Attempts, intPtr(d.LastResponseCode), whenPtr(d.Delivered), whenPtr(d.NextAttempt), dash(str(d.LastError)))
-				}
-			})
+			tb := newTable("ID", "EVENT", "SANDBOX", "STATUS", "ATTEMPTS", "LAST CODE", "DELIVERED", "NEXT", "ERROR")
+			for _, d := range list {
+				tb.row(d.Id, d.EventId, d.SandboxId, d.Status, d.Attempts, intPtr(d.LastResponseCode), whenPtr(d.Delivered), whenPtr(d.NextAttempt), dash(firstLine(str(d.LastError))))
+			}
+			tb.ifEmpty("No deliveries.")
+			tb.print()
 		})
 	},
 }
 
-func printWebhook(h *api.BaseWebhookEndpoint) {
-	fields("ID", h.Id, "URL", h.Url, "Enabled", fmt.Sprint(h.Enabled), "Events", eventsText(h.Events, ", "), "Created", when(h.Created))
+func printWebhook(h *api.BaseWebhookEndpoint, extra ...string) {
+	fields(append([]string{"ID", h.Id, "URL", h.Url, "Enabled", yesNo(h.Enabled), "Events", eventsText(h.Events, ", "), "Created", when(h.Created)}, extra...)...)
 }
 
 // eventList turns the --event values into the request list: an empty list (no flag, or `all`) subscribes to every event.
@@ -295,11 +296,12 @@ var metricsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("HOUR\tCPU s\tMEM AVG\tMEM MAX\tDISK\tNET RX\tNET TX\tROUTER REQ\tPROXY REQ", func(w io.Writer) {
-				for _, m := range list {
-					fmt.Fprintf(w, "%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n", when(m.Hour), m.CpuSeconds, bytesString(m.MemoryPssAvg), bytesString(m.MemoryPssMax), bytesString(m.DiskBytes), bytesString(m.NetRxBytes), bytesString(m.NetTxBytes), m.RouterRequests, m.ProxyRequests)
-				}
-			})
+			tb := newTable("HOUR", "CPU SECONDS", "MEM AVG", "MEM MAX", "DISK", "NET RX", "NET TX", "ROUTER REQ", "PROXY REQ")
+			for _, m := range list {
+				tb.row(when(m.Hour), fmt.Sprintf("%.1f", m.CpuSeconds), bytesString(m.MemoryPssAvg), bytesString(m.MemoryPssMax), bytesString(m.DiskBytes), bytesString(m.NetRxBytes), bytesString(m.NetTxBytes), m.RouterRequests, m.ProxyRequests)
+			}
+			tb.ifEmpty("No metrics in the range yet, they are recorded per hour.")
+			tb.print()
 		})
 	},
 }
@@ -322,11 +324,12 @@ var quarantineLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tKIND\tREF\tNOTE\tCREATED", func(w io.Writer) {
-				for _, q := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", q.Id, q.Kind, q.Ref, dash(str(q.Note)), when(q.Created))
-				}
-			})
+			tb := newTable("ID", "KIND", "REF", "NOTE", "CREATED")
+			for _, q := range list {
+				tb.row(q.Id, q.Kind, q.Ref, dash(str(q.Note)), when(q.Created))
+			}
+			tb.ifEmpty("Nothing in quarantine.")
+			tb.print()
 		})
 	},
 }
@@ -340,13 +343,9 @@ var quarantineRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, id := range args {
-			if err := ws.DeleteQuarantine(cmd.Context(), id); err != nil {
-				return err
-			}
-			fmt.Println("destroyed", id)
-		}
-		return nil
+		return deleteEach("destroy quarantined "+strings.Join(args, ", "), "", args, "destroyed", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteQuarantine(cmd.Context(), args[i])
+		})
 	},
 }
 
@@ -371,5 +370,6 @@ func init() {
 	metricsCmd.Flags().StringVar(&flagMetricFrom, "from", "", "start of the range, RFC 3339")
 	metricsCmd.Flags().StringVar(&flagMetricTo, "to", "", "end of the range, RFC 3339")
 	quarantineCmd.AddCommand(quarantineLsCmd, quarantineRmCmd)
+	destructive(webhookRmCmd, quarantineRmCmd)
 	rootCmd.AddCommand(credentialCmd, webhookCmd, metricsCmd, quarantineCmd)
 }

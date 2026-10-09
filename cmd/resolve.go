@@ -48,10 +48,10 @@ func resolveSandbox(ctx context.Context, ws *api.Workspace, arg string) (string,
 		if notFound != nil {
 			return "", notFound
 		}
-		return "", &api.ApiError{Status: 404, Code: "sandboxNotFound", Message: fmt.Sprintf("no live sandbox named %q", arg)}
+		return "", api.ApiError{Status: 404, Code: "sandboxNotFound", Message: fmt.Sprintf("no live sandbox named %q", arg)}
 	default:
 		sort.Strings(ids)
-		return "", fmt.Errorf("%d live sandboxes are named %q, use the id: %s", len(ids), arg, strings.Join(ids, ", "))
+		return "", usagef("%d live sandboxes are named %q, use the id: %s", len(ids), arg, strings.Join(ids, ", "))
 	}
 }
 
@@ -96,4 +96,17 @@ func init() {
 		policyCmd, portLsCmd, portOpenCmd, portCloseCmd, attachCmd, detachCmd, attachmentsCmd,
 		credentialIssueCmd, credentialLsCmd, metricsCmd, snapshotCreateCmd, snapshotLsCmd, openCmd)
 	sandboxArgsAll(rmCmd)
+}
+
+// resolveFlag turns a sandbox named in a flag (--sandbox, --parent, --peer) into its id, like the arguments; empty stays empty.
+func resolveFlag(cmd *cobra.Command, ws *api.Workspace, value *string) error {
+	if *value == "" {
+		return nil
+	}
+	id, err := resolveSandbox(cmd.Context(), ws, *value)
+	if err != nil {
+		return err
+	}
+	*value = id
+	return nil
 }

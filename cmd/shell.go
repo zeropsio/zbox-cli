@@ -28,10 +28,11 @@ var (
 const shellReconnectWindow = 60 * time.Second
 
 var shellCmd = &cobra.Command{
-	Use:   "shell <id|name>",
-	Short: "Open an interactive shell in a sandbox",
-	Long:  "Opens a PTY through the API, so it works in every network mode. A parked sandbox is woken first. A dropped connection is resumed with the session ticket for a minute, --session and --ticket resume one by hand.",
-	Args:  cobra.ExactArgs(1),
+	Use:     "shell <id|name>",
+	Short:   "Open an interactive shell in a sandbox",
+	Long:    "Opens a PTY through the API, so it works in every network mode. A parked sandbox is woken first. A dropped connection is resumed with the session ticket for a minute, --session and --ticket resume one by hand.",
+	Example: `  zbox shell app`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

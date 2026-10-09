@@ -1,10 +1,9 @@
 package cmd
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +48,9 @@ var newCmd = &cobra.Command{
 	Long: `Create a sandbox from a base (--base) or a template (--template). With neither, the workspace's only ready base is used.
 Ports are declared as port[/protocol][/access], for example 3000, 3000/public, 5432/tcp/project. Access is one of members (default), project, ticket, token, public.
 Arguments after -- replace the image's command.`,
+	Example: `  zbox new app --base ubuntu -- sleep infinity
+  zbox new web --template dev -p 3000/public
+  id=$(zbox new -q --template dev)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		ws, err := ensureWorkspace(ctx)
@@ -64,7 +66,7 @@ Arguments after -- replace the image's command.`,
 			positional, launch = args[:split], args[split:]
 		}
 		if len(positional) > 1 {
-			return errors.New("at most one name, put the command after --")
+			return usagef("at most one name, put the command after --")
 		}
 		if len(positional) == 1 {
 			req.Name = &positional[0]
@@ -77,7 +79,7 @@ Arguments after -- replace the image's command.`,
 		}
 		switch {
 		case flagNewBase != "" && flagNewTemplate != "":
-			return errors.New("--base and --template are exclusive")
+			return usagef("--base and --template are exclusive")
 		case flagNewTemplate != "":
 			t, err := findTemplate(cmd, ws, flagNewTemplate)
 			if err != nil {
@@ -159,9 +161,15 @@ var lsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List sandboxes, newest first",
 	Long:  "The list is every matching sandbox unless --limit says otherwise; --before <id> continues with the sandboxes created before that one, so the last id of one page starts the next.",
+	Example: `  zbox ls
+  zbox ls --status running,parked --limit 20
+  zbox rm -y $(zbox ls -q --status failed)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
+			return err
+		}
+		if err := resolveFlag(cmd, ws, &flagLsParent); err != nil {
 			return err
 		}
 		p := api.GetSandboxListParams{Status: statusList(flagLsStatus), LineageId: optional(flagLsLineage), ParentId: optional(flagLsParent), BeforeId: optional(flagLsBefore)}
@@ -170,11 +178,19 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tNAME\tSTATUS\tNETWORK\tBASE\tAGE\tPORTS", func(w io.Writer) {
-				for _, s := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", s.Id, dash(str(s.Name)), s.Status, s.NetworkMode, short(s.BaseDigest), age(s.Created), portList(s))
-				}
-			})
+			tb := newTable("ID", "NAME", "STATUS", "NETWORK", "BASE", "CPU", "MEMORY", "PORTS", "CREATED")
+			for _, s := range list {
+				tb.row(s.Id, dash(str(s.Name)), s.Status, s.NetworkMode, short(s.BaseDigest), s.Cpus, bytesString(s.MemoryBytes), portList(s), when(s.Created))
+			}
+			if flagLsStatus == nil {
+				tb.ifEmpty("No live sandboxes. `zbox new` creates one, `zbox ls --status terminated` lists the ended ones.")
+			} else {
+				tb.ifEmpty("No sandboxes match.")
+			}
+			tb.print()
+			if flagLsLimit > 0 && len(list) == flagLsLimit {
+				morePages(list[len(list)-1].Id)
+			}
 		})
 	},
 }
@@ -207,7 +223,9 @@ func listSandboxes(cmd *cobra.Command, ws *api.Workspace, p api.GetSandboxListPa
 var getCmd = &cobra.Command{
 	Use:   "get <id|name>",
 	Short: "Show one sandbox",
-	Args:  cobra.ExactArgs(1),
+	Example: `  zbox get app
+  zbox get app --json`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -222,9 +240,10 @@ var getCmd = &cobra.Command{
 }
 
 var setCmd = &cobra.Command{
-	Use:   "set <id|name>",
-	Short: "Rename a sandbox or change its TTLs",
-	Args:  cobra.ExactArgs(1),
+	Use:     "set <id|name>",
+	Short:   "Rename a sandbox or change its TTLs",
+	Example: `  zbox set app --name api --idle-ttl 30m`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -232,7 +251,7 @@ var setCmd = &cobra.Command{
 		}
 		req := api.RequestPutSandbox{Name: optional(flagSetName), IdleTtlSeconds: seconds(flagSetIdleTtl), AbsoluteTtlSeconds: seconds(flagSetAbsoluteTtl)}
 		if req.Name == nil && req.IdleTtlSeconds == nil && req.AbsoluteTtlSeconds == nil {
-			return errors.New("nothing to change, give --name, --idle-ttl or --absolute-ttl")
+			return usagef("nothing to change, give --name, --idle-ttl or --absolute-ttl")
 		}
 		s, err := ws.UpdateSandbox(cmd.Context(), args[0], req)
 		if err != nil {
@@ -245,62 +264,64 @@ var setCmd = &cobra.Command{
 var rmCmd = &cobra.Command{
 	Use:   "rm <id|name>...",
 	Short: "Terminate sandboxes",
-	Args:  cobra.MinimumNArgs(1),
+	Example: `  zbox rm app
+  zbox rm -y app worker
+  zbox rm -y $(zbox ls -q --status failed)`,
+	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		var ops []api.BaseOperation
-		for _, id := range args {
-			op, err := ws.DeleteSandbox(cmd.Context(), id)
+		return deleteEach("terminate "+sandboxList(args), "Disk and memory are gone for good.", args, "terminated", func(i int) (*api.BaseOperation, error) {
+			op, err := ws.DeleteSandbox(cmd.Context(), args[i])
 			if err != nil {
-				return err
+				return nil, err
 			}
-			if !flagNoWait {
-				if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
-					return err
-				}
-			}
-			ops = append(ops, *op)
-			if !flagJson {
-				fmt.Printf("%s %s%s\n", id, verb(op, "terminated"), tookNote(op))
-			}
-		}
-		return emit(ops, func() {})
+			return waitFor(cmd, ws, op)
+		})
 	},
 }
 
 var parkCmd = &cobra.Command{
-	Use:   "park <id|name>",
-	Short: "Park a sandbox: keep its disk and memory, free its RAM",
-	Args:  cobra.ExactArgs(1),
+	Use:     "park <id|name>",
+	Short:   "Park a sandbox: keep its disk and memory, free its RAM",
+	Example: `  zbox park app`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		return runOperation(cmd, ws, "parked", func() (*api.BaseOperation, error) { return ws.Park(cmd.Context(), args[0]) })
+		err = runOperation(cmd, ws, "parked", func() (*api.BaseOperation, error) { return ws.Park(cmd.Context(), args[0]) })
+		return already(cmd, ws, args[0], err, api.BaseSandboxStatusPARKED, "parked")
 	},
 }
 
 var wakeCmd = &cobra.Command{
 	Use:   "wake <id|name>",
 	Short: "Wake a parked sandbox",
-	Args:  cobra.ExactArgs(1),
+	Example: `  zbox wake app
+  zbox wake app --redeliver-secrets`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		return runOperation(cmd, ws, "woke", func() (*api.BaseOperation, error) { return ws.Wake(cmd.Context(), args[0], flagWakeRedeliver) })
+		err = runOperation(cmd, ws, "woke", func() (*api.BaseOperation, error) { return ws.Wake(cmd.Context(), args[0], flagWakeRedeliver) })
+		if flagWakeRedeliver {
+			return err
+		}
+		return already(cmd, ws, args[0], err, api.BaseSandboxStatusRUNNING, "running")
 	},
 }
 
 var forkCmd = &cobra.Command{
-	Use:   "fork <id|name>",
-	Short: "Fork a sandbox into one or more children that continue from its current state",
-	Args:  cobra.ExactArgs(1),
+	Use:     "fork <id|name>",
+	Short:   "Fork a sandbox into one or more children that continue from its current state",
+	Example: `  zbox fork app --name try-a --name try-b`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -326,13 +347,12 @@ func runOperation(cmd *cobra.Command, ws *api.Workspace, past string, start func
 	if err != nil {
 		return err
 	}
-	if !flagNoWait {
-		if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
-			return err
-		}
+	if op, err = waitFor(cmd, ws, op); err != nil {
+		return err
 	}
 	return emit(op, func() {
-		fmt.Printf("%s %s%s%s (operation %s)\n", str(op.SandboxId), verb(op, past), bootNote(op), tookNote(op), op.Id)
+		key := cmp.Or(str(op.SandboxId), op.Id)
+		result(key, "%s %s%s%s (operation %s)", key, verb(op, past), bootNote(op), tookNote(op), op.Id)
 	})
 }
 
@@ -362,7 +382,7 @@ func runSpawn(cmd *cobra.Command, ws *api.Workspace, start func() (*api.Response
 	}
 	notes := map[string]string{}
 	if !flagNoWait {
-		parent, err := ws.WaitOperation(cmd.Context(), spawn.Operation.Id)
+		parent, err := waitFor(cmd, ws, &spawn.Operation)
 		if err != nil {
 			return err
 		}
@@ -377,12 +397,17 @@ func runSpawn(cmd *cobra.Command, ws *api.Workspace, start func() (*api.Response
 		}
 	}
 	return emit(spawn, func() {
-		for _, s := range spawn.Sandboxes {
-			printSandbox(&s)
-			if n := notes[s.Id]; n != "" {
-				fmt.Println("Boot:", strings.TrimPrefix(n, ", "))
+		for i, s := range spawn.Sandboxes {
+			if i > 0 && !flagQuiet {
+				fmt.Println()
 			}
-			fmt.Println()
+			var extra []string
+			if n := notes[s.Id]; n != "" {
+				extra = []string{"Boot", strings.TrimPrefix(n, ", ")}
+			} else if flagNoWait {
+				extra = []string{"Operation", spawn.Operation.Id + ", `zbox operation wait " + spawn.Operation.Id + "`"}
+			}
+			printSandbox(&s, extra...)
 		}
 	})
 }
@@ -415,9 +440,7 @@ func afterInFlight(cmd *cobra.Command, ws *api.Workspace, err error) error {
 	if id == "" {
 		return err
 	}
-	if !flagJson {
-		fmt.Fprintf(os.Stderr, "waiting for the running %s operation %s first\n", strings.ToLower(api.MetaValue(err, "kind")), id)
-	}
+	note("Waiting for the running %s operation %s first.", strings.ToLower(api.MetaValue(err, "kind")), id)
 	// The outcome of the other operation is not ours to judge, the retry answers for the state it left behind.
 	if _, err := ws.WaitOperation(cmd.Context(), id); err != nil && !errors.As(err, new(api.OperationFailed)) {
 		return err
@@ -432,10 +455,12 @@ func verb(op *api.BaseOperation, past string) string {
 	case api.BaseOperationStatusFAILED:
 		return "failed: " + dash(str(op.Error))
 	}
-	return strings.ToLower(string(op.Status))
+	// An unfinished operation (--no-wait) names its kind, `x terminate running` rather than `x running`, which would read as the sandbox's state.
+	return lower(op.Kind) + " " + lower(op.Status)
 }
 
-func printSandbox(s *api.BaseSandbox) {
+// printSandbox is the detail view of one sandbox, extra pairs (the boot receipt of a spawn) go after the status.
+func printSandbox(s *api.BaseSandbox, extra ...string) {
 	pairs := []string{
 		"ID", s.Id,
 		"Name", dash(str(s.Name)),
@@ -444,6 +469,7 @@ func printSandbox(s *api.BaseSandbox) {
 	if s.FailedReason != nil {
 		pairs = append(pairs, "Reason", *s.FailedReason)
 	}
+	pairs = append(pairs, extra...)
 	pairs = append(pairs,
 		"Network", string(s.NetworkMode),
 		"Base", short(s.BaseDigest),
@@ -473,8 +499,35 @@ func printSandbox(s *api.BaseSandbox) {
 		}
 	}
 	pairs = append(pairs, "Secrets", secrets, "Policy gen", strconv.Itoa(s.PolicyGeneration))
-	fields(pairs...)
-	printPorts(s)
+	fields(append(pairs, portFields(s)...)...)
+}
+
+// portFields are the declared ports as rows of the detail view, one per port with its URL; the table of `zbox port ls` is the same set.
+func portFields(s *api.BaseSandbox) []string {
+	ports := declaredPorts(s)
+	if len(ports) == 0 {
+		return []string{"Ports", "none, `zbox port open " + s.Id + " <port>`"}
+	}
+	var out []string
+	for _, p := range ports {
+		out = append(out, "Port", strings.TrimSpace(fmt.Sprintf("%d %s %s %s", p.Port, lower(p.Protocol), lower(p.Access), openUrl(portUrl(s, p.Port), p.Access, ""))))
+	}
+	return out
+}
+
+// portUrl is the URL the API derived for a port, empty for one that has none (a TCP or a project port).
+func portUrl(s *api.BaseSandbox, port int) string {
+	for _, h := range s.Hosts {
+		if h.Port == port {
+			return h.Url
+		}
+	}
+	return ""
+}
+
+// lower prints an enum of the API in lower case, the way the flags take it.
+func lower[T ~string](v T) string {
+	return strings.ToLower(string(v))
 }
 
 // printPorts lists the policy's ports, which is the declared set, with the URL the API derived for the HTTP ones. It says what to do about an empty set instead of printing nothing,
@@ -482,18 +535,14 @@ func printSandbox(s *api.BaseSandbox) {
 func printPorts(s *api.BaseSandbox) {
 	ports := declaredPorts(s)
 	if len(ports) == 0 {
-		fmt.Printf("Ports:   none, open one with `zbox port open %s <port>`\n", s.Id)
+		note("No ports declared, `zbox port open %s <port>` opens one.", s.Id)
 		return
 	}
-	urls := map[int]string{}
-	for _, h := range s.Hosts {
-		urls[h.Port] = h.Url
+	tb := newTable("PORT", "PROTOCOL", "ACCESS", "WAKE", "URL")
+	for _, p := range ports {
+		tb.row(p.Port, lower(p.Protocol), lower(p.Access), yesNo(wakes(p)), dash(openUrl(portUrl(s, p.Port), p.Access, "")))
 	}
-	table("PORT\tPROTOCOL\tACCESS\tURL", func(w io.Writer) {
-		for _, p := range ports {
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", p.Port, strings.ToLower(string(p.Protocol)), strings.ToLower(string(p.Access)), dash(openUrl(urls[p.Port], p.Access, "")))
-		}
-	})
+	tb.print()
 }
 
 // openUrl is the URL of a port as the user opens it: the router takes a fresh credential once as a query
@@ -558,7 +607,7 @@ func parseEnv(pairs []string) (map[string]interface{}, error) {
 	for _, p := range pairs {
 		k, v, found := strings.Cut(p, "=")
 		if !found || k == "" {
-			return nil, fmt.Errorf("%q is not KEY=value", p)
+			return nil, usagef("%q is not KEY=value", p)
 		}
 		out[k] = v
 	}
@@ -583,13 +632,13 @@ func findBase(cmd *cobra.Command, ws *api.Workspace, ref string) (*api.BaseBase,
 	case len(matches) == 1:
 		return &matches[0], nil
 	case len(matches) == 0 && ref == "":
-		return nil, errors.New("the workspace has no ready base, add one with `zbox base add <image>`")
+		return nil, notFoundf("the workspace has no ready base, add one with `zbox base add <image>` or `zbox base build`")
 	case len(matches) == 0:
-		return nil, fmt.Errorf("no base matches %q, see `zbox base ls`", ref)
+		return nil, notFoundf("no base matches %q, see `zbox base ls`", ref)
 	case ref == "":
-		return nil, errors.New("the workspace has several bases, pick one with --base")
+		return nil, usagef("the workspace has several ready bases, pick one with --base (`zbox base ls`)")
 	}
-	return nil, fmt.Errorf("%q matches several bases, give more of the digest", ref)
+	return nil, usagef("%q matches several bases, give more of the digest", ref)
 }
 
 func findTemplate(cmd *cobra.Command, ws *api.Workspace, ref string) (*api.BaseTemplate, error) {
@@ -607,9 +656,9 @@ func findTemplate(cmd *cobra.Command, ws *api.Workspace, ref string) (*api.BaseT
 	case 1:
 		return &matches[0], nil
 	case 0:
-		return nil, fmt.Errorf("no template matches %q, see `zbox template ls`", ref)
+		return nil, notFoundf("no template matches %q, see `zbox template ls`", ref)
 	}
-	return nil, fmt.Errorf("%q matches several templates, give more of the digest", ref)
+	return nil, usagef("%q matches several templates, give more of the digest", ref)
 }
 
 func init() {
@@ -628,7 +677,7 @@ func init() {
 	f.StringVarP(&flagNewPolicy, "policy", "f", "", "JSON file with the full sandbox policy, - for stdin")
 	f.StringVarP(&flagNewWorkdir, "workdir", "w", "", "working directory override")
 	f.StringArrayVarP(&flagNewEnv, "env", "e", nil, "launch env override as KEY=value, repeatable")
-	f.BoolVar(&flagNoWait, "no-wait", false, "return right after the create request")
+	waits(newCmd, "return right after the create request, with the operation")
 
 	lsCmd.Flags().StringArrayVar(&flagLsStatus, "status", nil, "only sandboxes in any of these statuses, repeatable or comma-separated: creating, running, parking, parked, waking, forking, restoring, failed, terminated, archived (default: the live ones, terminated and archived excluded)")
 	lsCmd.Flags().StringVar(&flagLsLineage, "lineage", "", "only sandboxes of this lineage")
@@ -641,11 +690,75 @@ func init() {
 	setCmd.Flags().DurationVar(&flagSetAbsoluteTtl, "absolute-ttl", 0, "new absolute TTL")
 
 	for _, c := range []*cobra.Command{rmCmd, parkCmd, wakeCmd, forkCmd} {
-		c.Flags().BoolVar(&flagNoWait, "no-wait", false, "return the operation without waiting for it")
+		waits(c, "return the operation without waiting for it")
 	}
+	destructive(rmCmd)
 	wakeCmd.Flags().BoolVar(&flagWakeRedeliver, "redeliver-secrets", false, "deliver the current secret selection to a stale sandbox")
 	forkCmd.Flags().IntVar(&flagForkCount, "count", 0, "number of children, default 1")
 	forkCmd.Flags().StringArrayVar(&flagForkNames, "name", nil, "name of a child, repeatable")
 
 	rootCmd.AddCommand(newCmd, lsCmd, getCmd, setCmd, rmCmd, parkCmd, wakeCmd, forkCmd)
+}
+
+// waitFor waits for an operation unless --no-wait, bounded by --timeout. A timeout says which operation still runs and how to wait for it again; an operation known only by its id (`operation wait`) has no kind to name.
+func waitFor(cmd *cobra.Command, ws *api.Workspace, op *api.BaseOperation) (*api.BaseOperation, error) {
+	if flagNoWait {
+		return op, nil
+	}
+	ctx, cancel := waitContext(cmd.Context())
+	defer cancel()
+	done, err := ws.WaitOperation(ctx, op.Id)
+	if err != nil {
+		what := "operation " + op.Id + " still runs"
+		if op.Kind != "" {
+			what = lower(op.Kind) + " " + what
+		}
+		return done, timedOut(err, what, "`zbox operation wait "+op.Id+"` picks it up")
+	}
+	return done, nil
+}
+
+// named labels a base or a template for a message: the short digest, with the name when it has one.
+func named(name *string, digest string) string {
+	if name != nil && *name != "" {
+		return short(digest) + " (" + *name + ")"
+	}
+	return short(digest)
+}
+
+// morePages tells a caller that asked for a limited page how to ask for the next one.
+func morePages(lastId string) {
+	note("More may follow: add --before %s for the next page.", lastId)
+}
+
+// sandboxList names the sandboxes of a confirmation question.
+func sandboxList(ids []string) string {
+	if len(ids) == 1 {
+		return "sandbox " + ids[0]
+	}
+	return fmt.Sprintf("%d sandboxes (%s)", len(ids), strings.Join(ids, ", "))
+}
+
+// wakes is whether a request to the port wakes a parked sandbox: every access but public does unless the port says otherwise.
+func wakes(p api.BaseIngressPort) bool {
+	if p.WakeOnRequest != nil {
+		return *p.WakeOnRequest
+	}
+	return p.Access != api.BaseIngressPortAccessPUBLIC
+}
+
+// already makes park and wake idempotent: a sandbox that is already where the verb would take it is a success, so a script or an agent can ask for the state it wants without checking first. Under --json the sandbox is printed, there is no operation.
+func already(cmd *cobra.Command, ws *api.Workspace, id string, err error, target api.BaseSandboxStatus, word string) error {
+	if !api.IsCode(err, "invalidSandboxStatus") || api.MetaValue(err, "status") != string(target) {
+		return err
+	}
+	if flagJson {
+		s, err := ws.Sandbox(cmd.Context(), id)
+		if err != nil {
+			return err
+		}
+		return printJson(s)
+	}
+	result(id, "%s already %s", id, word)
+	return nil
 }

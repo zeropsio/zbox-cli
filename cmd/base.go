@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -33,9 +32,10 @@ var baseCmd = &cobra.Command{
 }
 
 var baseAddCmd = &cobra.Command{
-	Use:   "add <image-ref>",
-	Short: "Pull an OCI image and flatten it into a base",
-	Args:  cobra.ExactArgs(1),
+	Use:     "add <image-ref>",
+	Short:   "Pull an OCI image and flatten it into a base",
+	Example: `  zbox base add ubuntu:26.04 --name ubuntu`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -45,21 +45,7 @@ var baseAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if flagNoWait {
-			return emit(op, func() { printOperation(op) })
-		}
-		fmt.Fprintf(cmd.ErrOrStderr(), "pulling, operation %s\n", op.Id)
-		if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
-			return err
-		}
-		b, err := ws.BaseOf(cmd.Context(), op)
-		if err != nil {
-			return err
-		}
-		return emit(b, func() {
-			printBase(b)
-			fmt.Println("Took:", took(op.Created, op.Finished))
-		})
+		return finishBase(cmd, ws, op, "Pulling")
 	},
 }
 
@@ -72,6 +58,8 @@ the root .dockerignore when there is one, the tree's .gitignore files otherwise,
 One line says how much was packed and what governed it, --verbose lists every member, --dry-run only lists. A name given with --name is taken
 over from the base that held it, so a rebuild replaces the earlier build for 'zbox new --base <name>'. The layer cache stays on the workspace
 until 'zbox base prune'.`,
+	Example: `  zbox base build ./image --name app
+  zbox base build --dry-run`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
@@ -95,21 +83,7 @@ until 'zbox base prune'.`,
 		if err != nil {
 			return err
 		}
-		if flagNoWait {
-			return emit(op, func() { printOperation(op) })
-		}
-		fmt.Fprintf(cmd.ErrOrStderr(), "building, operation %s\n", op.Id)
-		if op, err = ws.WaitOperation(cmd.Context(), op.Id); err != nil {
-			return err
-		}
-		b, err := ws.BaseOf(cmd.Context(), op)
-		if err != nil {
-			return err
-		}
-		return emit(b, func() {
-			printBase(b)
-			fmt.Println("Took:", took(op.Created, op.Finished))
-		})
+		return finishBase(cmd, ws, op, "Building")
 	},
 }
 
@@ -123,7 +97,7 @@ var baseSetCmd = &cobra.Command{
 			return err
 		}
 		if !cmd.Flags().Changed("name") {
-			return fmt.Errorf("nothing to set, give --name")
+			return usagef("nothing to set, give --name")
 		}
 		b, err := findBase(cmd, ws, args[0])
 		if err != nil {
@@ -151,13 +125,16 @@ var basePruneCmd = &cobra.Command{
 			return err
 		}
 		if cache.SizeBytes == 0 {
-			fmt.Println("no build cache")
+			say("No build cache.")
 			return nil
+		}
+		if err := confirm(fmt.Sprintf("remove the build cache (%s)", bytesString(cache.SizeBytes)), "The next build of every Dockerfile starts cold."); err != nil {
+			return err
 		}
 		if err := ws.PruneBuildCache(cmd.Context()); err != nil {
 			return err
 		}
-		fmt.Printf("build cache removed, %s freed\n", bytesString(cache.SizeBytes))
+		say("Build cache removed, %s freed.", bytesString(cache.SizeBytes))
 		return nil
 	},
 }
@@ -175,11 +152,12 @@ var baseLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("DIGEST\tNAME\tIMAGE\tSTATUS\tSIZE\tEXPOSES\tAGE", func(w io.Writer) {
-				for _, b := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", short(b.Digest), dash(str(b.Name)), b.ImageRef, b.Status, bytesPtr(b.SizeBytes), ints(b.ExposePorts), age(b.Created))
-				}
-			})
+			tb := newTable("DIGEST", "NAME", "IMAGE", "STATUS", "SIZE", "EXPOSES", "CREATED")
+			for _, b := range list {
+				tb.row(short(b.Digest), dash(str(b.Name)), b.ImageRef, b.Status, bytesPtr(b.SizeBytes), ints(b.ExposePorts), when(b.Created))
+			}
+			tb.ifEmpty("No bases. `zbox base add <image>` pulls one, `zbox base build` builds one from a Dockerfile.")
+			tb.print()
 		})
 	},
 }
@@ -210,22 +188,24 @@ var baseRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		var bases []*api.BaseBase
+		var labels []string
 		for _, ref := range args {
 			b, err := findBase(cmd, ws, ref)
 			if err != nil {
 				return err
 			}
-			if err := ws.DeleteBase(cmd.Context(), b.Digest); err != nil {
-				return err
-			}
-			fmt.Println("deleted", short(b.Digest))
+			bases = append(bases, b)
+			labels = append(labels, named(b.Name, b.Digest))
 		}
-		return nil
+		return deleteEach("delete base "+strings.Join(labels, ", "), "", labels, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteBase(cmd.Context(), bases[i].Digest)
+		})
 	},
 }
 
-func printBase(b *api.BaseBase) {
-	pairs := []string{"Digest", b.Digest, "Name", dash(str(b.Name)), "Image", b.ImageRef, "Status", string(b.Status)}
+func printBase(b *api.BaseBase, extra ...string) {
+	pairs := []string{"Digest", short(b.Digest), "Name", dash(str(b.Name)), "Image", b.ImageRef, "Status", string(b.Status)}
 	if b.FailedReason != nil {
 		pairs = append(pairs, "Reason", *b.FailedReason)
 	}
@@ -233,10 +213,9 @@ func printBase(b *api.BaseBase) {
 	if b.KernelDigest != nil {
 		pairs = append(pairs, "Kernel", short(*b.KernelDigest))
 	}
-	fields(pairs...)
+	fields(append(pairs, extra...)...)
 	if len(b.Labels) > 0 || b.LaunchContract.Cmd != nil || b.LaunchContract.Entrypoint != nil {
-		fmt.Println("Launch:")
-		_ = printJson(b.LaunchContract)
+		section("Launch", b.LaunchContract)
 	}
 }
 
@@ -257,8 +236,9 @@ var templateCmd = &cobra.Command{
 }
 
 var templateCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a template from a base",
+	Use:     "create",
+	Short:   "Create a template from a base",
+	Example: `  zbox template create --base app --name dev --warm --cpus 2 --memory 4g --warmup 'claude --version'`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -274,7 +254,7 @@ var templateCreateCmd = &cobra.Command{
 		}
 		// The warm-up runs in the build guest before the memory is captured, so it only has an effect on a warm template.
 		if flagTemplateWarmup != "" && !flagTemplateWarm {
-			return fmt.Errorf("--warmup runs before the memory image is taken, it needs --warm")
+			return usagef("--warmup runs before the memory image is taken, it needs --warm")
 		}
 		req.Warmup = optional(flagTemplateWarmup)
 		// The size is the one the memory image is taken at and the default of every sandbox spawned from the template; a spawn that names another size cold boots from the base instead.
@@ -297,8 +277,13 @@ var templateCreateCmd = &cobra.Command{
 			return err
 		}
 		if !flagNoWait {
-			if t, err = waitForTemplate(cmd, ws, t.Digest); err != nil {
-				return err
+			digest := short(t.Digest)
+			note("Building template %s, a warm one takes about 20 s.", digest)
+			ctx, cancel := waitContext(cmd.Context())
+			defer cancel()
+			// The wait answers no template when its own request fails, the digest is kept aside for the message.
+			if t, err = waitTemplate(ctx, ws, t.Digest); err != nil {
+				return timedOut(err, "template "+digest+" is still building", "`zbox template get "+digest+"` shows it")
 			}
 		}
 		return emit(t, func() { printTemplate(t) })
@@ -318,11 +303,12 @@ var templateLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("DIGEST\tNAME\tBASE\tSTATUS\tWARM\tSIZE\tAGE\tWARMUP", func(w io.Writer) {
-				for _, t := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\t%s\t%s\n", short(t.Digest), dash(str(t.Name)), short(t.BaseDigest), t.Status, t.HasMemory, templateSize(t), age(t.Created), dash(str(t.Warmup)))
-				}
-			})
+			tb := newTable("DIGEST", "NAME", "BASE", "STATUS", "WARM", "SIZE", "WARMUP", "CREATED")
+			for _, t := range list {
+				tb.row(short(t.Digest), dash(str(t.Name)), short(t.BaseDigest), t.Status, yesNo(t.HasMemory), templateSize(t), dash(str(t.Warmup)), when(t.Created))
+			}
+			tb.ifEmpty("No templates. `zbox template create --base <base> --warm` builds one.")
+			tb.print()
 		})
 	},
 }
@@ -381,22 +367,20 @@ var templateRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		var templates []*api.BaseTemplate
+		var labels []string
 		for _, ref := range args {
 			t, err := findTemplate(cmd, ws, ref)
 			if err != nil {
 				return err
 			}
-			if err := ws.DeleteTemplate(cmd.Context(), t.Digest); err != nil {
-				return err
-			}
-			fmt.Println("deleted", short(t.Digest))
+			templates = append(templates, t)
+			labels = append(labels, named(t.Name, t.Digest))
 		}
-		return nil
+		return deleteEach("delete template "+strings.Join(labels, ", "), "", labels, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteTemplate(cmd.Context(), templates[i].Digest)
+		})
 	},
-}
-
-func waitForTemplate(cmd *cobra.Command, ws *api.Workspace, digest string) (*api.BaseTemplate, error) {
-	return waitTemplate(cmd.Context(), ws, digest)
 }
 
 // waitTemplate holds until the template is READY, or fails with the orchestrator's reason when the build does. A warm-up has a 10 minute limit on the orchestrator side, so there is no timeout here.
@@ -423,17 +407,16 @@ func waitTemplate(ctx context.Context, ws *api.Workspace, digest string) (*api.B
 }
 
 func printTemplate(t *api.BaseTemplate) {
-	pairs := []string{"Digest", t.Digest, "Name", dash(str(t.Name)), "Base", short(t.BaseDigest), "Status", string(t.Status)}
+	pairs := []string{"Digest", short(t.Digest), "Name", dash(str(t.Name)), "Base", short(t.BaseDigest), "Status", string(t.Status)}
 	if t.FailedReason != nil {
 		pairs = append(pairs, "Reason", *t.FailedReason)
 	}
-	pairs = append(pairs, "Warm", strconv.FormatBool(t.HasMemory), "Size", templateSize(*t), "Warm-up", dash(str(t.Warmup)), "Created", when(t.Created))
+	pairs = append(pairs, "Warm", yesNo(t.HasMemory), "Size", templateSize(*t), "Warm-up", dash(str(t.Warmup)), "Created", when(t.Created))
 	fields(pairs...)
+	section("Policy", t.Policy)
 	if t.HasMemory {
-		fmt.Println("A sandbox spawned at this size resumes from the memory image, another size cold boots from the base.")
+		note("A sandbox spawned at this size resumes from the memory image, another size cold boots from the base.")
 	}
-	fmt.Println("Policy:")
-	_ = printJson(t.Policy)
 }
 
 // templateSize is the cpu count and memory the template's memory image is taken at, the default of its spawns.
@@ -443,10 +426,10 @@ func templateSize(t api.BaseTemplate) string {
 
 func init() {
 	baseAddCmd.Flags().StringVar(&flagBaseCredentialEnv, "registry-credential-env", "", "workspace env holding the credentials of a private registry")
-	baseAddCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the pull started, with its operation")
+	waits(baseAddCmd, "return right after the pull started, with its operation")
 	baseAddCmd.Flags().StringVar(&flagBaseName, "name", "", "name the base takes, moved from the base that held it")
 	baseBuildCmd.Flags().StringVar(&flagBaseName, "name", "", "name the built base takes, moved from the base that held it")
-	baseBuildCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the build started, with its operation")
+	waits(baseBuildCmd, "return right after the build started, with its operation")
 	baseBuildCmd.Flags().BoolVarP(&flagBuildVerbose, "verbose", "v", false, "list every packed member and every file or tree left out")
 	baseBuildCmd.Flags().BoolVar(&flagBuildDryRun, "dry-run", false, "pack and list, upload nothing")
 	baseSetCmd.Flags().StringVar(&flagBaseName, "name", "", "new name, refused while another base holds it")
@@ -459,9 +442,27 @@ func init() {
 	templateCreateCmd.Flags().StringVar(&flagTemplateMemory, "memory", "", "memory the image is taken at and the default of spawns, for example 1g; the workspace default when omitted")
 	templateCreateCmd.Flags().IntVar(&flagTemplateCpus, "cpus", 0, "cpu count of the image and the default of spawns")
 	templateCreateCmd.Flags().StringVarP(&flagTemplatePolicy, "policy", "f", "", "JSON file with the template policy, - for stdin")
-	templateCreateCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return right after the build started")
+	waits(templateCreateCmd, "return right after the build started")
 	templateSetCmd.Flags().StringVar(&flagTemplateName, "name", "", "new name")
 	templateSetCmd.Flags().StringVarP(&flagTemplatePolicy, "policy", "f", "", "JSON file with the new template policy, - for stdin")
 	templateCmd.AddCommand(templateCreateCmd, templateLsCmd, templateGetCmd, templateSetCmd, templateRmCmd)
+	destructive(baseRmCmd, basePruneCmd, templateRmCmd)
 	rootCmd.AddCommand(baseCmd, templateCmd)
+}
+
+// finishBase waits for a pull or a build unless --no-wait and prints the base it produced.
+func finishBase(cmd *cobra.Command, ws *api.Workspace, op *api.BaseOperation, doing string) error {
+	if flagNoWait {
+		return emit(op, func() { printOperation(op) })
+	}
+	note("%s, operation %s.", doing, op.Id)
+	op, err := waitFor(cmd, ws, op)
+	if err != nil {
+		return err
+	}
+	b, err := ws.BaseOf(cmd.Context(), op)
+	if err != nil {
+		return err
+	}
+	return emit(b, func() { printBase(b, "Took", took(op.Created, op.Finished)) })
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"cmp"
 	"context"
 	"errors"
@@ -43,7 +42,6 @@ var (
 	flagSetupCpu       int
 	flagSetupRam       int
 	flagSetupDisk      int
-	flagTeardownYes    bool
 	setupPingTimeout   = 5 * time.Minute
 )
 
@@ -53,6 +51,8 @@ var setupCmd = &cobra.Command{
 	Long: `Creates the workspace service --name (in a new project --project, or in the one --project-id names), waits for it and stores its URL and key
 here. Then, in this order: every --build is uploaded and built into a base, every --base is pulled, and every --template is warmed on the base
 it names. Without --build and --base the default sandbox image is pulled.`,
+	Example: `  zbox setup
+  zbox setup --name zbox --build ./image --template dev=2:4g@image`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := refuseOverride("zbox setup"); err != nil {
 			return err
@@ -173,19 +173,20 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 	return nil
 }
 
+// printSetupDone is the result of a setup: the URL is the key --quiet prints, the rest is what was built and what to do next.
 func printSetupDone(url string, bases []*api.BaseBase, templates []setupTemplate) {
-	fmt.Printf("The workspace is ready: %s\n", url)
+	result(url, "The workspace is ready: %s", url)
 	for _, b := range bases {
-		fmt.Printf("Base %s (%s).\n", short(b.Digest), baseLabel(b))
+		say("Base %s (%s).", short(b.Digest), baseLabel(b))
 	}
 	if len(templates) > 0 {
 		names := make([]string, len(templates))
 		for i, t := range templates {
 			names[i] = t.Name
 		}
-		fmt.Printf("Warm templates: %s.\n", strings.Join(names, ", "))
+		say("Warm templates: %s.", strings.Join(names, ", "))
 	}
-	fmt.Println("Create your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI.")
+	note("Create your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI.")
 }
 
 // setupPull is one --base, [name=]ref.
@@ -290,7 +291,7 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("Creating the workspace %s in project %s.\n", flagSetupName, flagSetupProjectId)
+		note("Creating the workspace %s in project %s.", flagSetupName, flagSetupProjectId)
 		screen.Start()
 		screen.Step("Creating the workspace")
 		res, err = zc.ImportServiceStack(ctx, flagSetupProjectId, yaml)
@@ -306,7 +307,7 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("Creating project %s with the workspace %s in %s.\n", flagSetupProject, flagSetupName, user.Account)
+		note("Creating project %s with the workspace %s in %s.", flagSetupProject, flagSetupName, user.Account)
 		screen.Start()
 		screen.Step("Creating the project")
 		res, err = zc.ImportProject(ctx, user.ClientId, yaml)
@@ -342,8 +343,8 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 	}
 	if !keyReadable(apiKey) {
 		screen.Pause()
-		fmt.Printf("The workspace API key (%s) is a generated secret, the Zerops GUI hands it over. Confirm there.\n", apiKeyEnv)
-		w, err := authorizeWorkspace(ctx, c, zc, res.ServiceId, flagSetupName, func(s string) { fmt.Println(s) })
+		note("The workspace API key (%s) is a generated secret, the Zerops GUI hands it over. Confirm there.", apiKeyEnv)
+		w, err := authorizeWorkspace(ctx, c, zc, res.ServiceId, flagSetupName, func(s string) { fmt.Fprintln(os.Stderr, s) })
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +386,7 @@ var teardownCmd = &cobra.Command{
 			return err
 		}
 		if c.ServiceId == "" {
-			return errors.New("nothing to tear down, the current workspace has no Zerops service id (assigned with `zbox workspace use`); `zbox workspace forget` drops it here")
+			return usagef("nothing to tear down, the current workspace has no Zerops service id (assigned with `zbox workspace use`); `zbox workspace forget` drops it here")
 		}
 		zc, err := zeropsClient(c)
 		if err != nil {
@@ -393,12 +394,8 @@ var teardownCmd = &cobra.Command{
 		}
 		// Forgetting the workspace clears it from c, the project is named after that.
 		project := c.ProjectName
-		if !flagTeardownYes {
-			fmt.Printf("Delete the workspace service %s in project %s with every sandbox in it? The project stays. [y/N] ", currentLabel(c), project)
-			answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-			if strings.ToLower(strings.TrimSpace(answer)) != "y" {
-				return errors.New("aborted")
-			}
+		if err := confirm(fmt.Sprintf("delete the workspace service %s in project %s", currentLabel(c), project), "Every sandbox, base and snapshot in it goes, the project stays."); err != nil {
+			return err
 		}
 		processId, err := zc.DeleteServiceStack(ctx, c.ServiceId)
 		if err != nil {
@@ -409,7 +406,7 @@ var teardownCmd = &cobra.Command{
 			if err := c.ForgetWorkspace(); err != nil {
 				return err
 			}
-			fmt.Println("The workspace service was already gone, workspace forgotten.")
+			say("The workspace service was already gone, workspace forgotten.")
 			printOthers(c)
 			return nil
 		}
@@ -419,7 +416,7 @@ var teardownCmd = &cobra.Command{
 		if err := c.ForgetWorkspace(); err != nil {
 			return err
 		}
-		fmt.Printf("Workspace service deleted, project %s stays.\n", project)
+		say("Workspace service deleted, project %s stays.", project)
 		printOthers(c)
 		return nil
 	},
@@ -442,16 +439,18 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("API:       %s\n", c.ApiUrl)
+		st := statusInfo{Api: c.ApiUrl}
+		pairs := []string{"API", c.ApiUrl}
 		zc, err := zeropsClient(c)
 		if err != nil {
-			fmt.Println("Login:     not logged in")
+			pairs = append(pairs, "Login", "not logged in, `zbox login`")
 		} else {
 			user, err := zc.UserInfo(ctx)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Login:     %s (%s)\n", user.Email, user.Account)
+			st.Login = user.Email
+			pairs = append(pairs, "Login", fmt.Sprintf("%s (%s)", user.Email, user.Account))
 			if c.HasZeropsWorkspace() {
 				project, err := zc.Project(ctx, c.ProjectId)
 				if err != nil {
@@ -461,33 +460,48 @@ var statusCmd = &cobra.Command{
 				if err != nil {
 					return forgetGoneWorkspace(&c, err, "Workspace: none, the assigned service no longer exists, run `zbox setup`")
 				}
-				fmt.Printf("Project:   %s (%s) %s\n", project.Name.Native(), c.ProjectId, project.Status.Native())
-				fmt.Printf("Service:   %s (%s) %s\n", service.Name.Native(), c.ServiceId, service.Status.Native())
+				st.ProjectId, st.ServiceId = c.ProjectId, c.ServiceId
+				pairs = append(pairs,
+					"Project", fmt.Sprintf("%s (%s) %s", project.Name.Native(), c.ProjectId, project.Status.Native()),
+					"Service", fmt.Sprintf("%s (%s) %s", service.Name.Native(), c.ServiceId, service.Status.Native()))
 			}
 		}
 		if !c.HasWorkspace() {
-			fmt.Println("Workspace: none, run `zbox setup`")
-			return nil
+			pairs = append(pairs, "Workspace", "none, `zbox setup` creates one")
+			return emit(st, func() { fields(pairs...) })
 		}
 		url, key := c.EffectiveWorkspace()
+		st.Workspace = url
 		if ref, source := workspaceRef(); c.Pinned() {
-			fmt.Printf("Workspace: %s (%s %s, the current one is left as it is)\n", url, source, ref)
+			pairs = append(pairs, "Workspace", fmt.Sprintf("%s (%s %s, the current one is left as it is)", url, source, ref))
 		} else {
-			fmt.Printf("Workspace: %s\n", url)
+			pairs = append(pairs, "Workspace", url)
 		}
-		ws := api.New(url, key)
-		info, err := ws.Info(ctx)
+		info, err := api.New(url, key).Info(ctx)
 		if err != nil {
-			fmt.Printf("Orchestrator: unreachable (%v)\n", err)
-			return nil
+			st.Error = err.Error()
+			pairs = append(pairs, "Orchestrator", fmt.Sprintf("unreachable (%v)", err))
+			return emit(st, func() { fields(pairs...) })
 		}
-		fmt.Printf("Orchestrator: %s on %s, ingress %s\n", info.Version, strings.ToLower(string(info.Substrate)), info.IngressHost)
+		st.Orchestrator = info
+		pairs = append(pairs, "Orchestrator", fmt.Sprintf("%s on %s, ingress %s", info.Version, lower(info.Substrate), info.IngressHost))
 		// An orchestrator from before the capacity fields answers zeros, the lines mean nothing then.
 		if info.Capacity.Cpus > 0 {
-			fmt.Printf("Capacity: %s\nIn use: %s\n", capacityString(info.Capacity), usageString(info.Usage))
+			pairs = append(pairs, "Capacity", capacityString(info.Capacity), "In use", usageString(info.Usage))
 		}
-		return nil
+		return emit(st, func() { fields(pairs...) })
 	},
+}
+
+// statusInfo is `zbox status --json`: what the CLI knows here and what the workspace answered.
+type statusInfo struct {
+	Api          string                 `json:"api"`
+	Login        string                 `json:"login,omitempty"`
+	ProjectId    string                 `json:"projectId,omitempty"`
+	ServiceId    string                 `json:"serviceId,omitempty"`
+	Workspace    string                 `json:"workspace,omitempty"`
+	Orchestrator *api.ResponseWorkspace `json:"orchestrator,omitempty"`
+	Error        string                 `json:"error,omitempty"`
 }
 
 // ensureWorkspace offers the setup instead of failing, because `zbox new` is the first command most people reach for and the workspace is a prerequisite they have no reason to know about yet.
@@ -497,10 +511,11 @@ func ensureWorkspace(ctx context.Context) (*api.Workspace, error) {
 		return nil, err
 	}
 	if !c.HasWorkspace() {
-		fmt.Printf("No workspace yet. Create one now (workspace %s in a new Zerops project %s)? [y/N] ", flagSetupName, flagSetupProject)
-		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		if strings.ToLower(strings.TrimSpace(answer)) != "y" {
-			return nil, errors.New("aborted")
+		if !stdinTerminal {
+			return nil, notAuthorized{"no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`"}
+		}
+		if err := ask(fmt.Sprintf("There is no workspace yet. Create the workspace %s in a new Zerops project %s?", flagSetupName, flagSetupProject)); err != nil {
+			return nil, err
 		}
 		if err := createWorkspace(ctx, &c); err != nil {
 			return nil, err
@@ -518,7 +533,7 @@ func forgetGoneWorkspace(c *config.Config, err error, message string) error {
 	if err := c.ForgetWorkspace(); err != nil {
 		return err
 	}
-	fmt.Println(message)
+	say("%s", message)
 	return nil
 }
 
@@ -527,12 +542,12 @@ func printOthers(c config.Config) {
 	// A workspace named for one run was dropped and the current one is still in use, there is nothing to switch to.
 	if ref, _ := workspaceRef(); ref != "" {
 		if w, ok := c.Current(); ok {
-			fmt.Printf("The current workspace stays %s (%s).\n", w.Name, w.Host())
+			note("The current workspace stays %s (%s).", w.Name, w.Host())
 			return
 		}
 	}
 	if others := c.Others(); len(others) > 0 {
-		fmt.Printf("Other workspaces: %s. Switch with `zbox switch <name>`.\n", strings.Join(others, ", "))
+		note("Other workspaces: %s. Switch with `zbox switch <name>`.", strings.Join(others, ", "))
 	}
 }
 
@@ -541,7 +556,7 @@ func printProcess(p zerops.ProcessState) {
 	if p.Error != "" {
 		line += " " + p.Error
 	}
-	fmt.Println(line)
+	fmt.Fprintln(os.Stderr, line)
 }
 
 // keyReadable says whether an env value read with the token is the key itself: not empty, not the generator placeholder of a secret env, not the REDACTED a read-only role gets for a sensitive env.
@@ -681,6 +696,6 @@ func init() {
 	setupCmd.Flags().IntVar(&flagSetupCpu, "cpu", 0, "dedicated cpus of the workspace VM (min 2), the platform's default of 2 when left out")
 	setupCmd.Flags().IntVar(&flagSetupRam, "ram", 0, "RAM of the workspace VM in GiB (min 2), the sandboxes take theirs from it; the platform's default of 4 GiB when left out")
 	setupCmd.Flags().IntVar(&flagSetupDisk, "disk", 0, "disk of the workspace VM in GiB (min 10), one pool for bases, sandboxes and snapshots; the platform's default of 10 GiB when left out")
-	teardownCmd.Flags().BoolVarP(&flagTeardownYes, "yes", "y", false, "skip the confirmation")
+	destructive(teardownCmd)
 	rootCmd.AddCommand(setupCmd, teardownCmd, statusCmd)
 }

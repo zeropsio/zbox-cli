@@ -65,7 +65,7 @@ zbox teardown                 # deletes the workspace service, the Zerops projec
 claude mcp add zbox -- zbox mcp --template dev   # MCP server on stdio: run_code (fresh VM per call, or kept) and kill_sandbox
 ```
 
-Every command takes `--json` and prints the API objects as they are. Mutations wait for their operation and exit non-zero when it fails, unless `--no-wait`.
+Output is a table on a terminal and tab-separated with a header when piped; `--json` prints the API objects as they are, `-q` only the ids (`id=$(zbox new -q --template dev)`). Mutations wait for their operation (`--timeout` bounds the wait, `--no-wait` skips it) and exit non-zero when it fails. Destructive commands ask on a terminal and need `--yes` otherwise. Exit codes and the rest of the output contract: `zbox --help` and [docs/cli-ux.md](docs/cli-ux.md).
 
 Also there: `set` (rename, TTLs), `policy`, `template`, `credential` (tickets and tokens for preview ports), `connector` (claude, github, codex logins), `integration`, `attach`, `detach` and `attachments` (credential proxy), `webhook`, `session`, `process`, `file`, `ssh`, `ssh-key`, `lineage`, `export`, `import`, `metrics`, `quarantine`.
 

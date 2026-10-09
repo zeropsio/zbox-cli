@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -40,11 +38,11 @@ func parseInject(s string) (*api.BaseInject, error) {
 		return &api.BaseInject{Type: api.BaseInjectType(strings.ToUpper(kind))}, nil
 	case "header":
 		if header == "" {
-			return nil, errors.New("--inject header needs the header name, header:X-Api-Key")
+			return nil, usagef("--inject header needs the header name, header:X-Api-Key")
 		}
 		return &api.BaseInject{Type: "HEADER", Header: &header}, nil
 	}
-	return nil, fmt.Errorf("%q is not bearer, basic or header:<name>", s)
+	return nil, usagef("%q is not bearer, basic or header:<name>", s)
 }
 
 // parseRate reads requests-per-second[/burst].
@@ -55,24 +53,25 @@ func parseRate(s string) (*api.BaseRate, error) {
 	rps, burst, _ := strings.Cut(s, "/")
 	r, err := strconv.Atoi(rps)
 	if err != nil {
-		return nil, fmt.Errorf("%q is not requests-per-second[/burst]", s)
+		return nil, usagef("%q is not requests-per-second[/burst]", s)
 	}
 	out := &api.BaseRate{RequestsPerSecond: r, Burst: r}
 	if burst != "" {
 		if out.Burst, err = strconv.Atoi(burst); err != nil {
-			return nil, fmt.Errorf("%q is not requests-per-second[/burst]", s)
+			return nil, usagef("%q is not requests-per-second[/burst]", s)
 		}
 	}
 	return out, nil
 }
 
 var integrationCreateCmd = &cobra.Command{
-	Use:   "create <name>",
-	Short: "Define an integration",
-	Args:  cobra.ExactArgs(1),
+	Use:     "create <name>",
+	Short:   "Define an integration",
+	Example: `  zbox integration create stripe --target-url https://api.stripe.com --credential-env STRIPE_KEY --inject bearer`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagIntTarget == "" || flagIntCredential == "" || flagIntInject == "" {
-			return errors.New("--target-url, --credential-env and --inject are required")
+			return usagef("--target-url, --credential-env and --inject are required")
 		}
 		ws, err := workspace()
 		if err != nil {
@@ -132,11 +131,12 @@ var integrationLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("NAME\tTARGET\tCREDENTIAL ENV\tINJECT\tRATE\tCREATED", func(w io.Writer) {
-				for _, i := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", i.Name, i.TargetUrl, i.CredentialEnv, injectString(i.Inject), rateString(i.RateLimit), when(i.Created))
-				}
-			})
+			tb := newTable("NAME", "TARGET", "CREDENTIAL ENV", "INJECT", "RATE", "CREATED")
+			for _, i := range list {
+				tb.row(i.Name, i.TargetUrl, i.CredentialEnv, injectString(i.Inject), rateString(i.RateLimit), when(i.Created))
+			}
+			tb.ifEmpty("No integrations. `zbox integration create` defines one, `zbox connector ls` shows the ready-made ones.")
+			tb.print()
 		})
 	},
 }
@@ -167,23 +167,18 @@ var integrationRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, name := range args {
-			if err := ws.DeleteIntegration(cmd.Context(), name); err != nil {
-				return err
-			}
-			fmt.Println("deleted", name)
-		}
-		return nil
+		return deleteEach("delete integration "+strings.Join(args, ", "), "", args, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteIntegration(cmd.Context(), args[i])
+		})
 	},
 }
 
 func printIntegration(i *api.BaseIntegration) {
-	fields("Name", i.Name, "Target", i.TargetUrl, "Credential env", i.CredentialEnv, "Inject", injectString(i.Inject), "Strip prefix", dash(str(i.StripPrefix)), "Rate", rateString(i.RateLimit), "Created", when(i.Created))
-	fmt.Printf("Inside a sandbox: http://%s.int.<workspace-domain>/\n", i.Name)
+	fields("Name", i.Name, "Target", i.TargetUrl, "Credential env", i.CredentialEnv, "Inject", injectString(i.Inject), "Strip prefix", dash(str(i.StripPrefix)), "Rate", rateString(i.RateLimit), "Created", when(i.Created), "In a sandbox", "http://"+i.Name+".int.<workspace-domain>/ once attached")
 }
 
 func injectString(i api.BaseInject) string {
-	out := strings.ToLower(string(i.Type))
+	out := lower(i.Type)
 	if i.Header != nil {
 		out += ":" + *i.Header
 	}
@@ -206,14 +201,14 @@ func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) 
 	if strings.HasPrefix(target, "peer:") {
 		parts := strings.Split(strings.TrimPrefix(target, "peer:"), ":")
 		if len(parts) != 2 {
-			return api.RequestPostIntegrationAttachment{}, fmt.Errorf("%q is not label=peer:<sandbox>:<port>", spec)
+			return api.RequestPostIntegrationAttachment{}, usagef("%q is not label=peer:<sandbox>:<port>", spec)
 		}
 		port, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return api.RequestPostIntegrationAttachment{}, fmt.Errorf("%q is not a port number", parts[1])
+			return api.RequestPostIntegrationAttachment{}, usagef("%q is not a port number", parts[1])
 		}
 		if !found {
-			return api.RequestPostIntegrationAttachment{}, errors.New("a peer attachment needs a label, label=peer:<sandbox>:<port>")
+			return api.RequestPostIntegrationAttachment{}, usagef("a peer attachment needs a label, label=peer:<sandbox>:<port>")
 		}
 		return api.RequestPostIntegrationAttachment{Name: label, PeerSandboxId: &parts[0], PeerPort: &port}, nil
 	}
@@ -221,10 +216,11 @@ func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) 
 }
 
 var attachCmd = &cobra.Command{
-	Use:   "attach <sandbox-id|name> <label>",
-	Short: "Attach an integration or a peer sandbox to a sandbox under a label",
-	Long:  "The sandbox then reaches it at http://<label>.int.<workspace-domain>/. Give --integration for a defined integration or --peer with --peer-port for another sandbox's published port.",
-	Args:  cobra.ExactArgs(2),
+	Use:     "attach <sandbox-id|name> <label>",
+	Short:   "Attach an integration or a peer sandbox to a sandbox under a label",
+	Long:    "The sandbox then reaches it at http://<label>.int.<workspace-domain>/. Give --integration for a defined integration or --peer with --peer-port for another sandbox's published port.",
+	Example: `  zbox attach app stripe`,
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -233,12 +229,15 @@ var attachCmd = &cobra.Command{
 		req := api.RequestPostIntegrationAttachment{Name: args[1]}
 		switch {
 		case flagAttachInt != "" && flagAttachPeer != "":
-			return errors.New("--integration and --peer are exclusive")
+			return usagef("--integration and --peer are exclusive")
 		case flagAttachInt != "":
 			req.IntegrationName = &flagAttachInt
 		case flagAttachPeer != "":
+			if err := resolveFlag(cmd, ws, &flagAttachPeer); err != nil {
+				return err
+			}
 			if flagAttachPeerPort == 0 {
-				return errors.New("--peer needs --peer-port")
+				return usagef("--peer needs --peer-port")
 			}
 			req.PeerSandboxId, req.PeerPort = &flagAttachPeer, &flagAttachPeerPort
 		default:
@@ -250,7 +249,7 @@ var attachCmd = &cobra.Command{
 			return err
 		}
 		return emit(a, func() {
-			fmt.Printf("%s attached to %s as http://%s.int.<workspace-domain>/\n", attachmentTarget(*a), a.SandboxId, a.Name)
+			result(a.Name, "%s attached to %s as http://%s.int.<workspace-domain>/", attachmentTarget(*a), a.SandboxId, a.Name)
 		})
 	},
 }
@@ -264,13 +263,10 @@ var detachCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, name := range args[1:] {
-			if err := ws.Detach(cmd.Context(), args[0], name); err != nil {
-				return err
-			}
-			fmt.Println("detached", name)
-		}
-		return nil
+		labels := args[1:]
+		return deleteEach("", "", labels, "detached", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.Detach(cmd.Context(), args[0], labels[i])
+		})
 	},
 }
 
@@ -288,11 +284,12 @@ var attachmentsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("LABEL\tTARGET\tCREATED", func(w io.Writer) {
-				for _, a := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", a.Name, attachmentTarget(a), when(a.Created))
-				}
-			})
+			tb := newTable("LABEL", "TARGET", "CREATED")
+			for _, a := range list {
+				tb.row(a.Name, attachmentTarget(a), when(a.Created))
+			}
+			tb.ifEmpty("Nothing attached. `zbox attach %s <label>` attaches an integration.", args[0])
+			tb.print()
 		})
 	},
 }
@@ -317,5 +314,6 @@ func init() {
 	attachCmd.Flags().StringVar(&flagAttachInt, "integration", "", "integration name, defaults to the label")
 	attachCmd.Flags().StringVar(&flagAttachPeer, "peer", "", "id of the peer sandbox")
 	attachCmd.Flags().IntVar(&flagAttachPeerPort, "peer-port", 0, "published port of the peer sandbox")
+	destructive(integrationRmCmd)
 	rootCmd.AddCommand(integrationCmd, attachCmd, detachCmd, attachmentsCmd)
 }

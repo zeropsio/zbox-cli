@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
-	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -27,9 +25,10 @@ var snapshotCmd = &cobra.Command{
 }
 
 var snapshotCreateCmd = &cobra.Command{
-	Use:   "create <sandbox-id|name> <name>",
-	Short: "Take a named snapshot of a sandbox's disk, optionally with its memory",
-	Args:  cobra.ExactArgs(2),
+	Use:     "create <sandbox-id|name> <name>",
+	Short:   "Take a named snapshot of a sandbox's disk, optionally with its memory",
+	Example: `  zbox snapshot create app before-upgrade --with-memory`,
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -57,11 +56,12 @@ var snapshotLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tNAME\tKIND\tMEMORY\tSIZE\tCREATED", func(w io.Writer) {
-				for _, s := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\t%s\n", s.Id, dash(str(s.Name)), s.Kind, s.HasMemory, bytesPtr(s.SizeBytes), when(s.Created))
-				}
-			})
+			tb := newTable("ID", "NAME", "KIND", "MEMORY", "SIZE", "CREATED")
+			for _, s := range list {
+				tb.row(s.Id, dash(str(s.Name)), s.Kind, yesNo(s.HasMemory), bytesPtr(s.SizeBytes), when(s.Created))
+			}
+			tb.ifEmpty("No snapshots. `zbox snapshot create %s <name>` takes one.", args[0])
+			tb.print()
 		})
 	},
 }
@@ -80,7 +80,7 @@ var snapshotGetCmd = &cobra.Command{
 			return err
 		}
 		return emit(s, func() {
-			fields("ID", s.Id, "Name", dash(str(s.Name)), "Sandbox", s.SandboxId, "Kind", string(s.Kind), "Memory", fmt.Sprint(s.HasMemory), "Size", bytesPtr(s.SizeBytes), "Created", when(s.Created))
+			fields("ID", s.Id, "Name", dash(str(s.Name)), "Sandbox", s.SandboxId, "Kind", string(s.Kind), "Memory", yesNo(s.HasMemory), "Size", bytesPtr(s.SizeBytes), "Created", when(s.Created))
 		})
 	},
 }
@@ -94,20 +94,17 @@ var snapshotRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, id := range args {
-			if err := ws.DeleteSnapshot(cmd.Context(), id); err != nil {
-				return err
-			}
-			fmt.Println("deleted", id)
-		}
-		return nil
+		return deleteEach("delete snapshot "+strings.Join(args, ", "), "", args, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteSnapshot(cmd.Context(), args[i])
+		})
 	},
 }
 
 var snapshotRestoreCmd = &cobra.Command{
-	Use:   "restore <snapshot-id>",
-	Short: "Restore a snapshot into a new sandbox, the original is never rolled back",
-	Args:  cobra.ExactArgs(1),
+	Use:     "restore <snapshot-id>",
+	Short:   "Restore a snapshot into a new sandbox, the original is never rolled back",
+	Example: `  zbox snapshot restore $(zbox snapshot ls app -q | head -1) --name app-2 --with-memory`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -139,11 +136,12 @@ var lineageLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tEXPORT\tCREATED", func(w io.Writer) {
-				for _, l := range list {
-					fmt.Fprintf(w, "%s\t%v\t%s\n", l.Id, l.ExportEnabled, when(l.Created))
-				}
-			})
+			tb := newTable("ID", "EXPORT", "CREATED")
+			for _, l := range list {
+				tb.row(l.Id, onOff(l.ExportEnabled), when(l.Created))
+			}
+			tb.ifEmpty("No lineages yet, every sandbox starts one.")
+			tb.print()
 		})
 	},
 }
@@ -161,7 +159,7 @@ var lineageGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return emit(l, func() { fields("ID", l.Id, "Export", fmt.Sprint(l.ExportEnabled), "Created", when(l.Created)) })
+		return emit(l, func() { fields("ID", l.Id, "Export", onOff(l.ExportEnabled), "Created", when(l.Created)) })
 	},
 }
 
@@ -180,13 +178,13 @@ var lineageSetCmd = &cobra.Command{
 			enabled = true
 		case "off", "false":
 		default:
-			return errors.New("--export takes on or off")
+			return usagef("--export takes on or off")
 		}
 		l, err := ws.UpdateLineage(cmd.Context(), args[0], enabled)
 		if err != nil {
 			return err
 		}
-		return emit(l, func() { fmt.Printf("Lineage %s export %v.\n", l.Id, l.ExportEnabled) })
+		return emit(l, func() { result(l.Id, "Lineage %s export %s.", l.Id, onOff(l.ExportEnabled)) })
 	},
 }
 
@@ -225,11 +223,12 @@ var exportLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tLINEAGE\tKIND\tSTATUS\tSIZE\tDESTINATION\tCREATED", func(w io.Writer) {
-				for _, e := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Id, e.LineageId, e.Kind, e.Status, bytesPtr(e.SizeBytes), e.Destination, when(e.Created))
-				}
-			})
+			tb := newTable("ID", "LINEAGE", "KIND", "STATUS", "SIZE", "DESTINATION", "CREATED")
+			for _, e := range list {
+				tb.row(e.Id, e.LineageId, e.Kind, e.Status, bytesPtr(e.SizeBytes), e.Destination, when(e.Created))
+			}
+			tb.ifEmpty("No exports.")
+			tb.print()
 		})
 	},
 }
@@ -268,7 +267,7 @@ var importCmd = &cobra.Command{
 	Long:  "Import an export of a lineage by its object storage key.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagImportSource == "" {
-			return errors.New("--source is required")
+			return usagef("--source is required")
 		}
 		ws, err := workspace()
 		if err != nil {
@@ -282,10 +281,10 @@ var importCmd = &cobra.Command{
 
 func init() {
 	snapshotCreateCmd.Flags().BoolVar(&flagSnapMemory, "with-memory", false, "include the memory image, so a restore can resume the processes")
-	snapshotCreateCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return the operation without waiting for it")
+	waits(snapshotCreateCmd, "return the operation without waiting for it")
 	snapshotRestoreCmd.Flags().StringVar(&flagRestoreName, "name", "", "name of the new sandbox")
 	snapshotRestoreCmd.Flags().BoolVar(&flagRestoreMemory, "with-memory", false, "resume the memory image when the snapshot has one")
-	snapshotRestoreCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return the operation without waiting for it")
+	waits(snapshotRestoreCmd, "return the operation without waiting for it")
 	snapshotCmd.AddCommand(snapshotCreateCmd, snapshotLsCmd, snapshotGetCmd, snapshotRmCmd, snapshotRestoreCmd)
 
 	lineageSetCmd.Flags().StringVar(&flagLineageExport, "export", "", "on or off")
@@ -296,6 +295,14 @@ func init() {
 	exportCmd.AddCommand(exportLsCmd, exportGetCmd)
 
 	importCmd.Flags().StringVar(&flagImportSource, "source", "", "object storage key of the export")
-	importCmd.Flags().BoolVar(&flagNoWait, "no-wait", false, "return the operation without waiting for it")
+	waits(importCmd, "return the operation without waiting for it")
+	destructive(snapshotRmCmd)
 	rootCmd.AddCommand(snapshotCmd, lineageCmd, exportCmd, importCmd)
+}
+
+func onOff(b bool) string {
+	if b {
+		return "on"
+	}
+	return "off"
 }

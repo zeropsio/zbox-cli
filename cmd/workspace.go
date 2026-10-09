@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -38,27 +38,24 @@ var workspaceCmd = &cobra.Command{
 			return err
 		}
 		return emit(info, func() {
-			fields(
+			fields(append([]string{
 				"API", ws.BaseUrl,
 				"API host", info.ApiHost,
 				"Ingress host", info.IngressHost,
 				"Version", info.Version,
-				"Substrate", strings.ToLower(string(info.Substrate)),
+				"Substrate", lower(info.Substrate),
 				"Image", dash(str(info.ImageRelease)),
 				"Capacity", capacityString(info.Capacity),
 				"In use", usageString(info.Usage),
 				"Always denied", dash(strings.Join(info.AlwaysDenied, ", ")),
-			)
-			fmt.Println("Host:")
-			printHost(info.Host)
-			fmt.Println("Policy:")
-			_ = printJson(info.Policy)
+			}, hostFields(info.Host)...)...)
+			section("Policy", info.Policy)
 		})
 	},
 }
 
-// printHost is what the orchestrator learnt about the workspace VM, the facts to compare when two workspaces behave differently.
-func printHost(h api.BaseWorkspaceHost) {
+// hostFields is what the orchestrator learnt about the workspace VM, the facts to compare when two workspaces behave differently.
+func hostFields(h api.BaseWorkspaceHost) []string {
 	nested := "svm"
 	if h.CpuVendor != api.AMD {
 		var flags []string
@@ -83,19 +80,19 @@ func printHost(h api.BaseWorkspaceHost) {
 			image += ", apt snapshot " + *h.AptSnapshot
 		}
 	}
-	fields(
-		"  CPU", fmt.Sprintf("%s (%s)", h.CpuModel, strings.ToLower(string(h.CpuVendor))),
-		"  Nested virt", nested,
-		"  Kernel", h.Kernel,
-		"  Firecracker", h.Firecracker,
-		"  Guest kernel", fmt.Sprintf("%s (%s)", dash(str(h.GuestKernel)), short(h.GuestKernelDigest)),
-		"  Agent", short(h.AgentDigest),
-		"  Image built", image,
-		"  Data volume", fmt.Sprintf("%s on %s", volume, h.VolumeDevice),
-		"  Memory", fmt.Sprintf("%s restores, thp %s", h.RestoreBacking, h.TransparentHugepages),
-		"  Slots", fmt.Sprintf("%d of %d", h.SlotsUsed, h.SlotsLimit),
-		"  Started", when(h.StartedAt),
-	)
+	return []string{
+		"Host CPU", fmt.Sprintf("%s (%s)", h.CpuModel, lower(h.CpuVendor)),
+		"Host nested virt", nested,
+		"Host kernel", h.Kernel,
+		"Host firecracker", h.Firecracker,
+		"Host guest kernel", fmt.Sprintf("%s (%s)", dash(str(h.GuestKernel)), short(h.GuestKernelDigest)),
+		"Host agent", short(h.AgentDigest),
+		"Host image built", image,
+		"Host data volume", fmt.Sprintf("%s on %s", volume, h.VolumeDevice),
+		"Host memory", fmt.Sprintf("%s restores, thp %s", h.RestoreBacking, h.TransparentHugepages),
+		"Host slots", fmt.Sprintf("%d of %d", h.SlotsUsed, h.SlotsLimit),
+		"Host started", when(h.StartedAt),
+	}
 }
 
 // capacityString is the VM as the host sees it: cores, MemTotal, the size of the data volume.
@@ -136,7 +133,7 @@ var workspacePolicyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return emit(info, func() { fmt.Println("Workspace policy updated.") })
+		return emit(info, func() { say("Workspace policy updated.") })
 	},
 }
 
@@ -146,7 +143,7 @@ var workspaceUseCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagWorkspaceKey == "" {
-			return errors.New("--api-key is required, it is the ZBOX_WORKSPACE_API_KEY env of the workspace service")
+			return usagef("--api-key is required, it is the ZBOX_WORKSPACE_API_KEY env of the workspace service")
 		}
 		c, err := loadConfig()
 		if err != nil {
@@ -171,22 +168,22 @@ var workspaceUseCmd = &cobra.Command{
 				}
 			}
 			if named, err := (config.Config{Workspaces: known}).Lookup(ref); err != nil || named.WorkspaceUrl != w.WorkspaceUrl {
-				return fmt.Errorf("%s %s does not name the workspace being stored (%s, %s); name it, or run without to make it the current one", source, ref, w.Name, w.Host())
+				return usagef("%s %s does not name the workspace being stored (%s, %s); name it, or run without to make it the current one", source, ref, w.Name, w.Host())
 			}
 			if err := c.Remember(w); err != nil {
 				return err
 			}
-			fmt.Printf("Stored workspace %s: %s (%s on %s).", w.Name, url, info.Version, strings.ToLower(string(info.Substrate)))
+			line := fmt.Sprintf("Stored workspace %s: %s (%s on %s).", w.Name, url, info.Version, lower(info.Substrate))
 			if current, ok := c.Current(); ok && current.WorkspaceUrl != w.WorkspaceUrl {
-				fmt.Printf(" The current one stays %s (%s).", current.Name, current.Host())
+				line += fmt.Sprintf(" The current one stays %s (%s).", current.Name, current.Host())
 			}
-			fmt.Println()
+			result(w.Name, "%s", line)
 			return nil
 		}
 		if err := c.Assign(w); err != nil {
 			return err
 		}
-		fmt.Printf("Using workspace %s: %s (%s on %s).\n", w.Name, url, info.Version, strings.ToLower(string(info.Substrate)))
+		result(w.Name, "Using workspace %s: %s (%s on %s).", w.Name, url, info.Version, lower(info.Substrate))
 		return nil
 	},
 }
@@ -204,9 +201,9 @@ var workspaceForgetCmd = &cobra.Command{
 			return err
 		}
 		if known {
-			fmt.Printf("Workspace %s (%s) forgotten.\n", forgotten.Name, forgotten.Host())
+			say("Workspace %s (%s) forgotten.", forgotten.Name, forgotten.Host())
 		} else {
-			fmt.Println("Workspace forgotten.")
+			say("Workspace forgotten.")
 		}
 		printOthers(c)
 		return nil
@@ -226,7 +223,7 @@ var workspaceLsCmd = &cobra.Command{
 		if err != nil {
 			return emit(c.Workspaces, func() {
 				printWorkspaces(c)
-				fmt.Println("Not logged in, only the workspaces known here are listed. Run `zbox login` to see the account's.")
+				note("Not logged in, only the workspaces known here are listed. Run `zbox login` to see the account's.")
 			})
 		}
 		if c.ClientId == "" {
@@ -248,19 +245,20 @@ var workspaceLsCmd = &cobra.Command{
 				}
 			}
 			listed := map[string]bool{}
-			table("  NAME\tHOSTNAME\tPROJECT\tSTATUS\tSERVICE ID\tKEY", func(w io.Writer) {
-				for _, st := range stacks {
-					known, ok := byService[st.ServiceId]
-					listed[st.ServiceId] = true
-					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\t%s\n", mark(c, known.WorkspaceUrl), dash(known.Name), st.Hostname, st.ProjectName, st.Status, st.ServiceId, map[bool]string{true: "stored", false: "-"}[ok])
+			tb := newTable("", "SERVICE ID", "NAME", "HOSTNAME", "PROJECT", "STATUS", "KEY").keyCol(1)
+			for _, st := range stacks {
+				known, ok := byService[st.ServiceId]
+				listed[st.ServiceId] = true
+				tb.row(mark(c, known.WorkspaceUrl), st.ServiceId, dash(known.Name), st.Hostname, st.ProjectName, st.Status, map[bool]string{true: "stored", false: "-"}[ok])
+			}
+			for _, ws := range c.Workspaces {
+				if listed[ws.ServiceId] {
+					continue
 				}
-				for _, ws := range c.Workspaces {
-					if listed[ws.ServiceId] {
-						continue
-					}
-					fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\t%s\tstored\n", mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), "not in this account", dash(ws.ServiceId))
-				}
-			})
+				tb.row(mark(c, ws.WorkspaceUrl), dash(ws.ServiceId), ws.Name, ws.Host(), dash(ws.ProjectName), "not in this account", "stored")
+			}
+			tb.ifEmpty("No workspaces in the account. `zbox setup` creates one.")
+			tb.print()
 			printMarks(c)
 		})
 	},
@@ -296,22 +294,22 @@ func printMarks(c config.Config) {
 		return
 	}
 	if w, err := c.Lookup(ref); err != nil {
-		fmt.Printf("%s: %v\n", source, err)
+		note("%s: %v", source, err)
 	} else {
-		fmt.Printf("> is %s (%s %s), the workspace commands work on in this run; * is the current one.\n", w.Name, source, ref)
+		note("> is %s (%s %s), the workspace commands work on in this run; * is the current one.", w.Name, source, ref)
 	}
 }
 
 func printWorkspaces(c config.Config) {
 	if len(c.Workspaces) == 0 {
-		fmt.Println("No workspaces known here, run `zbox setup` or `zbox workspace authorize <service-id>`.")
+		note("No workspaces known here, run `zbox setup` or `zbox workspace authorize <service-id>`.")
 		return
 	}
-	table("  NAME\tAPI HOST\tPROJECT\tSERVICE ID", func(w io.Writer) {
-		for _, ws := range c.Workspaces {
-			fmt.Fprintf(w, "%s %s\t%s\t%s\t%s\n", mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), dash(ws.ServiceId))
-		}
-	})
+	tb := newTable("", "NAME", "API HOST", "PROJECT", "SERVICE ID").keyCol(1)
+	for _, ws := range c.Workspaces {
+		tb.row(mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), dash(ws.ServiceId))
+	}
+	tb.print()
 	printMarks(c)
 }
 
@@ -329,14 +327,14 @@ var workspaceAuthorizeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		w, err := authorizeWorkspace(cmd.Context(), &c, zc, args[0], flagWorkspaceName, func(s string) { fmt.Println(s) })
+		w, err := authorizeWorkspace(cmd.Context(), &c, zc, args[0], flagWorkspaceName, func(s string) { fmt.Fprintln(os.Stderr, s) })
 		if err != nil {
 			return err
 		}
 		if c.WorkspaceUrl == w.WorkspaceUrl {
-			fmt.Printf("Stored the key of workspace %s (%s), it is the current one.\n", w.Name, w.Host())
+			result(w.Name, "Stored the key of workspace %s (%s), it is the current one.", w.Name, w.Host())
 		} else {
-			fmt.Printf("Stored the key of workspace %s (%s). `zbox switch %s` makes it the current one.\n", w.Name, w.Host(), w.Name)
+			result(w.Name, "Stored the key of workspace %s (%s). `zbox switch %s` makes it the current one.", w.Name, w.Host(), w.Name)
 		}
 		return nil
 	},
@@ -392,7 +390,7 @@ var switchCmd = &cobra.Command{
 		if err := c.Assign(w); err != nil {
 			return err
 		}
-		return emit(w, func() { fmt.Printf("Switched to %s (%s).\n", w.Name, w.Host()) })
+		return emit(w, func() { result(w.Name, "Switched to %s (%s).", w.Name, w.Host()) })
 	},
 }
 
@@ -409,7 +407,9 @@ var openCmd = &cobra.Command{
 	Use:   "open <sandbox-id|name> [port]",
 	Short: "Open a port of a sandbox in the browser, signed in",
 	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. Scripts talk to a token port with a token from `zbox cred issue`, members ports take no API key. The console is `zbox console`.",
-	Args:  cobra.RangeArgs(1, 2),
+	Example: `  zbox open app
+  zbox open app 3000`,
+	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -450,16 +450,12 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 	if err != nil {
 		return err
 	}
-	urls := map[int]string{}
-	for _, h := range s.Hosts {
-		urls[h.Port] = h.Url
-	}
 	var port api.BaseIngressPort
 	switch len(rest) {
 	case 1:
 		n, err := strconv.Atoi(rest[0])
 		if err != nil {
-			return fmt.Errorf("%q is not a port number", rest[0])
+			return usagef("%q is not a port number", rest[0])
 		}
 		found := false
 		for _, p := range declaredPorts(s) {
@@ -468,12 +464,12 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 			}
 		}
 		if !found {
-			return fmt.Errorf("sandbox %s has no port %d declared, see `zbox port ls %s`", s.Id, n, s.Id)
+			return notFoundf("sandbox %s has no port %d declared, see `zbox port ls %s`", s.Id, n, s.Id)
 		}
 	default:
 		var candidates []api.BaseIngressPort
 		for _, p := range declaredPorts(s) {
-			if urls[p.Port] != "" {
+			if portUrl(s, p.Port) != "" {
 				candidates = append(candidates, p)
 			}
 		}
@@ -481,18 +477,18 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 		case 1:
 			port = candidates[0]
 		case 0:
-			return fmt.Errorf("sandbox %s has no HTTP port with a URL, open one with `zbox port open %s <port>`", s.Id, s.Id)
+			return notFoundf("sandbox %s has no HTTP port with a URL, open one with `zbox port open %s <port>`", s.Id, s.Id)
 		default:
 			ports := make([]string, 0, len(candidates))
 			for _, p := range candidates {
 				ports = append(ports, strconv.Itoa(p.Port))
 			}
-			return fmt.Errorf("sandbox %s has several HTTP ports, name one: %s", s.Id, strings.Join(ports, ", "))
+			return usagef("sandbox %s has several HTTP ports, name one: %s", s.Id, strings.Join(ports, ", "))
 		}
 	}
-	base := urls[port.Port]
+	base := portUrl(s, port.Port)
 	if base == "" {
-		return fmt.Errorf("port %d of sandbox %s has no URL: %s ports are not reachable through the edge", port.Port, s.Id, strings.ToLower(string(port.Access)))
+		return usagef("port %d of sandbox %s has no URL: %s ports are not reachable through the edge", port.Port, s.Id, lower(port.Access))
 	}
 	var kind api.RequestPostIngressCredentialKind
 	switch port.Access {
@@ -505,16 +501,18 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 	}
 	issued, err := ws.IssueCredential(cmd.Context(), s.Id, api.RequestPostIngressCredential{Kind: kind, Port: port.Port, Name: optional("zbox open"), TtlSeconds: optionalInt(openTicketTtl)})
 	if err != nil {
-		return fmt.Errorf("issue a %s for port %d: %w", strings.ToLower(string(kind)), port.Port, err)
+		return fmt.Errorf("issue a %s for port %d: %w", lower(kind), port.Port, err)
 	}
 	return openInBrowser(openUrl(base, port.Access, issued.Secret))
 }
 
-// openInBrowser prints the URL and opens it. The credential in it is single use and short lived, so a failed browser launch says to hurry.
+// openInBrowser prints the URL ({"url": …} under --json) and opens it. The credential in it is single use and short lived, so a failed browser launch says to hurry.
 func openInBrowser(target string) error {
-	fmt.Println(target)
+	if err := emit(map[string]string{"url": target}, func() { fmt.Println(target) }); err != nil {
+		return err
+	}
 	if err := browser.Open(target); err != nil {
-		fmt.Println("Could not open a browser, open the URL manually within a minute, it is single use.")
+		note("Could not open a browser, open the URL within a minute, it is single use.")
 	}
 	return nil
 }
@@ -527,7 +525,6 @@ var workspaceKeyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println(ws.ApiKey())
-		return nil
+		return emit(map[string]string{"apiKey": ws.ApiKey()}, func() { fmt.Println(ws.ApiKey()) })
 	},
 }

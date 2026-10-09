@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/zeropsio/zbox-cli/internal/api"
 )
@@ -34,11 +32,11 @@ var connectorLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("NAME\tTITLE\tSTATUS\tKIND\tCREDENTIAL ENV\tINTEGRATIONS\tLOGIN", func(w io.Writer) {
-				for _, c := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", c.Name, c.Title, c.Status, dash(kindStr(c.CredentialKind)), c.CredentialEnv, strings.Join(c.Integrations, ","), yesNo(c.LoginAvailable))
-				}
-			})
+			tb := newTable("NAME", "TITLE", "STATUS", "KIND", "CREDENTIAL ENV", "INTEGRATIONS", "LOGIN")
+			for _, c := range list {
+				tb.row(c.Name, c.Title, c.Status, dash(kindStr(c.CredentialKind)), c.CredentialEnv, strings.Join(c.Integrations, ","), yesNo(c.LoginAvailable))
+			}
+			tb.print()
 		})
 	},
 }
@@ -61,10 +59,11 @@ var connectorGetCmd = &cobra.Command{
 }
 
 var connectorSetCmd = &cobra.Command{
-	Use:   "set <name>",
-	Short: "Store a credential for a connector, read from the terminal without echo or from stdin",
-	Long:  "Stores an OAuth token or an API key as the connector's credential. The value is asked for without echo on a terminal, or read whole from stdin when it is a pipe (`gh auth token | zbox connector set github`); it is never taken from the command line. The kind is detected from the value unless --kind says.",
-	Args:  cobra.ExactArgs(1),
+	Use:     "set <name>",
+	Short:   "Store a credential for a connector, read from the terminal without echo or from stdin",
+	Long:    "Stores an OAuth token or an API key as the connector's credential. The value is asked for without echo on a terminal, or read whole from stdin when it is a pipe (`gh auth token | zbox connector set github`); it is never taken from the command line. The kind is detected from the value unless --kind says.",
+	Example: `  gh auth token | zbox connector set github`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -96,6 +95,9 @@ var connectorUnsetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if err := confirm("drop the stored credential of "+args[0], "Sandboxes using it lose access on their next request."); err != nil {
+			return err
+		}
 		c, err := ws.ClearConnectorCredential(cmd.Context(), args[0])
 		if err != nil {
 			return err
@@ -110,8 +112,8 @@ var connectorLoginCmd = &cobra.Command{
 	Long:  "Starts the provider's login command in a helper sandbox and attaches this terminal to it. Complete the browser step it prints; the orchestrator harvests the credential from the terminal, stores it and terminates the helper sandbox, which closes the terminal. Needs a terminal.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return errors.New("the login runs in this terminal and stdin is not one; pipe the credential into `zbox connector set` instead")
+		if !stdinTerminal {
+			return usagef("the login runs in this terminal and stdin is not one; pipe the credential into `zbox connector set` instead")
 		}
 		ws, err := workspace()
 		if err != nil {
@@ -128,7 +130,7 @@ var connectorLoginCmd = &cobra.Command{
 				return err
 			}
 		} else {
-			fmt.Printf("Running `%s` in helper sandbox %s, follow its instructions. The terminal closes once the credential is stored.\n", login.Command, login.SandboxId)
+			note("Running `%s` in helper sandbox %s, follow its instructions. The terminal closes once the credential is stored.", login.Command, login.SandboxId)
 		}
 		// The session is detached and waiting with the reconnect grace running, so the attach must not dawdle.
 		if err := attachShell(ctx, ws, login.SandboxId, login.SessionId, login.SessionTicket); err != nil {
@@ -139,7 +141,7 @@ var connectorLoginCmd = &cobra.Command{
 			return err
 		}
 		if c.Status != "CONNECTED" {
-			return fmt.Errorf("the login ended without a credential, %s is %s", c.Name, strings.ToLower(string(c.Status)))
+			return fmt.Errorf("the login ended without a credential, %s is %s", c.Name, lower(c.Status))
 		}
 		return emit(c, func() { printConnector(c) })
 	},
@@ -147,14 +149,13 @@ var connectorLoginCmd = &cobra.Command{
 
 // readCredential takes the value without echo from a terminal, or whole from a pipe, never from argv where it would land in the shell history and the process list.
 func readCredential(name string) (string, error) {
-	fd := int(os.Stdin.Fd())
-	if term.IsTerminal(fd) {
+	if stdinTerminal {
 		v, err := askSecret(fmt.Sprintf("Credential for %s", name))
 		if err != nil {
 			return "", err
 		}
 		if strings.TrimSpace(v) == "" {
-			return "", errors.New("no credential given")
+			return "", usagef("no credential given")
 		}
 		return strings.TrimSpace(v), nil
 	}
@@ -164,7 +165,7 @@ func readCredential(name string) (string, error) {
 	}
 	v := strings.TrimSpace(string(b))
 	if v == "" {
-		return "", errors.New("stdin was empty, pipe the credential in or run on a terminal")
+		return "", usagef("stdin was empty, pipe the credential in or run on a terminal")
 	}
 	return v, nil
 }
@@ -172,7 +173,7 @@ func readCredential(name string) (string, error) {
 func printConnector(c *api.BaseConnector) {
 	fields("Name", c.Name, "Title", c.Title, "Status", string(c.Status), "Kind", dash(kindStr(c.CredentialKind)), "Credential env", c.CredentialEnv, "Integrations", dash(strings.Join(c.Integrations, ", ")), "Guest env", dash(strings.Join(c.GuestEnv, ", ")), "Browser login", yesNo(c.LoginAvailable))
 	if c.Status == "CONNECTED" {
-		fmt.Printf("`zbox new --integration %s` gives a sandbox the proxied endpoint with a placeholder token.\n", strings.Join(c.Integrations, " --integration "))
+		note("`zbox new --integration %s` gives a sandbox the proxied endpoint with a placeholder token.", strings.Join(c.Integrations, " --integration "))
 	}
 }
 
@@ -192,6 +193,7 @@ func yesNo(b bool) string {
 
 func init() {
 	connectorSetCmd.Flags().StringVar(&flagConnectorKind, "kind", "", "OAUTH_TOKEN or API_KEY, detected from the value when omitted")
+	destructive(connectorUnsetCmd)
 	connectorCmd.AddCommand(connectorLsCmd, connectorGetCmd, connectorSetCmd, connectorUnsetCmd, connectorLoginCmd)
 	rootCmd.AddCommand(connectorCmd)
 }

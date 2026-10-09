@@ -34,7 +34,7 @@ type Screen struct {
 }
 
 func New() *Screen {
-	out := os.Stdout
+	out := os.Stderr
 	tty := term.IsTerminal(int(out.Fd()))
 	notes := Notes()
 	return &Screen{

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -14,7 +13,9 @@ var policyCmd = &cobra.Command{
 	Use:   "policy <id|name>",
 	Short: "Print a sandbox's policy, or replace it with -f",
 	Long:  "The policy is versioned: the file must carry the policyGeneration that was read, a concurrent change is rejected instead of overwritten. Without -f the current one is printed in the shape -f takes.",
-	Args:  cobra.ExactArgs(1),
+	Example: `  zbox policy app > policy.json   # edit, then:
+  zbox policy app -f policy.json`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -35,7 +36,7 @@ var policyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return emit(s, func() { fmt.Printf("Policy of %s updated to generation %d.\n", s.Id, s.PolicyGeneration) })
+		return emit(s, func() { result(s.Id, "Policy of %s updated to generation %d.", s.Id, s.PolicyGeneration) })
 	},
 }
 
@@ -46,9 +47,10 @@ var portCmd = &cobra.Command{
 }
 
 var portLsCmd = &cobra.Command{
-	Use:   "ls <id|name>",
-	Short: "List the ports of a sandbox with their URLs",
-	Args:  cobra.ExactArgs(1),
+	Use:     "ls <id|name>",
+	Short:   "List the ports of a sandbox with their URLs",
+	Example: `  zbox port ls app`,
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -66,7 +68,9 @@ var portOpenCmd = &cobra.Command{
 	Use:   "open <id|name> <port[/protocol][/access]>...",
 	Short: "Declare ports on a sandbox, keeping the ones already there",
 	Long:  "A port is port[/protocol][/access]: 3000, 3000/public, 5432/tcp/project. Access is members (default, the workspace API key), project, ticket, token or public. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
-	Args:  cobra.MinimumNArgs(2),
+	Example: `  zbox port open app 3000
+  zbox port open app 8080/public 5432/tcp/project`,
+	Args: cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ports, err := parsePorts(args[1:])
 		if err != nil {
@@ -77,15 +81,16 @@ var portOpenCmd = &cobra.Command{
 }
 
 var portCloseCmd = &cobra.Command{
-	Use:   "close <id|name> <port>...",
-	Short: "Remove ports from a sandbox's policy",
-	Args:  cobra.MinimumNArgs(2),
+	Use:     "close <id|name> <port>...",
+	Short:   "Remove ports from a sandbox's policy",
+	Example: `  zbox port close app 3000`,
+	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		closing := map[int]bool{}
 		for _, a := range args[1:] {
 			n, err := strconv.Atoi(a)
 			if err != nil {
-				return fmt.Errorf("%q is not a port number", a)
+				return usagef("%q is not a port number", a)
 			}
 			closing[n] = true
 		}
@@ -133,7 +138,7 @@ func parsePorts(specs []string) ([]api.BaseIngressPort, error) {
 		parts := strings.Split(spec, "/")
 		n, err := strconv.Atoi(parts[0])
 		if err != nil || n < 1 || n > 65535 {
-			return nil, fmt.Errorf("%q is not a port number", parts[0])
+			return nil, usagef("%q is not a port number", parts[0])
 		}
 		p := api.BaseIngressPort{Port: n, Protocol: "HTTP", Access: api.BaseIngressPortAccessMEMBERS}
 		for _, tok := range parts[1:] {
@@ -149,7 +154,7 @@ func parsePorts(specs []string) ([]api.BaseIngressPort, error) {
 				on := tok == "wake"
 				p.WakeOnRequest = &on
 			default:
-				return nil, fmt.Errorf("%q in %q is not a protocol, an access mode, websocket, wake or no-wake", tok, spec)
+				return nil, usagef("%q in %q is not a protocol, an access mode, websocket, wake or no-wake", tok, spec)
 			}
 		}
 		out = append(out, p)

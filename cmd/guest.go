@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,8 +38,13 @@ func execRequest(argv []string) (api.RequestPostExec, error) {
 var execCmd = &cobra.Command{
 	Use:   "exec <id|name> -- <command...>",
 	Short: "Run a command in a sandbox and exit with its exit code",
-	Long:  "The command is argv, run without a shell: `zbox exec <id> -- sh -c 'a | b'` for a pipeline. A parked sandbox is woken first.",
-	Args:  cobra.MinimumNArgs(2),
+	Long: `The command is argv, run without a shell: ` + "`zbox exec <id> -- sh -c 'a | b'`" + ` for a pipeline. A parked sandbox is woken first.
+Stdout and stderr are the command's own. zbox exits with the command's exit code, with 125 when zbox itself failed
+(the sandbox is not found, the workspace does not answer) and with 5 when --timeout ended the command.`,
+	Example: `  zbox exec app -- python3 -c 'print(1+1)'
+  zbox exec app -w /workspace -e DEBUG=1 -- npm test
+  zbox exec app --timeout 30s -- sh -c 'curl -s localhost:3000 | head'`,
+	Args: cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -60,7 +64,11 @@ var execCmd = &cobra.Command{
 		fmt.Fprint(os.Stdout, res.Stdout)
 		fmt.Fprint(os.Stderr, res.Stderr)
 		if res.TimedOut {
-			return fmt.Errorf("command timed out (session %s)", res.SessionId)
+			after := ""
+			if flagExecTimeout > 0 {
+				after = " after " + durationFlag(flagExecTimeout)
+			}
+			return waitTimeout{fmt.Sprintf("the command was stopped%s, its output is in `zbox session output %s`", after, res.SessionId)}
 		}
 		if res.ExitCode != nil && *res.ExitCode != 0 {
 			return exitError{code: *res.ExitCode}
@@ -73,7 +81,9 @@ var processCmd = &cobra.Command{
 	Use:   "process <id|name> -- <command...>",
 	Short: "Start a detached process in a sandbox and print its session",
 	Long:  "The session id is the handle: `zbox session output` reads what it wrote, `zbox session interrupt` stops it.",
-	Args:  cobra.MinimumNArgs(2),
+	Example: `  zbox process app -- python3 -m http.server 8000
+  id=$(zbox process app -q -- ./server) && zbox session output $id`,
+	Args: cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -111,11 +121,12 @@ var sessionLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("ID\tKIND\tSTATUS\tEXIT\tOUTPUT\tCOMMAND\tCREATED\tCLOSED", func(w io.Writer) {
-				for _, s := range list {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\t%s\t%s\n", s.Id, s.Kind, s.Status, intPtr(s.ExitCode), s.HasOutput, commandString(s.Command), when(s.Created), whenPtr(s.Closed))
-				}
-			})
+			tb := newTable("ID", "KIND", "STATUS", "EXIT", "OUTPUT", "COMMAND", "CREATED", "CLOSED")
+			for _, s := range list {
+				tb.row(s.Id, s.Kind, s.Status, intPtr(s.ExitCode), yesNo(s.HasOutput), dash(commandString(s.Command)), when(s.Created), whenPtr(s.Closed))
+			}
+			tb.ifEmpty("No sessions.")
+			tb.print()
 		})
 	},
 }
@@ -149,7 +160,7 @@ var sessionInterruptCmd = &cobra.Command{
 		if err := ws.Interrupt(cmd.Context(), args[0]); err != nil {
 			return err
 		}
-		fmt.Println("interrupted", args[0])
+		result(args[0], "%s interrupted", args[0])
 		return nil
 	},
 }
@@ -174,7 +185,7 @@ var sessionOutputCmd = &cobra.Command{
 }
 
 func printSession(s *api.BaseGuestSession) {
-	fields("ID", s.Id, "Sandbox", s.SandboxId, "Kind", string(s.Kind), "Status", string(s.Status), "Exit code", intPtr(s.ExitCode), "Output", fmt.Sprint(s.HasOutput), "Command", dash(commandString(s.Command)), "Created", when(s.Created), "Closed", whenPtr(s.Closed))
+	fields("ID", s.Id, "Sandbox", s.SandboxId, "Kind", string(s.Kind), "Status", string(s.Status), "Exit code", intPtr(s.ExitCode), "Output", yesNo(s.HasOutput), "Command", dash(commandString(s.Command)), "Created", when(s.Created), "Closed", whenPtr(s.Closed))
 }
 
 func commandString(c *api.BaseExecCommand) string {
@@ -210,26 +221,28 @@ var fileLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			table("MODE\tSIZE\tMODIFIED\tNAME", func(w io.Writer) {
-				for _, f := range list {
-					name := f.Name
-					switch f.Type {
-					case "DIRECTORY":
-						name += "/"
-					case "SYMLINK":
-						name += " -> " + str(f.Target)
-					}
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", f.Mode, bytesString(f.Size), when(f.Modified), name)
+			tb := newTable("NAME", "MODE", "SIZE", "MODIFIED")
+			for _, f := range list {
+				name := f.Name
+				switch f.Type {
+				case "DIRECTORY":
+					name += "/"
+				case "SYMLINK":
+					name += " -> " + str(f.Target)
 				}
-			})
+				tb.row(name, f.Mode, bytesString(f.Size), when(f.Modified))
+			}
+			tb.ifEmpty("Empty directory.")
+			tb.print()
 		})
 	},
 }
 
 var fileGetCmd = &cobra.Command{
-	Use:   "get <id|name> <path>",
-	Short: "Download a file, to stdout or to -o",
-	Args:  cobra.ExactArgs(2),
+	Use:     "get <id|name> <path>",
+	Short:   "Download a file, to stdout or to -o",
+	Example: `  zbox file get app /workspace/out.txt -o out.txt`,
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -265,7 +278,9 @@ var fileArchiveCmd = &cobra.Command{
 var filePutCmd = &cobra.Command{
 	Use:   "put <id|name> <local-file> <path>",
 	Short: "Upload a file, - reads stdin",
-	Args:  cobra.ExactArgs(3),
+	Example: `  zbox file put app ./main.py /workspace/
+  echo hi | zbox file put app - /workspace/hi.txt`,
+	Args: cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -287,7 +302,7 @@ var filePutCmd = &cobra.Command{
 		if err := ws.WriteFile(cmd.Context(), args[0], remote, flagFileMode, r); err != nil {
 			return err
 		}
-		fmt.Println("uploaded", remote)
+		result(remote, "%s uploaded", remote)
 		return nil
 	},
 }
@@ -301,13 +316,10 @@ var fileRmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		for _, p := range args[1:] {
-			if err := ws.DeleteFile(cmd.Context(), args[0], p); err != nil {
-				return err
-			}
-			fmt.Println("deleted", p)
-		}
-		return nil
+		paths := args[1:]
+		return deleteEach(fmt.Sprintf("delete %s in sandbox %s", strings.Join(paths, ", "), args[0]), "", paths, "deleted", func(i int) (*api.BaseOperation, error) {
+			return nil, ws.DeleteFile(cmd.Context(), args[0], paths[i])
+		})
 	},
 }
 
@@ -341,18 +353,16 @@ var sshCmd = &cobra.Command{
 			return err
 		}
 		return emit(info, func() {
-			if !info.Enabled {
-				fmt.Printf("SSH is off for %s: the policy needs ingress.ssh true and a mode with a project path (project or project_internet).\n", args[0])
-			}
-			fields("Enabled", fmt.Sprint(info.Enabled), "Address", dash(str(info.StableAddress)))
-			if len(info.HostKeys) > 0 {
-				fmt.Println("Host keys:")
-				for _, k := range info.HostKeys {
-					fmt.Println(" ", k)
-				}
-			}
+			pairs := []string{"Address", dash(str(info.StableAddress)), "Enabled", yesNo(info.Enabled)}
 			if info.Enabled && info.StableAddress != nil {
-				fmt.Printf("Connect over the project VPN: ssh %s\n", *info.StableAddress)
+				pairs = append(pairs, "Connect", "ssh "+*info.StableAddress+" (over the project VPN)")
+			}
+			for _, k := range info.HostKeys {
+				pairs = append(pairs, "Host key", k)
+			}
+			fields(pairs...)
+			if !info.Enabled {
+				note("SSH is off for %s: the policy needs ingress.ssh true and a network mode with a project path (project or project_internet).", args[0])
 			}
 		})
 	},
@@ -379,7 +389,7 @@ var sshKeyCmd = &cobra.Command{
 				}
 			}
 			if path == "" {
-				return errors.New("no public key in ~/.ssh, give the file")
+				return usagef("no public key in ~/.ssh, give the file")
 			}
 		}
 		data, err := os.ReadFile(path)
@@ -390,7 +400,7 @@ var sshKeyCmd = &cobra.Command{
 		if err := ws.AddSshKey(cmd.Context(), args[0], key); err != nil {
 			return err
 		}
-		fmt.Printf("Installed %s on %s.\n", path, args[0])
+		result(args[0], "Installed %s on %s.", path, args[0])
 		return nil
 	},
 }
@@ -399,7 +409,7 @@ func init() {
 	for _, c := range []*cobra.Command{execCmd, processCmd} {
 		c.Flags().StringVarP(&flagExecDir, "workdir", "w", "", "working directory inside the sandbox")
 		c.Flags().StringArrayVarP(&flagExecEnv, "env", "e", nil, "environment variable as KEY=value, repeatable")
-		c.Flags().DurationVar(&flagExecTimeout, "timeout", 0, "command timeout, for example 30s")
+		c.Flags().DurationVar(&flagExecTimeout, "timeout", 0, "stop the command after this long, for example 30s")
 	}
 	sessionLsCmd.Flags().StringVar(&flagSessionKind, "kind", "", "pty or exec")
 	sessionLsCmd.Flags().StringVar(&flagSessionState, "status", "", "open, closed or failed")
@@ -408,6 +418,7 @@ func init() {
 	fileGetCmd.Flags().StringVarP(&flagFileOut, "output", "o", "", "write to this local file instead of stdout")
 	fileArchiveCmd.Flags().StringVarP(&flagFileOut, "output", "o", "", "write to this local file instead of stdout")
 	filePutCmd.Flags().StringVar(&flagFileMode, "mode", "", "octal file mode, defaults to 0644")
+	destructive(fileRmCmd)
 	fileCmd.AddCommand(fileLsCmd, fileGetCmd, fileArchiveCmd, filePutCmd, fileRmCmd)
 
 	rootCmd.AddCommand(execCmd, processCmd, sessionCmd, fileCmd, sshCmd, sshKeyCmd)

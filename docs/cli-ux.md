@@ -40,7 +40,7 @@ zbox rm -y $(zbox ls -q --status failed)
 
 - Text errors are one line on stderr: `error: <message>`. The API's code goes in brackets (`(sandboxNotFound)`), and the message says what to do next when there is something to do.
 - Under `--json` the error is one JSON object on stderr: `{"error":{"code","message","status","meta","exitCode"}}`. `code` is the API's code, `operationFailed` (with the `operation` object), or one of `usage`, `notFound`, `timeout`, `unauthorized`, `unavailable`, `interrupted`, `failed`.
-- Raise errors with their class: `usagef` for a wrong call (missing or contradictory flags, malformed values), `notFoundf` for a reference the CLI resolved itself and found nothing for, `notAuthorized` for a missing login or workspace, and `timedOut` for a wait that ran out. API errors pass through as they come.
+- Raise errors with their class: `usagef` for a wrong call (missing or contradictory flags, malformed values), `notFoundf` for a reference the CLI resolved itself and found nothing for, `notAuthorized` for a missing login or workspace, `unavailable` for a workspace that is not reachable right now and will be (a stopped service, an access renewed too late for the request), and `timedOut` for a wait that ran out. API errors pass through as they come.
 
 | code | meaning | what a caller does |
 |---|---|---|
@@ -50,7 +50,7 @@ zbox rm -y $(zbox ls -q --status failed)
 | 3 | not found | check the id or name |
 | 4 | conflict (a state that does not allow the verb, a name taken, an operation in flight) | look at the state, then retry |
 | 5 | timed out (`--timeout`, a stopped `exec`, an API 504) | the work may go on, wait on the operation |
-| 6 | not authorized (no login, no workspace, a rejected key) | `zbox login`, `zbox setup` or `zbox workspace authorize` |
+| 6 | not authorized (no login, no workspace, a read-only role, a rejected key) | `zbox login`, `zbox setup` or `zbox workspace authorize` |
 | 7 | unavailable (502/503, network) | retry later |
 | 125 | `zbox exec` itself failed (the command did not run) | as above, by the message |
 | 130 | interrupted | |
@@ -59,7 +59,7 @@ zbox rm -y $(zbox ls -q --status failed)
 
 ## 5. Destructive commands ask
 
-Anything that deletes or drops (`rm`, `base rm|prune`, `template rm`, `snapshot rm`, `file rm`, `webhook rm`, `integration rm`, `quarantine rm`, `connector unset`, `teardown`) does three things:
+Anything that deletes or drops (`remove`, `base remove|prune`, `template remove`, `snapshot remove`, `file remove`, `webhook remove`, `integration remove`, `quarantine remove`, `connector unset`, `workspace teardown`) does three things:
 
 - It registers `-y/--yes` with `destructive(cmd)`.
 - It calls `confirm(action, warning)` before the first change. `action` is a lower-case verb phrase ("terminate sandbox x"), `warning` is what is lost.
@@ -92,9 +92,11 @@ A verb whose intent is a target state succeeds when the target is already reache
 
 ## 10. Help
 
+- Commands are spelled out, the primary name is the full word (`list`, `remove`, `rename`, `workspace`, `operation`, `credential`, `snapshot`, `integration`) and the short form is an alias (`ls`, `rm`, `mv`, `ws`, `op`, `cred`, `snap`, `int`; `new` also answers to `create`). Help, examples and hints use the full word, agents and scripts may use either. Everything that manages a workspace is a subcommand of `zbox workspace` (list, switch, authorize, use, forget, status, policy, domain, key, console, teardown); `zbox setup` stays at the top as the convenience that creates one.
+- Every command sets `Args` to match its `Use` line: `cobra.NoArgs` when it takes none (a group with a default action too, so an unknown subcommand is refused rather than run as the default), `ExactArgs`, `MinimumNArgs` for a `...` list, `RangeArgs` or `MaximumNArgs` for `[optional]` ones. Without it cobra accepts anything and a typo runs the command on nothing.
 - `Short` is one line and starts with a verb. `Long` says what the defaults are (does it wait, is it paged, what it prints).
 - Every command an agent is likely to run has an `Example:` block with real invocations, including the `-q` and `--json` forms that chain. Agents copy examples before they read prose.
-- The root help (`zbox --help`) carries the output contract and the exit codes, and groups the commands by task (`cmd/groups.go`). A new top-level command joins a group.
+- The root help (`zbox --help`) carries the output contract and the exit codes, and groups the commands by task (`cmd/groups.go`). A new top-level command joins a group, never the ungrouped "Additional Commands" list.
 
 ## 11. Wording
 

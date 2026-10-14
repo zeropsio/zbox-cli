@@ -107,9 +107,10 @@ var sessionCmd = &cobra.Command{
 }
 
 var sessionLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id|name>",
-	Short: "List the sessions of a sandbox",
-	Args:  cobra.ExactArgs(1),
+	Use:     "list <sandbox-id|name>",
+	Aliases: []string{"ls"},
+	Short:   "List the sessions of a sandbox",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -208,9 +209,10 @@ var fileCmd = &cobra.Command{
 }
 
 var fileLsCmd = &cobra.Command{
-	Use:   "ls <id|name> <path>",
-	Short: "List a directory",
-	Args:  cobra.ExactArgs(2),
+	Use:     "list <id|name> <path>",
+	Aliases: []string{"ls"},
+	Short:   "List a directory",
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -308,9 +310,10 @@ var filePutCmd = &cobra.Command{
 }
 
 var fileRmCmd = &cobra.Command{
-	Use:   "rm <id|name> <path>...",
-	Short: "Delete files",
-	Args:  cobra.MinimumNArgs(2),
+	Use:     "remove <id|name> <path>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete files",
+	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -339,38 +342,9 @@ func writeOut(r io.Reader, path string) error {
 	return f.Close()
 }
 
-var sshCmd = &cobra.Command{
-	Use:   "ssh <id|name>",
-	Short: "Show how to reach a sandbox over SSH on the project VPN",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ws, err := workspace()
-		if err != nil {
-			return err
-		}
-		info, err := ws.Ssh(cmd.Context(), args[0])
-		if err != nil {
-			return err
-		}
-		return emit(info, func() {
-			pairs := []string{"Address", dash(str(info.StableAddress)), "Enabled", yesNo(info.Enabled)}
-			if info.Enabled && info.StableAddress != nil {
-				pairs = append(pairs, "Connect", "ssh "+*info.StableAddress+" (over the project VPN)")
-			}
-			for _, k := range info.HostKeys {
-				pairs = append(pairs, "Host key", k)
-			}
-			fields(pairs...)
-			if !info.Enabled {
-				note("SSH is off for %s: the policy needs ingress.ssh true and a network mode with a project path (project or project_internet).", args[0])
-			}
-		})
-	},
-}
-
 var sshKeyCmd = &cobra.Command{
 	Use:   "ssh-key <id|name> [public-key-file]",
-	Short: "Install an OpenSSH public key for the workload user, defaults to ~/.ssh/id_ed25519.pub",
+	Short: "Install an OpenSSH public key for an image's own sshd, defaults to ~/.ssh/id_ed25519.pub",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
@@ -411,7 +385,7 @@ func init() {
 		c.Flags().StringArrayVarP(&flagExecEnv, "env", "e", nil, "environment variable as KEY=value, repeatable")
 		c.Flags().DurationVar(&flagExecTimeout, "timeout", 0, "stop the command after this long, for example 30s")
 	}
-	sessionLsCmd.Flags().StringVar(&flagSessionKind, "kind", "", "pty or exec")
+	sessionLsCmd.Flags().StringVar(&flagSessionKind, "kind", "", "pty, exec or ssh")
 	sessionLsCmd.Flags().StringVar(&flagSessionState, "status", "", "open, closed or failed")
 	sessionCmd.AddCommand(sessionLsCmd, sessionGetCmd, sessionInterruptCmd, sessionOutputCmd)
 
@@ -421,5 +395,5 @@ func init() {
 	destructive(fileRmCmd)
 	fileCmd.AddCommand(fileLsCmd, fileGetCmd, fileArchiveCmd, filePutCmd, fileRmCmd)
 
-	rootCmd.AddCommand(execCmd, processCmd, sessionCmd, fileCmd, sshCmd, sshKeyCmd)
+	rootCmd.AddCommand(execCmd, processCmd, sessionCmd, fileCmd, sshCmd, sshProxyCmd, sshConfigCmd, sshKeyCmd)
 }

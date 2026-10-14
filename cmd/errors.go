@@ -102,6 +102,8 @@ func exitCode(err error) int {
 		return exitNotFound
 	case errors.As(err, new(notAuthorized)):
 		return exitUnauthorized
+	case errors.As(err, new(unavailable)), errors.Is(err, api.ErrAccessRenewed):
+		return exitUnavailable
 	case errors.As(err, &apiErr):
 		switch {
 		case apiErr.Status == 404 || strings.HasSuffix(apiErr.Code, "NotFound"):
@@ -130,10 +132,15 @@ func isCobraUsage(err error) bool {
 	return strings.HasPrefix(msg, "unknown command") || strings.HasPrefix(msg, "unknown flag") || strings.HasPrefix(msg, "unknown shorthand flag") || strings.HasPrefix(msg, "required flag")
 }
 
-// notAuthorized is a missing login or workspace key on this machine, before anything was asked of an API.
+// notAuthorized is a missing login or workspace access on this machine, before anything was asked of an API.
 type notAuthorized struct{ msg string }
 
 func (e notAuthorized) Error() string { return e.msg }
+
+// unavailable is a workspace that cannot be reached right now and will be later: a stopped service, an access renewed too late for the request. Exit 7.
+type unavailable struct{ msg string }
+
+func (e unavailable) Error() string { return e.msg }
 
 // reportError prints the error to stderr: one JSON object under --json, `error: …` otherwise.
 func reportError(err error, code int) {
@@ -197,7 +204,7 @@ func destructive(cmds ...*cobra.Command) {
 	}
 }
 
-// deleteEach is the shape of every rm: one confirmation naming the targets (none when action is empty), then one call and one result line per target, `label deleted` or `label terminated in 70 ms (operation x)` when the call answers an operation. It stops at the first failure. Under --json the lines are one array of {id, operation}.
+// deleteEach is the shape of every remove: one confirmation naming the targets (none when action is empty), then one call and one result line per target, `label deleted` or `label terminated in 70 ms (operation x)` when the call answers an operation. It stops at the first failure. Under --json the lines are one array of {id, operation}.
 func deleteEach(action, warning string, labels []string, verbPast string, del func(i int) (*api.BaseOperation, error)) error {
 	if action != "" {
 		if err := confirm(action, warning); err != nil {

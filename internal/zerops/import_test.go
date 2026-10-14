@@ -39,6 +39,13 @@ func TestRenderImport(t *testing.T) {
 	if strings.Contains(out, "verticalAutoscaling") {
 		t.Errorf("no size given, the platform's default should apply:\n%s", out)
 	}
+	out, err = RenderImport(ImportParams{Hostname: "zbox", NoSubdomain: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "enableSubdomainAccess") {
+		t.Errorf("--no-subdomain should leave subdomain access out:\n%s", out)
+	}
 }
 
 // A size under the driver floor is refused, a resource left at zero is the platform's.

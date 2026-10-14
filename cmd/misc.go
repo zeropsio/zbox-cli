@@ -73,9 +73,10 @@ var credentialIssueCmd = &cobra.Command{
 }
 
 var credentialLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id|name>",
-	Short: "List the credentials of a sandbox",
-	Args:  cobra.ExactArgs(1),
+	Use:     "list <sandbox-id|name>",
+	Aliases: []string{"ls"},
+	Short:   "List the credentials of a sandbox",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -120,6 +121,7 @@ var webhookCreateCmd = &cobra.Command{
 	Use:     "create",
 	Short:   "Register a webhook endpoint, the signing secret is shown once",
 	Example: `  zbox webhook create --url https://example.com/hook --event ready --event failed`,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagHookUrl == "" {
 			return usagef("--url is required")
@@ -179,8 +181,10 @@ var webhookSetCmd = &cobra.Command{
 }
 
 var webhookLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List webhook endpoints",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List webhook endpoints",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -219,9 +223,10 @@ var webhookGetCmd = &cobra.Command{
 }
 
 var webhookRmCmd = &cobra.Command{
-	Use:   "rm <id>...",
-	Short: "Delete webhook endpoints",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <id>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete webhook endpoints",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -312,8 +317,10 @@ var quarantineCmd = &cobra.Command{
 }
 
 var quarantineLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List quarantined objects",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List quarantined objects",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -335,9 +342,10 @@ var quarantineLsCmd = &cobra.Command{
 }
 
 var quarantineRmCmd = &cobra.Command{
-	Use:   "rm <id>...",
-	Short: "Destroy quarantined objects",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <id>...",
+	Aliases: []string{"rm"},
+	Short:   "Destroy quarantined objects",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

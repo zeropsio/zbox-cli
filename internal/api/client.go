@@ -10,34 +10,141 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
-// Workspace is the generated client with the workspace API key on every request and the responses decoded into the shared Base* types.
+// Workspace is the generated client with a bearer on every request and the responses decoded into the shared Base* types.
 // Every method mirrors one route of the contract, nothing exists here that the spec does not have.
+//
+// The base URL is either the workspace's own API host, with the workspace API key as the bearer, or the zproxy prefix `https://proxy.<domain>/service-api`
+// with a zproxy access token as the bearer: zproxy checks the token, strips the prefix, tunnels into the workspace VM and swaps the bearer for the key,
+// so the client is the same either way. An access token lives an hour past its last use; zproxy refuses a dead one with a 401 that carries
+// `X-Zerops-Ui-Session: expired`, on which the client asks Renew for a fresh one and sends the request again.
 type Workspace struct {
 	BaseUrl string
-	apiKey  string
-	gen     *ClientWithResponses
-	http    *http.Client
+	// Renew mints a fresh zproxy access token when the one in use has expired, and is nil for a workspace reached with its key.
+	Renew func(ctx context.Context) (string, error)
+
+	mu     sync.Mutex
+	bearer string
+	gen    *ClientWithResponses
+	http   *http.Client
 }
 
-// ApiKey is the workspace key the client sends as the bearer, printed by `zbox workspace key`. It never goes into a URL: the API, the WebSocket routes and the MEMBERS ports take it as an Authorization bearer only.
-func (w *Workspace) ApiKey() string { return w.apiKey }
+// Bearer is the credential the client sends as the Authorization bearer: the workspace key, or the zproxy access token. It never goes into a URL: the API, the WebSocket routes and the MEMBERS ports take it as a header only.
+func (c *Workspace) Bearer() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.bearer
+}
 
-func New(baseUrl, apiKey string) *Workspace {
+// ProxyApiPrefix is the path under which zproxy serves the header-authenticated API of a workspace (the same constant as zerops.ProxyApiPrefix, kept here so this package stays on its own).
+const ProxyApiPrefix = "/service-api"
+
+// Proxied says whether the client reaches the workspace through zproxy, where the bearer is an access token rather than the key. It is read off the base URL, so a client built only to burn a token (Logout) is told apart as well as one with Renew wired.
+func (c *Workspace) Proxied() bool {
+	return c.Renew != nil || strings.HasSuffix(c.BaseUrl, ProxyApiPrefix)
+}
+
+func New(baseUrl, bearer string) *Workspace {
 	baseUrl = strings.TrimSuffix(baseUrl, "/")
-	c := &Workspace{BaseUrl: baseUrl, apiKey: apiKey, http: &http.Client{Timeout: 15 * time.Minute}}
+	c := &Workspace{BaseUrl: baseUrl, bearer: bearer}
+	c.http = &http.Client{Timeout: 15 * time.Minute, Transport: &renewing{c: c, next: http.DefaultTransport}}
 	c.gen, _ = NewClientWithResponses(baseUrl, WithHTTPClient(c.http), WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
-		if apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		}
+		c.authorize(req.Header)
 		return nil
 	}))
 	return c
+}
+
+func (c *Workspace) authorize(h http.Header) {
+	if b := c.Bearer(); b != "" {
+		h.Set("Authorization", "Bearer "+b)
+	}
+}
+
+// expiredAccess tells a zproxy refusal of a dead access token from every other 401: the orchestrator's own refusal of a wrong key carries no such header.
+func expiredAccess(resp *http.Response) bool {
+	return resp != nil && resp.StatusCode == http.StatusUnauthorized && resp.Header.Get("X-Zerops-Ui-Session") == "expired"
+}
+
+// ErrAccessRenewed is answered when the access was renewed but the request could not be sent again, since its body was already read: the next run goes through.
+var ErrAccessRenewed = errors.New("the workspace access had expired and was renewed, run the command again")
+
+// renew asks for a fresh access token and installs it. Concurrent requests that hit the same expiry renew once: the second caller finds the bearer changed and uses it.
+func (c *Workspace) renew(ctx context.Context, failed string) error {
+	if c.Renew == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.bearer != failed {
+		return nil
+	}
+	fresh, err := c.Renew(ctx)
+	if err != nil {
+		return fmt.Errorf("renew the workspace access: %w", err)
+	}
+	c.bearer = fresh
+	return nil
+}
+
+// renewing is the transport of every HTTP request: a 401 from zproxy for an expired access token renews it and repeats the request once, with the body rewound when it can be.
+type renewing struct {
+	c    *Workspace
+	next http.RoundTripper
+}
+
+func (t *renewing) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.next.RoundTrip(req)
+	if err != nil || t.c.Renew == nil || !expiredAccess(resp) {
+		return resp, err
+	}
+	failed := strings.TrimPrefix(req.Header.Get("Authorization"), "Bearer ")
+	resp.Body.Close()
+	if err := t.c.renew(req.Context(), failed); err != nil {
+		return nil, err
+	}
+	retry := req.Clone(req.Context())
+	if req.Body != nil && req.Body != http.NoBody {
+		if req.GetBody == nil {
+			return nil, ErrAccessRenewed
+		}
+		body, err := req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		retry.Body = body
+	}
+	t.c.authorize(retry.Header)
+	return t.next.RoundTrip(retry)
+}
+
+// Logout burns the zproxy access token of a proxied client (`POST /service-api/logout`, 204, idempotent). A direct client has nothing to burn.
+func (c *Workspace) Logout(ctx context.Context) error {
+	if !c.Proxied() {
+		return nil
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+"/logout", nil)
+	if err != nil {
+		return err
+	}
+	c.authorize(req.Header)
+	// The renewing transport would mint a new token to burn an expired one, which is pointless: an expired token is already gone.
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNoContent || expiredAccess(resp) {
+		return nil
+	}
+	body, _ := io.ReadAll(resp.Body)
+	return decodeError(resp, body)
 }
 
 // Key mints the idempotency key of one capacity-consuming call. One per logical call, reused on a retry of that call, never shared between two.
@@ -196,6 +303,11 @@ func (c *Workspace) PutWorkspacePolicy(ctx context.Context, body RequestPutWorks
 	return ok[ResponseWorkspace](c.gen.PutWorkspacePolicy(ctx, body))
 }
 
+// PutWorkspaceDomains replaces the whole list of host suffixes sandbox ports are published under.
+func (c *Workspace) PutWorkspaceDomains(ctx context.Context, domains []BaseWorkspaceDomain) (*ResponseWorkspace, error) {
+	return ok[ResponseWorkspace](c.gen.PutWorkspaceDomains(ctx, RequestPutWorkspaceDomains{Domains: domains}))
+}
+
 // ---- base and template
 
 // CreateBase answers the PULL_BASE operation, the pull runs on: a tarball takes longer than the edge holds a request.
@@ -215,6 +327,12 @@ func (c *Workspace) BaseOf(ctx context.Context, op *BaseOperation) (*BaseBase, e
 // BuildBase posts a build context archive (tar, tar.gz or zip with a Dockerfile) and answers the BUILD_BASE operation.
 // size sets the Content-Length, a file body would go chunked otherwise.
 func (c *Workspace) BuildBase(ctx context.Context, name string, body io.Reader, size int64) (*BaseOperation, error) {
+	// The body is streamed once and cannot be sent again, so an expired zproxy access is renewed on a cheap call first rather than found out after the upload.
+	if c.Proxied() {
+		if _, err := c.Ping(ctx); err != nil {
+			return nil, err
+		}
+	}
 	p := PostBaseBuildParams{}
 	if name != "" {
 		p.Name = &name
@@ -295,8 +413,13 @@ func (c *Workspace) DeleteSandbox(ctx context.Context, id string) (*BaseOperatio
 	return ok[BaseOperation](c.gen.DeleteSandbox(ctx, id, &DeleteSandboxParams{IdempotencyKey: Key()}))
 }
 
-func (c *Workspace) Park(ctx context.Context, id string) (*BaseOperation, error) {
-	return ok[BaseOperation](c.gen.PostSandboxPark(ctx, id, &PostSandboxParkParams{IdempotencyKey: Key()}))
+// Park keeps a memory image unless memory is false, which shuts the guest down for a cold wake.
+func (c *Workspace) Park(ctx context.Context, id string, memory bool) (*BaseOperation, error) {
+	body := RequestPostSandboxPark{}
+	if !memory {
+		body.Memory = ptr(false)
+	}
+	return ok[BaseOperation](c.gen.PostSandboxPark(ctx, id, &PostSandboxParkParams{IdempotencyKey: Key()}, body))
 }
 
 func (c *Workspace) Wake(ctx context.Context, id string, redeliverSecrets bool) (*BaseOperation, error) {
@@ -321,6 +444,11 @@ func (c *Workspace) Ssh(ctx context.Context, id string) (*ResponseSandboxSsh, er
 
 func (c *Workspace) AddSshKey(ctx context.Context, id, publicKey string) error {
 	return done(c.gen.PostSandboxSshKey(ctx, id, RequestPostSshKey{PublicKey: publicKey}))
+}
+
+// SshConnect opens the SSH stream of a sandbox: binary frames carry the SSH wire protocol both ways, the agent's server is on the other end.
+func (c *Workspace) SshConnect(ctx context.Context, id string) (*websocket.Conn, error) {
+	return c.dial(ctx, "/api/rest/sandbox/"+id+"/ssh/connect", nil)
 }
 
 func (c *Workspace) Metrics(ctx context.Context, id string, p GetSandboxMetricListParams) ([]BaseMetricHourly, error) {
@@ -574,6 +702,11 @@ func (c *Workspace) SessionOutput(ctx context.Context, id string) (io.ReadCloser
 	return stream(c.gen.GetSessionOutput(ctx, id))
 }
 
+// Processes lists the guest's processes, kernel threads left out. A sandbox that is not running answers none, nothing is woken.
+func (c *Workspace) Processes(ctx context.Context, id string) ([]BaseProcessEntry, error) {
+	return items[BaseProcessEntry](c.gen.GetSandboxProcessList(ctx, id))
+}
+
 func (c *Workspace) Files(ctx context.Context, id, path string) ([]BaseFileEntry, error) {
 	return items[BaseFileEntry](c.gen.GetSandboxFileList(ctx, id, &GetSandboxFileListParams{Path: path}))
 }
@@ -614,9 +747,7 @@ func (c *Workspace) ConsoleLoginTicket(ctx context.Context) (*ConsoleTicket, err
 	if err != nil {
 		return nil, err
 	}
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	c.authorize(req.Header)
 	return ok[ConsoleTicket](c.http.Do(req))
 }
 
@@ -638,22 +769,28 @@ func (c *Workspace) wsUrl(p string, q url.Values) string {
 	return u
 }
 
-// dial opens a WebSocket route with the bearer on the upgrade request. A refused upgrade carries the API error body, which is surfaced like any other.
+// dial opens a WebSocket route with the bearer on the upgrade request. A refused upgrade carries the API error body, which is surfaced like any other; an upgrade refused by zproxy for an expired access renews it and dials once more.
 func (c *Workspace) dial(ctx context.Context, p string, q url.Values) (*websocket.Conn, error) {
-	h := http.Header{}
-	if c.apiKey != "" {
-		h.Set("Authorization", "Bearer "+c.apiKey)
-	}
-	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, c.wsUrl(p, q), h)
-	if err != nil {
-		if resp != nil {
-			defer resp.Body.Close()
-			body, _ := io.ReadAll(resp.Body)
-			return nil, decodeError(resp, body)
+	for attempt := 0; ; attempt++ {
+		h := http.Header{}
+		c.authorize(h)
+		conn, resp, err := websocket.DefaultDialer.DialContext(ctx, c.wsUrl(p, q), h)
+		if err == nil {
+			return conn, nil
 		}
-		return nil, err
+		if resp == nil {
+			return nil, err
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if attempt == 0 && c.Renew != nil && expiredAccess(resp) {
+			if err := c.renew(ctx, strings.TrimPrefix(h.Get("Authorization"), "Bearer ")); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return nil, decodeError(resp, body)
 	}
-	return conn, nil
 }
 
 // Shell opens the PTY of a sandbox. Binary frames carry terminal bytes both ways, a text frame {"resize":{"cols":N,"rows":N}} resizes the pty.

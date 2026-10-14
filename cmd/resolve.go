@@ -55,7 +55,7 @@ func resolveSandbox(ctx context.Context, ws *api.Workspace, arg string) (string,
 	}
 }
 
-// resolveSandboxArgs is the PreRunE of every command whose leading arguments are sandboxes: it rewrites those arguments in place (cobra hands RunE the same slice), so the RunE bodies keep taking ids. count is how many leading arguments are sandboxes, or -1 for all of them (`rm`).
+// resolveSandboxArgs is the PreRunE of every command whose leading arguments are sandboxes: it rewrites those arguments in place (cobra hands RunE the same slice), so the RunE bodies keep taking ids. count is how many leading arguments are sandboxes, or -1 for all of them (`remove`).
 func resolveSandboxArgs(count int) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
@@ -91,7 +91,7 @@ func sandboxArgsAll(cmds ...*cobra.Command) {
 }
 
 func init() {
-	sandboxArgs(getCmd, setCmd, parkCmd, wakeCmd, forkCmd, shellCmd, execCmd, processCmd, sessionLsCmd,
+	sandboxArgs(getCmd, setCmd, renameCmd, parkCmd, wakeCmd, forkCmd, shellCmd, execCmd, processCmd, sessionLsCmd,
 		fileLsCmd, fileGetCmd, fileArchiveCmd, filePutCmd, fileRmCmd, sshCmd, sshKeyCmd,
 		policyCmd, portLsCmd, portOpenCmd, portCloseCmd, attachCmd, detachCmd, attachmentsCmd,
 		credentialIssueCmd, credentialLsCmd, metricsCmd, snapshotCreateCmd, snapshotLsCmd, openCmd)

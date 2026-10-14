@@ -44,11 +44,13 @@ var opCmd = &cobra.Command{
 }
 
 var opLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List operations, newest first",
-	Long:  "The list is the newest 100 operations unless --limit says otherwise; --before <id> continues with older ones, --all pages back through every operation the workspace remembers.",
-	Example: `  zbox operation ls --sandbox app --status failed
-  zbox operation ls --kind wake --limit 10 -q`,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List operations, newest first",
+	Long:    "The list is the newest 100 operations unless --limit says otherwise; --before <id> continues with older ones, --all pages back through every operation the workspace remembers.",
+	Example: `  zbox operation list --sandbox app --status failed
+  zbox operation list --kind wake --limit 10 -q`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -162,6 +164,7 @@ var eventsCmd = &cobra.Command{
 	Long:  "With no cursor the newest events are printed, the latest at the bottom; --before continues with the ones older than an id. With --after the list is one long poll: it returns what is newer than the id, oldest first, waiting up to 30 seconds for something new. With --follow the WebSocket stream is printed until interrupted. --json prints the list in the order the API answers it, which is newest first unless --after is given.",
 	Example: `  zbox events --sandbox app
   zbox events --follow --json`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

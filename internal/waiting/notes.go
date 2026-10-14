@@ -20,7 +20,7 @@ var notes = []string{
 	"Every command takes --json. Scripts and agents get the API objects, not the text.",
 	"The console at the workspace URL and the CLI drive the same workspace. Use whichever is closer.",
 	"The default base is being added to the workspace now. Every sandbox after this starts in seconds.",
-	"`zbox teardown` deletes the whole Zerops project: the workspace, the sandboxes, everything in it.",
+	"`zbox workspace teardown` deletes the workspace service with every sandbox, base and snapshot in it, the Zerops project stays.",
 }
 
 // Notes is the rotation shown during a wait.

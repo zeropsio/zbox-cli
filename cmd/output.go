@@ -194,23 +194,26 @@ func whenPtr(p *string) string {
 }
 
 // relative is a coarse distance from now, `3m ago` or `in 2h`; the absolute time beside it carries the precision.
+// coarse is an age at the resolution of the AGE columns: 42s, 3m, 2h, 5d. It is for how long ago something happened or how long it has been going, never for a measured span, which durationString prints.
+func coarse(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	}
+	return fmt.Sprintf("%dd", int(d.Hours()/24))
+}
+
 func relative(t time.Time) string {
 	d := time.Since(t).Round(time.Second)
 	future := d < 0
 	if future {
 		d = -d
 	}
-	var s string
-	switch {
-	case d < time.Minute:
-		s = fmt.Sprintf("%ds", int(d.Seconds()))
-	case d < time.Hour:
-		s = fmt.Sprintf("%dm", int(d.Minutes()))
-	case d < 24*time.Hour:
-		s = fmt.Sprintf("%dh", int(d.Hours()))
-	default:
-		s = fmt.Sprintf("%dd", int(d.Hours()/24))
-	}
+	s := coarse(d)
 	if future {
 		return "in " + s
 	}

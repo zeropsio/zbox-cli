@@ -11,7 +11,7 @@ require (
 	github.com/olekukonko/tablewriter v1.1.5
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/cobra v1.9.1
-	github.com/zeropsio/zerops-go v1.0.23
+	github.com/zeropsio/zerops-go v1.0.24
 	golang.org/x/term v0.35.0
 )
 

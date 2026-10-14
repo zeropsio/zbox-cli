@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/zeropsio/zbox-cli/internal/browser"
+	"github.com/zeropsio/zbox-cli/internal/api"
 	"github.com/zeropsio/zbox-cli/internal/config"
 	"github.com/zeropsio/zbox-cli/internal/zerops"
 )
@@ -27,15 +26,17 @@ var (
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in to Zerops through the browser, or with a token or email and password",
-	Long:  "By default the Zerops GUI opens, the user confirms there and a personal access token is handed back to the CLI on this machine and stored. `--token` stores a given token instead. `--email` (with `--password`, asked for without echo when missing) logs in from the terminal and mints the token itself; that path cannot answer two-factor authentication.",
+	Long:  "By default the Zerops GUI opens on a consent page, the user signs in there, confirms the code the CLI printed, and the CLI receives a session, which it refreshes itself. `--token` stores a personal access token from the Zerops GUI instead. `--email` (with `--password`, asked for without echo when missing) opens the session from the terminal; that path cannot answer two-factor authentication.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		token := flagLoginToken
 		switch {
-		case token != "":
+		case flagLoginToken != "":
+			c.Token = flagLoginToken
+			c.Session = nil
 		case flagLoginEmail != "" || flagLoginPassword != "":
 			email, password, err := askCredentials(flagLoginEmail, flagLoginPassword)
 			if err != nil {
@@ -45,35 +46,35 @@ var loginCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			token, err = session.MintToken(cmd.Context(), tokenName())
-			if err != nil {
-				return err
-			}
+			storeSession(&c, session)
 		default:
-			token, err = handoverToken(cmd, c, browser.IntentLogin)
+			session, err := zerops.DeviceLogin(cmd.Context(), c.ApiUrl, c.EffectiveGuiUrl(), printLine)
 			if err != nil {
 				return err
 			}
+			storeSession(&c, session)
 		}
-		return storeLogin(cmd, c, token)
+		return finishLogin(cmd, c)
 	},
 }
 
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Create a Zerops account and log the CLI in",
-	Long:  "By default the Zerops GUI opens at the registration and hands a personal access token back to the CLI. With `--email` the account is created from the terminal (password, name and organisation asked for when missing).",
+	Long:  "By default the Zerops GUI opens on the consent page of a login, where a newcomer registers first, and the CLI receives the session of the new account. With `--email` the account is created from the terminal (password, name and organisation asked for when missing).",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
 		if flagLoginEmail == "" {
-			token, err := handoverToken(cmd, c, browser.IntentRegister)
+			session, err := zerops.DeviceLogin(cmd.Context(), c.ApiUrl, c.EffectiveGuiUrl(), printLine)
 			if err != nil {
 				return err
 			}
-			return storeLogin(cmd, c, token)
+			storeSession(&c, session)
+			return finishLogin(cmd, c)
 		}
 		email, password, err := askCredentials(flagLoginEmail, flagLoginPassword)
 		if err != nil {
@@ -91,53 +92,68 @@ var registerCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		token, err := session.MintToken(cmd.Context(), tokenName())
-		if err != nil {
-			return err
-		}
-		return storeLogin(cmd, c, token)
+		storeSession(&c, session)
+		return finishLogin(cmd, c)
 	},
-}
-
-// handoverToken runs the browser hand-over and returns the personal access token the GUI minted.
-func handoverToken(cmd *cobra.Command, c config.Config, intent browser.Intent) (string, error) {
-	values, err := browser.Handover(cmd.Context(), c.EffectiveGuiUrl(), intent, nil, 5*time.Minute, func(s string) { fmt.Fprintln(os.Stderr, s) })
-	if err != nil {
-		return "", err
-	}
-	token := values.Get("token")
-	if token == "" {
-		return "", errors.New("the Zerops GUI answered without a token")
-	}
-	return token, nil
 }
 
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
-	Short: "Forget the stored token",
+	Short: "End the Zerops login and forget it",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
+		// The zproxy accesses minted with this login are burnt too, so a token the config kept cannot outlive the login; one that is already dead or unreachable is simply dropped.
+		burnt := 0
+		for i, w := range c.Workspaces {
+			if w.Access == nil {
+				continue
+			}
+			if err := api.New(w.Access.Url, w.Access.Token).Logout(cmd.Context()); err == nil {
+				burnt++
+			}
+			c.Workspaces[i].Access = nil
+		}
+		// The session is ended on the API as well, so the refresh token the file held is dead whatever happens to a copy of the file.
+		if c.Session != nil {
+			_ = zerops.New(c.ApiUrl, c.Session.AccessToken).Logout(cmd.Context())
+		}
+		c.Access = nil
+		c.Session = nil
 		c.Token = ""
 		c.ClientId = ""
 		if err := c.Save(); err != nil {
 			return err
 		}
-		say("Logged out.")
+		if burnt > 0 {
+			say("Logged out, %d workspace access(es) revoked.", burnt)
+		} else {
+			say("Logged out.")
+		}
 		return nil
 	},
 }
 
-// storeLogin checks the token against the API, so a typo is caught here and not by the next command, and remembers the organisation the workspace will be created in.
-func storeLogin(cmd *cobra.Command, c config.Config, token string) error {
+func storeSession(c *config.Config, s zerops.Session) {
+	c.Session = &config.Session{AccessToken: s.AccessToken, ExpiresAt: s.ExpiresAt, RefreshToken: s.RefreshToken}
+	c.Token = ""
+}
+
+// finishLogin checks the login just obtained against the API (the stored one, never ZBOX_TOKEN from the environment), so a typo in a token is caught here and not by the next command, and remembers the organisation the workspace will be created in. The hidden URL flags are stored with the login, which is how a config moves environments.
+func finishLogin(cmd *cobra.Command, c config.Config) error {
+	token := c.Token
+	if c.Session != nil {
+		token = c.Session.AccessToken
+	}
 	user, err := zerops.New(c.ApiUrl, token).UserInfo(cmd.Context())
 	if err != nil {
-		return fmt.Errorf("token check failed: %w", err)
+		return fmt.Errorf("login check failed: %w", err)
 	}
-	c.Token = token
 	c.ClientId = user.ClientId
+	c.AdoptOverrides()
 	if err := c.Save(); err != nil {
 		return err
 	}
@@ -145,13 +161,20 @@ func storeLogin(cmd *cobra.Command, c config.Config, token string) error {
 	return nil
 }
 
-// tokenName names the personal access token after the machine, so the user can tell it apart in the Zerops GUI and revoke it.
-func tokenName() string {
-	host, _ := os.Hostname()
-	if host == "" {
-		host = "cli"
+func printLine(s string) {
+	fmt.Fprintln(os.Stderr, s)
+}
+
+// ensureSudo puts the session into sudo mode through the consent page when it is not in it yet. A personal access token cannot be put there by the API, its own sudo state stands.
+func ensureSudo(cmd *cobra.Command, c config.Config, zc *zerops.Client) error {
+	inSudo, err := zc.InSudo(cmd.Context())
+	if err != nil || inSudo {
+		return err
 	}
-	return fmt.Sprintf("zbox CLI %s %s", host, time.Now().Format("2006-01-02"))
+	if c.Session == nil || os.Getenv(config.EnvToken) != "" {
+		return notAuthorized{"this needs the login in sudo mode, which a personal access token cannot enter: run `zbox login` for a browser login"}
+	}
+	return zc.Sudo(cmd.Context(), c.EffectiveGuiUrl(), printLine)
 }
 
 func askCredentials(email, password string) (string, string, error) {
@@ -210,7 +233,7 @@ func init() {
 		c.Flags().StringVar(&flagLoginEmail, "email", "", "account email, switches from the browser to the terminal login")
 		c.Flags().StringVar(&flagLoginPassword, "password", "", "account password, asked for without echo when missing")
 	}
-	loginCmd.Flags().StringVar(&flagLoginToken, "token", "", "personal access token, stored as is")
+	loginCmd.Flags().StringVar(&flagLoginToken, "token", "", "personal access token from the Zerops GUI, stored as is")
 	registerCmd.Flags().StringVar(&flagRegisterName, "name", "", "your full name")
 	registerCmd.Flags().StringVar(&flagRegisterOrg, "organisation", "", "name of the organisation the account creates")
 	rootCmd.AddCommand(loginCmd, registerCmd, logoutCmd)

@@ -111,6 +111,31 @@ var baseSetCmd = &cobra.Command{
 	},
 }
 
+var baseRenameCmd = &cobra.Command{
+	Use:     "rename <base> <name>",
+	Aliases: []string{"mv"},
+	Short:   "Rename a base",
+	Long:    "The name is refused while another base holds it (`nameConflict`). `zbox base set --name ''` drops a name.",
+	Example: `  zbox base rename da2f61de1653 ubuntu
+  zbox base mv ubuntu ubuntu-old`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		b, err := findBase(cmd, ws, args[0])
+		if err != nil {
+			return err
+		}
+		b, err = ws.UpdateBase(cmd.Context(), b.Digest, api.RequestPutBase{Name: &args[1]})
+		if err != nil {
+			return err
+		}
+		return emit(b, func() { printBase(b) })
+	},
+}
+
 var basePruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Remove the whole layer cache of the Dockerfile builds",
@@ -140,8 +165,10 @@ var basePruneCmd = &cobra.Command{
 }
 
 var baseLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List bases",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List bases",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -180,9 +207,10 @@ var baseGetCmd = &cobra.Command{
 }
 
 var baseRmCmd = &cobra.Command{
-	Use:   "rm <digest>...",
-	Short: "Delete bases nothing references any more",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <digest>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete bases nothing references any more",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -239,6 +267,7 @@ var templateCreateCmd = &cobra.Command{
 	Use:     "create",
 	Short:   "Create a template from a base",
 	Example: `  zbox template create --base app --name dev --warm --cpus 2 --memory 4g --warmup 'claude --version'`,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -291,8 +320,10 @@ var templateCreateCmd = &cobra.Command{
 }
 
 var templateLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List templates",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List templates",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -358,10 +389,35 @@ var templateSetCmd = &cobra.Command{
 	},
 }
 
+var templateRenameCmd = &cobra.Command{
+	Use:     "rename <digest|name> <name>",
+	Aliases: []string{"mv"},
+	Short:   "Rename a template",
+	Example: `  zbox template rename dev dev-old
+  zbox template mv dev dev-old`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		t, err := findTemplate(cmd, ws, args[0])
+		if err != nil {
+			return err
+		}
+		t, err = ws.UpdateTemplate(cmd.Context(), t.Digest, api.RequestPutTemplate{Name: &args[1]})
+		if err != nil {
+			return err
+		}
+		return emit(t, func() { printTemplate(t) })
+	},
+}
+
 var templateRmCmd = &cobra.Command{
-	Use:   "rm <digest|name>...",
-	Short: "Delete templates",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <digest|name>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete templates",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -433,7 +489,7 @@ func init() {
 	baseBuildCmd.Flags().BoolVarP(&flagBuildVerbose, "verbose", "v", false, "list every packed member and every file or tree left out")
 	baseBuildCmd.Flags().BoolVar(&flagBuildDryRun, "dry-run", false, "pack and list, upload nothing")
 	baseSetCmd.Flags().StringVar(&flagBaseName, "name", "", "new name, refused while another base holds it")
-	baseCmd.AddCommand(baseAddCmd, baseBuildCmd, baseLsCmd, baseGetCmd, baseSetCmd, basePruneCmd, baseRmCmd)
+	baseCmd.AddCommand(baseAddCmd, baseBuildCmd, baseLsCmd, baseGetCmd, baseSetCmd, baseRenameCmd, basePruneCmd, baseRmCmd)
 
 	templateCreateCmd.Flags().StringVar(&flagTemplateBase, "base", "", "base the template is built on: digest, prefix or image ref")
 	templateCreateCmd.Flags().StringVar(&flagTemplateName, "name", "", "template name")
@@ -445,7 +501,7 @@ func init() {
 	waits(templateCreateCmd, "return right after the build started")
 	templateSetCmd.Flags().StringVar(&flagTemplateName, "name", "", "new name")
 	templateSetCmd.Flags().StringVarP(&flagTemplatePolicy, "policy", "f", "", "JSON file with the new template policy, - for stdin")
-	templateCmd.AddCommand(templateCreateCmd, templateLsCmd, templateGetCmd, templateSetCmd, templateRmCmd)
+	templateCmd.AddCommand(templateCreateCmd, templateLsCmd, templateGetCmd, templateSetCmd, templateRenameCmd, templateRmCmd)
 	destructive(baseRmCmd, basePruneCmd, templateRmCmd)
 	rootCmd.AddCommand(baseCmd, templateCmd)
 }

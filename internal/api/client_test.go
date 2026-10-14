@@ -68,3 +68,12 @@ func TestWrapper(t *testing.T) {
 		t.Fatalf("flat error: %v", err)
 	}
 }
+
+func TestProxiedFromUrl(t *testing.T) {
+	if !New("https://proxy.example/service-api", "t").Proxied() {
+		t.Error("a zproxy client built without Renew is not told apart")
+	}
+	if New("https://zbox-8080.example", "k").Proxied() {
+		t.Error("a direct client counts as proxied")
+	}
+}

@@ -43,9 +43,10 @@ var snapshotCreateCmd = &cobra.Command{
 }
 
 var snapshotLsCmd = &cobra.Command{
-	Use:   "ls <sandbox-id|name>",
-	Short: "List the snapshots of a sandbox",
-	Args:  cobra.ExactArgs(1),
+	Use:     "list <sandbox-id|name>",
+	Aliases: []string{"ls"},
+	Short:   "List the snapshots of a sandbox",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -86,9 +87,10 @@ var snapshotGetCmd = &cobra.Command{
 }
 
 var snapshotRmCmd = &cobra.Command{
-	Use:   "rm <snapshot-id>...",
-	Short: "Delete snapshots",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <snapshot-id>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete snapshots",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -103,7 +105,7 @@ var snapshotRmCmd = &cobra.Command{
 var snapshotRestoreCmd = &cobra.Command{
 	Use:     "restore <snapshot-id>",
 	Short:   "Restore a snapshot into a new sandbox, the original is never rolled back",
-	Example: `  zbox snapshot restore $(zbox snapshot ls app -q | head -1) --name app-2 --with-memory`,
+	Example: `  zbox snapshot restore $(zbox snapshot list app -q | head -1) --name app-2 --with-memory`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
@@ -124,8 +126,10 @@ var lineageCmd = &cobra.Command{
 }
 
 var lineageLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List lineages",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List lineages",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -211,8 +215,10 @@ var exportCmd = &cobra.Command{
 }
 
 var exportLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List exports",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List exports",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -265,6 +271,7 @@ var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "Import an exported lineage into this workspace",
 	Long:  "Import an export of a lineage by its object storage key.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagImportSource == "" {
 			return usagef("--source is required")

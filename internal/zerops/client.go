@@ -3,9 +3,12 @@ package zerops
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -22,17 +25,114 @@ import (
 )
 
 type Client struct {
-	sdk sdk.Handler
+	sdk    sdk.Handler
+	apiUrl string
+	token  string
+	http   *http.Client
 }
 
 func New(apiUrl, token string) *Client {
-	h := sdk.New(sdkBase.DefaultConfig(sdkBase.WithCustomEndpoint(apiUrl)), &http.Client{Timeout: 60 * time.Second})
-	return &Client{sdk: sdk.AuthorizeSdk(h, token)}
+	hc := &http.Client{Timeout: 60 * time.Second}
+	h := sdk.New(sdkBase.DefaultConfig(sdkBase.WithCustomEndpoint(apiUrl)), hc)
+	return &Client{sdk: sdk.AuthorizeSdk(h, token), apiUrl: strings.TrimSuffix(apiUrl, "/"), token: token, http: hc}
 }
+
+// Error is an answer of the public API to a call made outside the SDK, the `{"error": {code, message}}` envelope decoded.
+type Error struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func (e Error) Error() string {
+	if e.Code != "" {
+		return fmt.Sprintf("%s (%s)", e.Message, e.Code)
+	}
+	return e.Message
+}
+
+// IsCode matches an error the public API named, from the SDK or from a call made outside it.
+func IsCode(err error, code string) bool {
+	var e Error
+	if errors.As(err, &e) {
+		return e.Code == code
+	}
+	return apiError.HasErrorCode(err, errorCode.ErrorCode(code))
+}
+
+// Access is the zproxy access of a workspace, the answer of POST /service-stack/{id}/ui-access: the orchestrator API is reached at UrlApi
+// (`https://proxy.<domain>/service-api`) with Token as the bearer, which zproxy swaps for the workspace key; UrlUi is the browser form of the same access, the console.
+// The token lives an hour past its last use. Minting needs BasicUser or above on the stack.
+type Access struct {
+	Token      string
+	Expiration string
+	UrlUi      string
+	UrlApi     string
+}
+
+// UiAccess mints a zproxy access for the workspace service. The route is not in the released SDK yet, so it is posted by hand. A `urlApi` missing from the answer (a public API from before 2026-10-13) is derived from `urlUi`, the proxy host with the API prefix.
+func (c *Client) UiAccess(ctx context.Context, serviceId string) (Access, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiUrl+"/api/rest/public/service-stack/"+serviceId+"/ui-access", nil)
+	if err != nil {
+		return Access{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Access{}, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Access{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		var env struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(body, &env)
+		if env.Error.Message == "" {
+			env.Error.Message = resp.Status
+		}
+		return Access{}, Error{Status: resp.StatusCode, Code: env.Error.Code, Message: env.Error.Message}
+	}
+	var out struct {
+		AccessToken string `json:"accessToken"`
+		Expiration  string `json:"expiration"`
+		UrlUi       string `json:"urlUi"`
+		UrlApi      string `json:"urlApi"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return Access{}, fmt.Errorf("decode the ui-access answer: %w", err)
+	}
+	if out.AccessToken == "" {
+		return Access{}, errors.New("the ui-access answer carries no access token")
+	}
+	a := Access{Token: out.AccessToken, Expiration: out.Expiration, UrlUi: out.UrlUi, UrlApi: strings.TrimSuffix(out.UrlApi, "/")}
+	if a.UrlApi == "" {
+		u, err := url.Parse(out.UrlUi)
+		if err != nil || u.Host == "" {
+			return Access{}, fmt.Errorf("the ui-access answer carries no usable URL: %q", out.UrlUi)
+		}
+		a.UrlApi = u.Scheme + "://" + u.Host + ProxyApiPrefix
+	}
+	return a, nil
+}
+
+// ProxyApiPrefix is where zproxy serves the header-authenticated form of a service's web UI and API, see Access.
+const ProxyApiPrefix = "/service-api"
 
 // IsNotFound recognises the answer the public API gives for a project or service that is gone, which for the CLI means a workspace deleted outside of it.
 // The match is on the error code because the API answers these with HTTP 400 today, even though the ACL middleware that raises them was meant to answer 404. The status is checked too, so a fix on the API side keeps working.
 func IsNotFound(err error) bool {
+	var e Error
+	if errors.As(err, &e) {
+		return e.Code == string(errorCode.ProjectNotFound) || e.Code == string(errorCode.ServiceStackNotFound) || e.Status == http.StatusNotFound
+	}
 	return apiError.HasErrorCode(err, errorCode.ProjectNotFound) ||
 		apiError.HasErrorCode(err, errorCode.ServiceStackNotFound) ||
 		apiError.HasHTTPCode(err, http.StatusNotFound)

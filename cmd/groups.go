@@ -8,11 +8,11 @@ func init() {
 		id, title string
 		cmds      []*cobra.Command
 	}{
-		{"sandbox", "Sandboxes:", []*cobra.Command{newCmd, lsCmd, getCmd, setCmd, rmCmd, parkCmd, wakeCmd, forkCmd, snapshotCmd, metricsCmd}},
-		{"inside", "Inside a sandbox:", []*cobra.Command{shellCmd, execCmd, processCmd, sessionCmd, fileCmd, sshCmd, sshKeyCmd}},
+		{"sandbox", "Sandboxes:", []*cobra.Command{newCmd, lsCmd, getCmd, setCmd, renameCmd, rmCmd, parkCmd, wakeCmd, forkCmd, snapshotCmd, metricsCmd}},
+		{"inside", "Inside a sandbox:", []*cobra.Command{shellCmd, execCmd, processCmd, psCmd, sessionCmd, fileCmd, sshCmd, sshConfigCmd, sshKeyCmd}},
 		{"network", "Ports, access and integrations:", []*cobra.Command{portCmd, openCmd, credentialCmd, policyCmd, attachCmd, detachCmd, attachmentsCmd, integrationCmd, connectorCmd}},
-		{"workspace", "Workspace:", []*cobra.Command{baseCmd, templateCmd, opCmd, eventsCmd, webhookCmd, lineageCmd, exportCmd, importCmd, quarantineCmd, workspaceCmd, consoleCmd, switchCmd, statusCmd, mcpCmd}},
-		{"account", "Account and setup:", []*cobra.Command{loginCmd, logoutCmd, registerCmd, setupCmd, teardownCmd}},
+		{"workspace", "Workspace:", []*cobra.Command{baseCmd, templateCmd, opCmd, eventsCmd, webhookCmd, lineageCmd, exportCmd, importCmd, quarantineCmd, workspaceCmd, mcpCmd}},
+		{"account", "Account and setup:", []*cobra.Command{loginCmd, logoutCmd, registerCmd, setupCmd}},
 	}
 	for _, g := range groups {
 		rootCmd.AddGroup(&cobra.Group{ID: g.id, Title: g.title})

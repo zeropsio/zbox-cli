@@ -119,8 +119,10 @@ var integrationSetCmd = &cobra.Command{
 }
 
 var integrationLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List integrations",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List integrations",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -135,7 +137,7 @@ var integrationLsCmd = &cobra.Command{
 			for _, i := range list {
 				tb.row(i.Name, i.TargetUrl, i.CredentialEnv, injectString(i.Inject), rateString(i.RateLimit), when(i.Created))
 			}
-			tb.ifEmpty("No integrations. `zbox integration create` defines one, `zbox connector ls` shows the ready-made ones.")
+			tb.ifEmpty("No integrations. `zbox integration create` defines one, `zbox connector list` shows the ready-made ones.")
 			tb.print()
 		})
 	},
@@ -159,9 +161,10 @@ var integrationGetCmd = &cobra.Command{
 }
 
 var integrationRmCmd = &cobra.Command{
-	Use:   "rm <name>...",
-	Short: "Delete integrations no sandbox has attached",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "remove <name>...",
+	Aliases: []string{"rm"},
+	Short:   "Delete integrations no sandbox has attached",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

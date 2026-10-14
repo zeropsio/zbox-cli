@@ -330,6 +330,7 @@ func (e BaseFileEntryType) Valid() bool {
 const (
 	BaseGuestSessionKindEXEC BaseGuestSessionKind = "EXEC"
 	BaseGuestSessionKindPTY  BaseGuestSessionKind = "PTY"
+	BaseGuestSessionKindSSH  BaseGuestSessionKind = "SSH"
 )
 
 // Valid indicates whether the value is a known member of the BaseGuestSessionKind enum.
@@ -338,6 +339,8 @@ func (e BaseGuestSessionKind) Valid() bool {
 	case BaseGuestSessionKindEXEC:
 		return true
 	case BaseGuestSessionKindPTY:
+		return true
+	case BaseGuestSessionKindSSH:
 		return true
 	default:
 		return false
@@ -737,6 +740,24 @@ func (e BaseWebhookDeliveryStatus) Valid() bool {
 	}
 }
 
+// Defines values for BaseWorkspaceDomainForm.
+const (
+	DASH BaseWorkspaceDomainForm = "DASH"
+	DOT  BaseWorkspaceDomainForm = "DOT"
+)
+
+// Valid indicates whether the value is a known member of the BaseWorkspaceDomainForm enum.
+func (e BaseWorkspaceDomainForm) Valid() bool {
+	switch e {
+	case DASH:
+		return true
+	case DOT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BaseWorkspaceHostCpuVendor.
 const (
 	AMD   BaseWorkspaceHostCpuVendor = "AMD"
@@ -957,6 +978,7 @@ func (e ResponseExportStatus) Valid() bool {
 const (
 	ResponseGuestSessionKindEXEC ResponseGuestSessionKind = "EXEC"
 	ResponseGuestSessionKindPTY  ResponseGuestSessionKind = "PTY"
+	ResponseGuestSessionKindSSH  ResponseGuestSessionKind = "SSH"
 )
 
 // Valid indicates whether the value is a known member of the ResponseGuestSessionKind enum.
@@ -965,6 +987,8 @@ func (e ResponseGuestSessionKind) Valid() bool {
 	case ResponseGuestSessionKindEXEC:
 		return true
 	case ResponseGuestSessionKindPTY:
+		return true
+	case ResponseGuestSessionKindSSH:
 		return true
 	default:
 		return false
@@ -1200,6 +1224,7 @@ func (e ResponseWorkspaceSubstrate) Valid() bool {
 const (
 	KindEXEC Kind = "EXEC"
 	KindPTY  Kind = "PTY"
+	KindSSH  Kind = "SSH"
 )
 
 // Valid indicates whether the value is a known member of the Kind enum.
@@ -1208,6 +1233,8 @@ func (e Kind) Valid() bool {
 	case KindEXEC:
 		return true
 	case KindPTY:
+		return true
+	case KindSSH:
 		return true
 	default:
 		return false
@@ -1311,6 +1338,7 @@ func (e GetOperationListParamsKind) Valid() bool {
 const (
 	GetSandboxSessionListParamsKindEXEC GetSandboxSessionListParamsKind = "EXEC"
 	GetSandboxSessionListParamsKindPTY  GetSandboxSessionListParamsKind = "PTY"
+	GetSandboxSessionListParamsKindSSH  GetSandboxSessionListParamsKind = "SSH"
 )
 
 // Valid indicates whether the value is a known member of the GetSandboxSessionListParamsKind enum.
@@ -1319,6 +1347,8 @@ func (e GetSandboxSessionListParamsKind) Valid() bool {
 	case GetSandboxSessionListParamsKindEXEC:
 		return true
 	case GetSandboxSessionListParamsKindPTY:
+		return true
+	case GetSandboxSessionListParamsKindSSH:
 		return true
 	default:
 		return false
@@ -1719,6 +1749,26 @@ type BasePacketRate struct {
 	TxPerSecond int `json:"txPerSecond"`
 }
 
+// BaseProcessEntry defines model for BaseProcessEntry.
+type BaseProcessEntry struct {
+	// Args The command line, empty for a process that rewrote it away.
+	Args string `json:"args"`
+
+	// Command The short name of the executable.
+	Command string `json:"command"`
+
+	// CpuSeconds User and system time since the process started.
+	CpuSeconds     float32 `json:"cpuSeconds"`
+	ElapsedSeconds int64   `json:"elapsedSeconds"`
+	Pid            int     `json:"pid"`
+	Ppid           int     `json:"ppid"`
+	RssBytes       int64   `json:"rssBytes"`
+
+	// State The /proc state letter: R running, S sleeping, D waiting on disk, Z zombie, T stopped.
+	State string `json:"state"`
+	Uid   int    `json:"uid"`
+}
+
 // BaseQuarantine defines model for BaseQuarantine.
 type BaseQuarantine struct {
 	Created string             `json:"created"`
@@ -1784,7 +1834,7 @@ type BaseSandboxHost struct {
 	Access BaseSandboxHostAccess `json:"access"`
 	Port   int                   `json:"port"`
 
-	// Url The public URL of the port on the ingress subdomain, design §6.1.
+	// Url The public URL of the port under one workspace domain, design §6.1; one entry per domain.
 	Url string `json:"url"`
 }
 
@@ -1913,6 +1963,18 @@ type BaseWorkspaceCapacity struct {
 	// MemoryBytes Memory of the Workspace VM.
 	MemoryBytes int64 `json:"memoryBytes"`
 }
+
+// BaseWorkspaceDomain defines model for BaseWorkspaceDomain.
+type BaseWorkspaceDomain struct {
+	// Domain A hostname the edge routes to the ingress port: the Zerops subdomain of the port, or an own wildcard domain.
+	Domain string `json:"domain"`
+
+	// Form Where a sandbox port goes in front of the domain: DASH is `{port}-{id}-<domain>` (a Zerops subdomain, one label under the wildcard certificate), DOT is `{port}-{id}.<domain>` (an own wildcard domain).
+	Form BaseWorkspaceDomainForm `json:"form"`
+}
+
+// BaseWorkspaceDomainForm Where a sandbox port goes in front of the domain: DASH is `{port}-{id}-<domain>` (a Zerops subdomain, one label under the wildcard certificate), DOT is `{port}-{id}.<domain>` (an own wildcard domain).
+type BaseWorkspaceDomainForm string
 
 // BaseWorkspaceHost defines model for BaseWorkspaceHost.
 type BaseWorkspaceHost struct {
@@ -2114,6 +2176,12 @@ type RequestPostSandboxFork struct {
 	Names *[]string `json:"names,omitempty"`
 }
 
+// RequestPostSandboxPark defines model for RequestPostSandboxPark.
+type RequestPostSandboxPark struct {
+	// Memory Keep a memory image for the wake, the default. False shuts the guest down: the next wake is a cold boot with the current secrets, env and policy.
+	Memory *bool `json:"memory,omitempty"`
+}
+
 // RequestPostSandboxSnapshot defines model for RequestPostSandboxSnapshot.
 type RequestPostSandboxSnapshot struct {
 	Name       string `json:"name"`
@@ -2222,6 +2290,12 @@ type RequestPutWebhook struct {
 	Enabled *bool     `json:"enabled,omitempty"`
 	Events  *[]string `json:"events,omitempty"`
 	Url     *string   `json:"url,omitempty"`
+}
+
+// RequestPutWorkspaceDomains defines model for RequestPutWorkspaceDomains.
+type RequestPutWorkspaceDomains struct {
+	// Domains The whole list, replaced as given.
+	Domains []BaseWorkspaceDomain `json:"domains"`
 }
 
 // RequestPutWorkspacePolicy defines model for RequestPutWorkspacePolicy.
@@ -2334,11 +2408,15 @@ type ResponseEventList struct {
 
 // ResponseExecResult defines model for ResponseExecResult.
 type ResponseExecResult struct {
-	ExitCode  *int   `json:"exitCode,omitempty"`
-	SessionId string `json:"sessionId"`
-	Stderr    string `json:"stderr"`
-	Stdout    string `json:"stdout"`
-	TimedOut  bool   `json:"timedOut"`
+	ExitCode        *int   `json:"exitCode,omitempty"`
+	SessionId       string `json:"sessionId"`
+	Stderr          string `json:"stderr"`
+	StderrTruncated bool   `json:"stderrTruncated"`
+	Stdout          string `json:"stdout"`
+
+	// StdoutTruncated The answered stdout is cut at the Workspace's limit, the session's output holds the rest.
+	StdoutTruncated bool `json:"stdoutTruncated"`
+	TimedOut        bool `json:"timedOut"`
 }
 
 // ResponseExport defines model for ResponseExport.
@@ -2492,6 +2570,11 @@ type ResponseOperationList struct {
 	Items []BaseOperation `json:"items"`
 }
 
+// ResponseProcessList defines model for ResponseProcessList.
+type ResponseProcessList struct {
+	Items []BaseProcessEntry `json:"items"`
+}
+
 // ResponseQuarantineList defines model for ResponseQuarantineList.
 type ResponseQuarantineList struct {
 	Items []BaseQuarantine `json:"items"`
@@ -2546,9 +2629,9 @@ type ResponseSandboxSsh struct {
 	// Enabled Port 22 is open to project sources when the policy says so and the mode has a project path.
 	Enabled bool `json:"enabled"`
 
-	// HostKeys Host public keys reported by the agent at first boot, for pinning.
-	HostKeys      []string `json:"hostKeys"`
-	StableAddress *string  `json:"stableAddress,omitempty"`
+	// HostKey Public host key of the agent's SSH server as an authorized-keys line, for pinning. Null on a sandbox from before the server.
+	HostKey       *string `json:"hostKey,omitempty"`
+	StableAddress *string `json:"stableAddress,omitempty"`
 }
 
 // ResponseSessionList defines model for ResponseSessionList.
@@ -2662,13 +2745,14 @@ type ResponseWebhookList struct {
 type ResponseWorkspace struct {
 	// AlwaysDenied The read-only always-denied egress set, design §6.5.
 	AlwaysDenied []string              `json:"alwaysDenied"`
-	ApiHost      string                `json:"apiHost"`
 	Capacity     BaseWorkspaceCapacity `json:"capacity"`
-	Host         BaseWorkspaceHost     `json:"host"`
+
+	// Domains The host suffixes sandbox ports are published under, in the order their URLs are listed; empty means no public sandbox URL.
+	Domains []BaseWorkspaceDomain `json:"domains"`
+	Host    BaseWorkspaceHost     `json:"host"`
 
 	// ImageRelease The alias the Workspace image was built under, null on an image from before the record.
 	ImageRelease *string                    `json:"imageRelease,omitempty"`
-	IngressHost  string                     `json:"ingressHost"`
 	Policy       BaseWorkspacePolicy        `json:"policy"`
 	Substrate    ResponseWorkspaceSubstrate `json:"substrate"`
 	Usage        BaseWorkspaceUsage         `json:"usage"`
@@ -2783,6 +2867,7 @@ type GetEventListParams struct {
 
 // GetEventStreamParams defines parameters for GetEventStream.
 type GetEventStreamParams struct {
+	// AfterId Workspace-wide cursor: replay the events with a greater id first. Without it the stream starts at the newest event.
 	AfterId   *int64     `form:"afterId,omitempty" json:"afterId,omitempty"`
 	SandboxId *SandboxId `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
 }
@@ -3011,6 +3096,9 @@ type PostSandboxIngressCredentialJSONRequestBody = RequestPostIngressCredential
 // PostSandboxIntegrationAttachmentJSONRequestBody defines body for PostSandboxIntegrationAttachment for application/json ContentType.
 type PostSandboxIntegrationAttachmentJSONRequestBody = RequestPostIntegrationAttachment
 
+// PostSandboxParkJSONRequestBody defines body for PostSandboxPark for application/json ContentType.
+type PostSandboxParkJSONRequestBody = RequestPostSandboxPark
+
 // PutSandboxPolicyJSONRequestBody defines body for PutSandboxPolicy for application/json ContentType.
 type PutSandboxPolicyJSONRequestBody = RequestPutSandboxPolicy
 
@@ -3040,6 +3128,9 @@ type PostWebhookJSONRequestBody = RequestPostWebhook
 
 // PutWebhookJSONRequestBody defines body for PutWebhook for application/json ContentType.
 type PutWebhookJSONRequestBody = RequestPutWebhook
+
+// PutWorkspaceDomainsJSONRequestBody defines body for PutWorkspaceDomains for application/json ContentType.
+type PutWorkspaceDomainsJSONRequestBody = RequestPutWorkspaceDomains
 
 // PutWorkspacePolicyJSONRequestBody defines body for PutWorkspacePolicy for application/json ContentType.
 type PutWorkspacePolicyJSONRequestBody = RequestPutWorkspacePolicy
@@ -3346,8 +3437,13 @@ type ClientInterface interface {
 	// GetSandboxMetricList performs a GET /api/rest/sandbox/{id}/metric-list (the `GetSandboxMetricList` operationId) request.
 	GetSandboxMetricList(ctx context.Context, id Id, params *GetSandboxMetricListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostSandboxParkWithBody performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request,
+	// with any type of body and a specified content type.
+	PostSandboxParkWithBody(ctx context.Context, id Id, params *PostSandboxParkParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostSandboxPark performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
-	PostSandboxPark(ctx context.Context, id Id, params *PostSandboxParkParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Takes a body of the `application/json` content type.
+	PostSandboxPark(ctx context.Context, id Id, params *PostSandboxParkParams, body PostSandboxParkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutSandboxPolicyWithBody performs a PUT /api/rest/sandbox/{id}/policy (the `PutSandboxPolicy` operationId) request,
 	// with any type of body and a specified content type.
@@ -3364,6 +3460,9 @@ type ClientInterface interface {
 	// PostSandboxProcess performs a POST /api/rest/sandbox/{id}/process (the `PostSandboxProcess` operationId) request.
 	// Takes a body of the `application/json` content type.
 	PostSandboxProcess(ctx context.Context, id Id, body PostSandboxProcessJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSandboxProcessList performs a GET /api/rest/sandbox/{id}/process-list (the `GetSandboxProcessList` operationId) request.
+	GetSandboxProcessList(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSandboxSessionList performs a GET /api/rest/sandbox/{id}/session-list (the `GetSandboxSessionList` operationId) request.
 	GetSandboxSessionList(ctx context.Context, id Id, params *GetSandboxSessionListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3392,6 +3491,9 @@ type ClientInterface interface {
 	// PostSandboxSshKey performs a POST /api/rest/sandbox/{id}/ssh-key (the `PostSandboxSshKey` operationId) request.
 	// Takes a body of the `application/json` content type.
 	PostSandboxSshKey(ctx context.Context, id Id, body PostSandboxSshKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSandboxSshConnect performs a GET /api/rest/sandbox/{id}/ssh/connect (the `GetSandboxSshConnect` operationId) request.
+	GetSandboxSshConnect(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostSandboxWakeWithBody performs a POST /api/rest/sandbox/{id}/wake (the `PostSandboxWake` operationId) request,
 	// with any type of body and a specified content type.
@@ -3479,6 +3581,14 @@ type ClientInterface interface {
 
 	// GetWorkspace performs a GET /api/rest/workspace (the `GetWorkspace` operationId) request.
 	GetWorkspace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWorkspaceDomainsWithBody performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request,
+	// with any type of body and a specified content type.
+	PutWorkspaceDomainsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWorkspaceDomains performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request.
+	// Takes a body of the `application/json` content type.
+	PutWorkspaceDomains(ctx context.Context, body PutWorkspaceDomainsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutWorkspacePolicyWithBody performs a PUT /api/rest/workspace/policy (the `PutWorkspacePolicy` operationId) request,
 	// with any type of body and a specified content type.
@@ -4377,9 +4487,24 @@ func (c *Client) GetSandboxMetricList(ctx context.Context, id Id, params *GetSan
 	return c.Client.Do(req)
 }
 
+// PostSandboxParkWithBody performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PostSandboxParkWithBody(ctx context.Context, id Id, params *PostSandboxParkParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSandboxParkRequestWithBody(c.Server, id, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // PostSandboxPark performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
-func (c *Client) PostSandboxPark(ctx context.Context, id Id, params *PostSandboxParkParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostSandboxParkRequest(c.Server, id, params)
+// Takes a body of the `application/json` content type.
+func (c *Client) PostSandboxPark(ctx context.Context, id Id, params *PostSandboxParkParams, body PostSandboxParkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSandboxParkRequest(c.Server, id, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4436,6 +4561,19 @@ func (c *Client) PostSandboxProcessWithBody(ctx context.Context, id Id, contentT
 // Takes a body of the `application/json` content type.
 func (c *Client) PostSandboxProcess(ctx context.Context, id Id, body PostSandboxProcessJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostSandboxProcessRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSandboxProcessList performs a GET /api/rest/sandbox/{id}/process-list (the `GetSandboxProcessList` operationId) request.
+func (c *Client) GetSandboxProcessList(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSandboxProcessListRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -4544,6 +4682,19 @@ func (c *Client) PostSandboxSshKeyWithBody(ctx context.Context, id Id, contentTy
 // Takes a body of the `application/json` content type.
 func (c *Client) PostSandboxSshKey(ctx context.Context, id Id, body PostSandboxSshKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostSandboxSshKeyRequest(c.Server, id, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSandboxSshConnect performs a GET /api/rest/sandbox/{id}/ssh/connect (the `GetSandboxSshConnect` operationId) request.
+func (c *Client) GetSandboxSshConnect(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSandboxSshConnectRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -4881,6 +5032,34 @@ func (c *Client) GetWebhookDeliveryList(ctx context.Context, id Id, params *GetW
 // GetWorkspace performs a GET /api/rest/workspace (the `GetWorkspace` operationId) request.
 func (c *Client) GetWorkspace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetWorkspaceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutWorkspaceDomainsWithBody performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PutWorkspaceDomainsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceDomainsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutWorkspaceDomains performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) PutWorkspaceDomains(ctx context.Context, body PutWorkspaceDomainsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWorkspaceDomainsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -7457,8 +7636,19 @@ func NewGetSandboxMetricListRequest(server string, id Id, params *GetSandboxMetr
 	return req, nil
 }
 
-// NewPostSandboxParkRequest constructs an http.Request for the PostSandboxPark method
-func NewPostSandboxParkRequest(server string, id Id, params *PostSandboxParkParams) (*http.Request, error) {
+// NewPostSandboxParkRequest calls the generic PostSandboxPark builder with application/json body
+func NewPostSandboxParkRequest(server string, id Id, params *PostSandboxParkParams, body PostSandboxParkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostSandboxParkRequestWithBody(server, id, params, "application/json", bodyReader)
+}
+
+// NewPostSandboxParkRequestWithBody constructs an http.Request for the PostSandboxPark method, with any body, and a specified content type
+func NewPostSandboxParkRequestWithBody(server string, id Id, params *PostSandboxParkParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7483,10 +7673,12 @@ func NewPostSandboxParkRequest(server string, id Id, params *PostSandboxParkPara
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -7594,6 +7786,40 @@ func NewPostSandboxProcessRequestWithBody(server string, id Id, contentType stri
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSandboxProcessListRequest constructs an http.Request for the GetSandboxProcessList method
+func NewGetSandboxProcessListRequest(server string, id Id) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/sandbox/%s/process-list", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -7939,6 +8165,40 @@ func NewPostSandboxSshKeyRequestWithBody(server string, id Id, contentType strin
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSandboxSshConnectRequest constructs an http.Request for the GetSandboxSshConnect method
+func NewGetSandboxSshConnectRequest(server string, id Id) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/sandbox/%s/ssh/connect", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -8710,6 +8970,46 @@ func NewGetWorkspaceRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewPutWorkspaceDomainsRequest calls the generic PutWorkspaceDomains builder with application/json body
+func NewPutWorkspaceDomainsRequest(server string, body PutWorkspaceDomainsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutWorkspaceDomainsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPutWorkspaceDomainsRequestWithBody constructs an http.Request for the PutWorkspaceDomains method, with any body, and a specified content type
+func NewPutWorkspaceDomainsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/workspace/domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPutWorkspacePolicyRequest calls the generic PutWorkspacePolicy builder with application/json body
 func NewPutWorkspacePolicyRequest(server string, body PutWorkspacePolicyJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -9126,10 +9426,15 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetSandboxMetricListWithResponse(ctx context.Context, id Id, params *GetSandboxMetricListParams, reqEditors ...RequestEditorFn) (*GetSandboxMetricListResponse, error)
 
-	// PostSandboxParkWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
+	// PostSandboxParkWithBodyWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request,
+	// with any type of body and a specified content type.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	PostSandboxParkWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error)
+	PostSandboxParkWithBodyWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error)
+
+	// PostSandboxParkWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PostSandboxParkWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, body PostSandboxParkJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error)
 
 	// PutSandboxPolicyWithBodyWithResponse performs a PUT /api/rest/sandbox/{id}/policy (the `PutSandboxPolicy` operationId) request,
 	// with any type of body and a specified content type.
@@ -9150,6 +9455,11 @@ type ClientWithResponsesInterface interface {
 	// PostSandboxProcessWithResponse performs a POST /api/rest/sandbox/{id}/process (the `PostSandboxProcess` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PostSandboxProcessWithResponse(ctx context.Context, id Id, body PostSandboxProcessJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSandboxProcessResponse, error)
+
+	// GetSandboxProcessListWithResponse performs a GET /api/rest/sandbox/{id}/process-list (the `GetSandboxProcessList` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetSandboxProcessListWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetSandboxProcessListResponse, error)
 
 	// GetSandboxSessionListWithResponse performs a GET /api/rest/sandbox/{id}/session-list (the `GetSandboxSessionList` operationId) request.
 	//
@@ -9190,6 +9500,11 @@ type ClientWithResponsesInterface interface {
 	// PostSandboxSshKeyWithResponse performs a POST /api/rest/sandbox/{id}/ssh-key (the `PostSandboxSshKey` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PostSandboxSshKeyWithResponse(ctx context.Context, id Id, body PostSandboxSshKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSandboxSshKeyResponse, error)
+
+	// GetSandboxSshConnectWithResponse performs a GET /api/rest/sandbox/{id}/ssh/connect (the `GetSandboxSshConnect` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetSandboxSshConnectWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetSandboxSshConnectResponse, error)
 
 	// PostSandboxWakeWithBodyWithResponse performs a POST /api/rest/sandbox/{id}/wake (the `PostSandboxWake` operationId) request,
 	// with any type of body and a specified content type.
@@ -9315,6 +9630,16 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetWorkspaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWorkspaceResponse, error)
+
+	// PutWorkspaceDomainsWithBodyWithResponse performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PutWorkspaceDomainsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceDomainsResponse, error)
+
+	// PutWorkspaceDomainsWithResponse performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PutWorkspaceDomainsWithResponse(ctx context.Context, body PutWorkspaceDomainsJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceDomainsResponse, error)
 
 	// PutWorkspacePolicyWithBodyWithResponse performs a PUT /api/rest/workspace/policy (the `PutWorkspacePolicy` operationId) request,
 	// with any type of body and a specified content type.
@@ -13122,6 +13447,82 @@ func (r PostSandboxProcessResponse) ContentType() string {
 	return ""
 }
 
+type GetSandboxProcessListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseProcessList
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+	// JSON504 the response for an HTTP 504 `application/json` response
+	JSON504 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON200() *ResponseProcessList {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetJSON504 returns the response for an HTTP 504 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON504() *Error {
+	return r.JSON504
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSandboxProcessListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSandboxProcessListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSandboxProcessListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSandboxProcessListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetSandboxSessionListResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13565,6 +13966,89 @@ func (r PostSandboxSshKeyResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PostSandboxSshKeyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSandboxSshConnectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseStream
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+	// JSON504 the response for an HTTP 504 `application/json` response
+	JSON504 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON200() *ResponseStream {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetJSON504 returns the response for an HTTP 504 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON504() *Error {
+	return r.JSON504
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSandboxSshConnectResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSandboxSshConnectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSandboxSshConnectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSandboxSshConnectResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -14882,6 +15366,68 @@ func (r GetWorkspaceResponse) ContentType() string {
 	return ""
 }
 
+type PutWorkspaceDomainsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseWorkspace
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PutWorkspaceDomainsResponse) GetJSON200() *ResponseWorkspace {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PutWorkspaceDomainsResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PutWorkspaceDomainsResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PutWorkspaceDomainsResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PutWorkspaceDomainsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PutWorkspaceDomainsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutWorkspaceDomainsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PutWorkspaceDomainsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PutWorkspacePolicyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15672,11 +16218,22 @@ func (c *ClientWithResponses) GetSandboxMetricListWithResponse(ctx context.Conte
 	return ParseGetSandboxMetricListResponse(rsp)
 }
 
-// PostSandboxParkWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
+// PostSandboxParkWithBodyWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request,
+// with any type of body and a specified content type.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PostSandboxParkWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error) {
-	rsp, err := c.PostSandboxPark(ctx, id, params, reqEditors...)
+func (c *ClientWithResponses) PostSandboxParkWithBodyWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error) {
+	rsp, err := c.PostSandboxParkWithBody(ctx, id, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSandboxParkResponse(rsp)
+}
+
+// PostSandboxParkWithResponse performs a POST /api/rest/sandbox/{id}/park (the `PostSandboxPark` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostSandboxParkWithResponse(ctx context.Context, id Id, params *PostSandboxParkParams, body PostSandboxParkJSONRequestBody, reqEditors ...RequestEditorFn) (*PostSandboxParkResponse, error) {
+	rsp, err := c.PostSandboxPark(ctx, id, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -15725,6 +16282,17 @@ func (c *ClientWithResponses) PostSandboxProcessWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParsePostSandboxProcessResponse(rsp)
+}
+
+// GetSandboxProcessListWithResponse performs a GET /api/rest/sandbox/{id}/process-list (the `GetSandboxProcessList` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetSandboxProcessListWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetSandboxProcessListResponse, error) {
+	rsp, err := c.GetSandboxProcessList(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSandboxProcessListResponse(rsp)
 }
 
 // GetSandboxSessionListWithResponse performs a GET /api/rest/sandbox/{id}/session-list (the `GetSandboxSessionList` operationId) request.
@@ -15813,6 +16381,17 @@ func (c *ClientWithResponses) PostSandboxSshKeyWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParsePostSandboxSshKeyResponse(rsp)
+}
+
+// GetSandboxSshConnectWithResponse performs a GET /api/rest/sandbox/{id}/ssh/connect (the `GetSandboxSshConnect` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetSandboxSshConnectWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetSandboxSshConnectResponse, error) {
+	rsp, err := c.GetSandboxSshConnect(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSandboxSshConnectResponse(rsp)
 }
 
 // PostSandboxWakeWithBodyWithResponse performs a POST /api/rest/sandbox/{id}/wake (the `PostSandboxWake` operationId) request,
@@ -16088,6 +16667,28 @@ func (c *ClientWithResponses) GetWorkspaceWithResponse(ctx context.Context, reqE
 		return nil, err
 	}
 	return ParseGetWorkspaceResponse(rsp)
+}
+
+// PutWorkspaceDomainsWithBodyWithResponse performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutWorkspaceDomainsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWorkspaceDomainsResponse, error) {
+	rsp, err := c.PutWorkspaceDomainsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceDomainsResponse(rsp)
+}
+
+// PutWorkspaceDomainsWithResponse performs a PUT /api/rest/workspace/domains (the `PutWorkspaceDomains` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutWorkspaceDomainsWithResponse(ctx context.Context, body PutWorkspaceDomainsJSONRequestBody, reqEditors ...RequestEditorFn) (*PutWorkspaceDomainsResponse, error) {
+	rsp, err := c.PutWorkspaceDomains(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWorkspaceDomainsResponse(rsp)
 }
 
 // PutWorkspacePolicyWithBodyWithResponse performs a PUT /api/rest/workspace/policy (the `PutWorkspacePolicy` operationId) request,
@@ -19082,6 +19683,67 @@ func ParsePostSandboxProcessResponse(rsp *http.Response) (*PostSandboxProcessRes
 	return response, nil
 }
 
+// ParseGetSandboxProcessListResponse parses an HTTP response from a GetSandboxProcessListWithResponse call
+func ParseGetSandboxProcessListResponse(rsp *http.Response) (*GetSandboxProcessListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSandboxProcessListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseProcessList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 504:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON504 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetSandboxSessionListResponse parses an HTTP response from a GetSandboxSessionListWithResponse call
 func ParseGetSandboxSessionListResponse(rsp *http.Response) (*GetSandboxSessionListResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19393,6 +20055,74 @@ func ParsePostSandboxSshKeyResponse(rsp *http.Response) (*PostSandboxSshKeyRespo
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 504:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON504 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSandboxSshConnectResponse parses an HTTP response from a GetSandboxSshConnectWithResponse call
+func ParseGetSandboxSshConnectResponse(rsp *http.Response) (*GetSandboxSshConnectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSandboxSshConnectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseStream
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Error
@@ -20447,6 +21177,53 @@ func ParseGetWorkspaceResponse(rsp *http.Response) (*GetWorkspaceResponse, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutWorkspaceDomainsResponse parses an HTTP response from a PutWorkspaceDomainsWithResponse call
+func ParsePutWorkspaceDomainsResponse(rsp *http.Response) (*PutWorkspaceDomainsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutWorkspaceDomainsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseWorkspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Error

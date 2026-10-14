@@ -60,3 +60,11 @@ func TestExitCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestCoarse(t *testing.T) {
+	for d, want := range map[time.Duration]string{42 * time.Second: "42s", 3*time.Minute + 59*time.Second: "3m", 2 * time.Hour: "2h", 49 * time.Hour: "2d"} {
+		if got := coarse(d); got != want {
+			t.Errorf("coarse(%s) = %q, want %q", d, got, want)
+		}
+	}
+}

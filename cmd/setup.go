@@ -25,10 +25,10 @@ const (
 	defaultHostname = "zbox"
 	// defaultBaseImage is the base a workspace gets when neither --base nor --build names one, pulled by the orchestrator from the tarball URL.
 	defaultBaseImage = config.DefaultBaseImage
-	// The service env the Sandbox Workspace controller generates the workspace API key into at service create.
+	// The service env the Sandbox Workspace controller generates the workspace API key into at service create. The CLI never stores it, zproxy holds it; `zbox workspace key` reads it for the user.
 	apiKeyEnv = "ZBOX_WORKSPACE_API_KEY"
-	// How long the key env gets to show up before the GUI hand-over is used instead; the subdomain env is already there by then.
-	keyEnvTimeout = 30 * time.Second
+	// How long a new service gets to turn ACTIVE with its container after the import's processes finished, before the access can be minted.
+	accessTimeout = 2 * time.Minute
 )
 
 var (
@@ -42,17 +42,20 @@ var (
 	flagSetupCpu       int
 	flagSetupRam       int
 	flagSetupDisk      int
+	flagSetupNoSubdom  bool
 	setupPingTimeout   = 5 * time.Minute
 )
 
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Create a workspace, in a new Zerops project or in an existing one",
-	Long: `Creates the workspace service --name (in a new project --project, or in the one --project-id names), waits for it and stores its URL and key
-here. Then, in this order: every --build is uploaded and built into a base, every --base is pulled, and every --template is warmed on the base
-it names. Without --build and --base the default sandbox image is pulled.`,
+	Long: `Creates the workspace service --name (in a new project --project, or in the one --project-id names), waits for it and stores it here.
+The orchestrator is reached through zproxy with an access minted from the Zerops login, no key is stored. Then, in this order: every --build is
+uploaded and built into a base, every --base is pulled, and every --template is warmed on the base it names. Without --build and --base the
+default sandbox image is pulled. Subdomain access is on unless --no-subdomain: it gives the sandbox ports their public URLs.`,
 	Example: `  zbox setup
   zbox setup --name zbox --build ./image --template dev=2:4g@image`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := refuseOverride("zbox setup"); err != nil {
 			return err
@@ -63,7 +66,7 @@ it names. Without --build and --base the default sandbox image is pulled.`,
 		}
 		// Several workspaces are fine, they are told apart by name; the new one becomes the current one.
 		if w, err := c.Lookup(flagSetupName); err == nil && w.Name == flagSetupName {
-			return fmt.Errorf("a workspace named %s is already known (%s), pick another --name or run `zbox teardown` or `zbox workspace forget` on it first", w.Name, w.Host())
+			return fmt.Errorf("a workspace named %s is already known (%s), pick another --name or run `zbox workspace teardown` or `zbox workspace forget` on it first", w.Name, w.Label())
 		}
 		return createWorkspace(cmd.Context(), &c)
 	},
@@ -89,9 +92,9 @@ func buildName(source string) string {
 	return name
 }
 
-// createWorkspace brings the workspace up, stores its URL and key and runs the chain of builds, pulls and templates. It is shared with `zbox new`, which offers the setup when nothing is assigned yet.
+// createWorkspace brings the workspace up, stores it and runs the chain of builds, pulls and templates. It is shared with `zbox new`, which offers the setup when nothing is assigned yet.
 func createWorkspace(ctx context.Context, c *config.Config) error {
-	zc, err := zeropsClient(*c)
+	zc, err := zeropsClient(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -164,18 +167,23 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 		screen.Step("Building the warm template " + t.Name + " on " + baseLabel(base))
 		if err := createSetupTemplate(ctx, ws, base.Digest, t); err != nil {
 			screen.Stop()
-			printSetupDone(c.WorkspaceUrl, bases, nil)
+			printSetupDone(*c, bases, nil)
 			return fmt.Errorf("%w; the workspace is up, `zbox template create --warm` builds the template again", err)
 		}
 	}
 	screen.Stop()
-	printSetupDone(c.WorkspaceUrl, bases, templates)
+	printSetupDone(*c, bases, templates)
 	return nil
 }
 
 // printSetupDone is the result of a setup: the URL is the key --quiet prints, the rest is what was built and what to do next.
-func printSetupDone(url string, bases []*api.BaseBase, templates []setupTemplate) {
-	result(url, "The workspace is ready: %s", url)
+func printSetupDone(c config.Config, bases []*api.BaseBase, templates []setupTemplate) {
+	w, _ := c.Current()
+	if w.WorkspaceUrl != "" {
+		result(w.Name, "The workspace %s is ready: %s, reached through zproxy.", w.Name, w.WorkspaceUrl)
+	} else {
+		result(w.Name, "The workspace %s is ready, reached through zproxy. Without subdomain access the sandbox ports have no public URL.", w.Name)
+	}
 	for _, b := range bases {
 		say("Base %s (%s).", short(b.Digest), baseLabel(b))
 	}
@@ -186,7 +194,7 @@ func printSetupDone(url string, bases []*api.BaseBase, templates []setupTemplate
 		}
 		say("Warm templates: %s.", strings.Join(names, ", "))
 	}
-	note("Create your first sandbox with `zbox new`, open the console with `zbox console`, or find the workspace in the Zerops GUI.")
+	note("Create your first sandbox with `zbox new`, open the console with `zbox workspace console`, or find the workspace in the Zerops GUI.")
 }
 
 // setupPull is one --base, [name=]ref.
@@ -282,12 +290,12 @@ func baseLabel(b *api.BaseBase) string {
 	return b.ImageRef
 }
 
-// newWorkspace imports the service, waits for it to answer and stores its URL and key. The import names no base, the chain registers them through the API.
+// newWorkspace imports the service, stores it, mints its zproxy access and waits for the orchestrator to answer. The import names no base, the chain registers them through the API.
 func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, screen *waiting.Screen) (*api.Workspace, error) {
 	var res zerops.ImportResult
 	if flagSetupProjectId != "" {
 		// The service-stack import carries only the services section, the project is the one named by the flag.
-		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, NoSubdomain: flagSetupNoSubdom})
 		if err != nil {
 			return nil, err
 		}
@@ -303,7 +311,7 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 		if err != nil {
 			return nil, err
 		}
-		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupProject, Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk})
+		yaml, err := zerops.RenderImport(zerops.ImportParams{ProjectName: flagSetupProject, Hostname: flagSetupName, Cpu: flagSetupCpu, Ram: flagSetupRam, Disk: flagSetupDisk, NoSubdomain: flagSetupNoSubdom})
 		if err != nil {
 			return nil, err
 		}
@@ -316,12 +324,9 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 		}
 		c.ClientId = user.ClientId
 	}
-	// The ids are stored before the URL is known, so a setup that fails from here on can still be torn down. A `zbox switch` in between loses that partial state, the list only keeps workspaces with a URL.
-	c.ProjectId = res.ProjectId
-	c.ProjectName = res.ProjectName
-	c.ServiceId = res.ServiceId
-	c.WorkspaceUrl, c.ApiKey = "", ""
-	if err := c.Save(); err != nil {
+	// The workspace is stored as soon as the service exists, so a setup that fails from here on can still be torn down.
+	w := config.Workspace{Name: flagSetupName, ProjectId: res.ProjectId, ProjectName: res.ProjectName, ServiceId: res.ServiceId}
+	if err := c.Assign(w); err != nil {
 		return nil, err
 	}
 	screen.Step("Starting the workspace")
@@ -329,38 +334,56 @@ func newWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, scre
 	if err := zc.WaitProcesses(ctx, res.Processes, func(zerops.ProcessState) {}); err != nil {
 		return nil, err
 	}
-	screen.Step("Reading the URL and the API key of the workspace")
-	// The service publishes the API host first and the ingress host second. Only the API host is stored, the other comes from GET /workspace.
-	subdomain, err := waitForEnv(ctx, zc, res.ServiceId, "zeropsSubdomain", envTimeout)
+	screen.Step("Minting the access to the workspace")
+	// The access comes from the public API, nothing is read from the service env and no key is stored here. The container turns ACTIVE a moment after the processes finish, a mint before that answers serviceStackNoActiveContainer and is tried again.
+	if err := waitForAccess(ctx, c, zc, w); err != nil {
+		return nil, err
+	}
+	ws, err := connect(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	workspaceUrl := strings.TrimSpace(strings.Split(subdomain, "\n")[0])
-	// The key is a sensitive generated env. A personal access token is always in sudo mode, so the env list gives the value in clear and it is stored as read; a read-only project role gets the literal REDACTED instead, and a row that never appears or a generator placeholder means the same: the Zerops GUI reveals it for the user and hands it over on the loopback.
-	apiKey, err := waitForEnv(ctx, zc, res.ServiceId, apiKeyEnv, keyEnvTimeout)
-	if err != nil && !errors.Is(err, errEnvMissing) {
-		return nil, err
-	}
-	if !keyReadable(apiKey) {
-		screen.Pause()
-		note("The workspace API key (%s) is a generated secret, the Zerops GUI hands it over. Confirm there.", apiKeyEnv)
-		w, err := authorizeWorkspace(ctx, c, zc, res.ServiceId, flagSetupName, func(s string) { fmt.Fprintln(os.Stderr, s) })
-		if err != nil {
-			return nil, err
-		}
-		if err := c.Assign(w); err != nil {
-			return nil, err
-		}
-		screen.Resume()
-	} else if err := c.Assign(config.Workspace{Name: flagSetupName, ProjectId: res.ProjectId, ProjectName: res.ProjectName, ServiceId: res.ServiceId, WorkspaceUrl: workspaceUrl, ApiKey: apiKey}); err != nil {
-		return nil, err
-	}
 	screen.Step("Waiting for the orchestrator to answer")
-	ws := api.New(c.WorkspaceUrl, c.ApiKey)
 	if err := waitForPing(ctx, ws); err != nil {
 		return nil, err
 	}
+	// The two subdomain hosts come from the service env the platform writes: the API host is kept for the listings and for `zbox workspace switch`, the ingress host
+	// becomes the workspace's first domain, where the sandbox ports get their URLs. A --no-subdomain workspace has neither. The entry in the list carries the access by now, so it is the one updated.
+	apiHost, ingressHost := subdomainHosts(ctx, zc, w.ServiceId)
+	if apiHost != "" {
+		if cur, ok := c.Current(); ok {
+			cur.WorkspaceUrl = "https://" + apiHost
+			if err := c.Assign(cur); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if ingressHost != "" {
+		screen.Step("Publishing sandbox ports under " + ingressHost)
+		if _, err := ws.PutWorkspaceDomains(ctx, []api.BaseWorkspaceDomain{{Domain: ingressHost, Form: api.DASH}}); err != nil {
+			return nil, err
+		}
+	}
 	return ws, nil
+}
+
+// waitForAccess mints the first access of a new workspace, waiting out the moment between the import's processes and the container turning ACTIVE.
+func waitForAccess(ctx context.Context, c *config.Config, zc *zerops.Client, w config.Workspace) error {
+	deadline := time.Now().Add(accessTimeout)
+	for {
+		_, err := mintAccess(ctx, c, zc, w)
+		if err == nil {
+			return nil
+		}
+		if !errors.As(err, new(unavailable)) || time.Now().After(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
 }
 
 // buildSetupBase posts the context and waits for the BUILD_BASE operation, the way `zbox base build` does.
@@ -379,6 +402,7 @@ var teardownCmd = &cobra.Command{
 	Use:   "teardown",
 	Short: "Delete the workspace service, the Zerops project stays",
 	Long:  "Deletes the Zerops service of the current workspace with everything in it (sandboxes, bases, snapshots) and forgets it here. The project is left as it is, other services in it are not touched; an empty project created by `zbox setup` can be deleted in the Zerops GUI.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		c, err := loadSelected()
@@ -388,7 +412,7 @@ var teardownCmd = &cobra.Command{
 		if c.ServiceId == "" {
 			return usagef("nothing to tear down, the current workspace has no Zerops service id (assigned with `zbox workspace use`); `zbox workspace forget` drops it here")
 		}
-		zc, err := zeropsClient(c)
+		zc, err := zeropsClient(ctx, &c)
 		if err != nil {
 			return err
 		}
@@ -433,6 +457,7 @@ func currentLabel(c config.Config) string {
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show the login, the workspace and whether it answers",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		c, err := loadSelected()
@@ -441,9 +466,9 @@ var statusCmd = &cobra.Command{
 		}
 		st := statusInfo{Api: c.ApiUrl}
 		pairs := []string{"API", c.ApiUrl}
-		zc, err := zeropsClient(c)
+		zc, err := zeropsClient(ctx, &c)
 		if err != nil {
-			pairs = append(pairs, "Login", "not logged in, `zbox login`")
+			pairs = append(pairs, "Login", err.Error())
 		} else {
 			user, err := zc.UserInfo(ctx)
 			if err != nil {
@@ -470,21 +495,32 @@ var statusCmd = &cobra.Command{
 			pairs = append(pairs, "Workspace", "none, `zbox setup` creates one")
 			return emit(st, func() { fields(pairs...) })
 		}
-		url, key := c.EffectiveWorkspace()
-		st.Workspace = url
-		if ref, source := workspaceRef(); c.Pinned() {
-			pairs = append(pairs, "Workspace", fmt.Sprintf("%s (%s %s, the current one is left as it is)", url, source, ref))
-		} else {
-			pairs = append(pairs, "Workspace", url)
+		w := c.EffectiveWorkspace()
+		// A workspace of the account is reached through zproxy, its own API host is only named when it has one.
+		label := w.WorkspaceUrl
+		if !w.Direct() {
+			label = cmp.Or(w.WorkspaceUrl, "service "+w.ServiceId) + ", through zproxy"
 		}
-		info, err := api.New(url, key).Info(ctx)
+		st.Workspace = label
+		if ref, source := workspaceRef(); c.Pinned() {
+			pairs = append(pairs, "Workspace", fmt.Sprintf("%s (%s %s, the current one is left as it is)", label, source, ref))
+		} else {
+			pairs = append(pairs, "Workspace", label)
+		}
+		ws, err := connect(ctx, &c)
+		if err != nil {
+			st.Error = err.Error()
+			pairs = append(pairs, "Orchestrator", fmt.Sprintf("unreachable (%v)", err))
+			return emit(st, func() { fields(pairs...) })
+		}
+		info, err := ws.Info(ctx)
 		if err != nil {
 			st.Error = err.Error()
 			pairs = append(pairs, "Orchestrator", fmt.Sprintf("unreachable (%v)", err))
 			return emit(st, func() { fields(pairs...) })
 		}
 		st.Orchestrator = info
-		pairs = append(pairs, "Orchestrator", fmt.Sprintf("%s on %s, ingress %s", info.Version, lower(info.Substrate), info.IngressHost))
+		pairs = append(pairs, "Orchestrator", fmt.Sprintf("%s on %s", info.Version, lower(info.Substrate)), "Domains", domainsString(info.Domains))
 		// An orchestrator from before the capacity fields answers zeros, the lines mean nothing then.
 		if info.Capacity.Cpus > 0 {
 			pairs = append(pairs, "Capacity", capacityString(info.Capacity), "In use", usageString(info.Usage))
@@ -493,7 +529,7 @@ var statusCmd = &cobra.Command{
 	},
 }
 
-// statusInfo is `zbox status --json`: what the CLI knows here and what the workspace answered.
+// statusInfo is `zbox workspace status --json`: what the CLI knows here and what the workspace answered.
 type statusInfo struct {
 	Api          string                 `json:"api"`
 	Login        string                 `json:"login,omitempty"`
@@ -512,7 +548,7 @@ func ensureWorkspace(ctx context.Context) (*api.Workspace, error) {
 	}
 	if !c.HasWorkspace() {
 		if !stdinTerminal {
-			return nil, notAuthorized{"no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`"}
+			return nil, notAuthorized{noWorkspaceHint}
 		}
 		if err := ask(fmt.Sprintf("There is no workspace yet. Create the workspace %s in a new Zerops project %s?", flagSetupName, flagSetupProject)); err != nil {
 			return nil, err
@@ -521,8 +557,7 @@ func ensureWorkspace(ctx context.Context) (*api.Workspace, error) {
 			return nil, err
 		}
 	}
-	url, key := c.EffectiveWorkspace()
-	return api.New(url, key), nil
+	return connect(ctx, &c)
 }
 
 // forgetGoneWorkspace turns a not-found answer into an unassignment, because a workspace whose project was deleted elsewhere is state the CLI should drop rather than report as a failure.
@@ -547,7 +582,7 @@ func printOthers(c config.Config) {
 		}
 	}
 	if others := c.Others(); len(others) > 0 {
-		note("Other workspaces: %s. Switch with `zbox switch <name>`.", strings.Join(others, ", "))
+		note("Other workspaces: %s. Switch with `zbox workspace switch <name>`.", strings.Join(others, ", "))
 	}
 }
 
@@ -564,33 +599,7 @@ func keyReadable(v string) bool {
 	return v != "" && v != "REDACTED" && !strings.HasPrefix(v, "<@")
 }
 
-// errEnvMissing is the timeout of waitForEnv, so a caller with a fallback can tell it from an API failure.
-var errEnvMissing = errors.New("service variable did not appear")
-
-const envTimeout = 2 * time.Minute
-
-func waitForEnv(ctx context.Context, zc *zerops.Client, serviceId, key string, timeout time.Duration) (string, error) {
-	deadline := time.Now().Add(timeout)
-	for {
-		value, found, err := zc.ServiceEnv(ctx, serviceId, key)
-		if err != nil {
-			return "", err
-		}
-		if found && value != "" {
-			return value, nil
-		}
-		if time.Now().After(deadline) {
-			return "", fmt.Errorf("%w: %s", errEnvMissing, key)
-		}
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(3 * time.Second):
-		}
-	}
-}
-
-// waitForPing holds until the orchestrator answers and accepts the key.
+// waitForPing holds until the orchestrator answers and accepts the credential.
 func waitForPing(ctx context.Context, ws *api.Workspace) error {
 	deadline := time.Now().Add(setupPingTimeout)
 	for {
@@ -599,7 +608,7 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 			return nil
 		}
 		if api.IsCode(err, "unauthorized") {
-			return fmt.Errorf("the orchestrator rejected the workspace API key, check the %s env of the service", apiKeyEnv)
+			return fmt.Errorf("the orchestrator rejected the credential, check the %s env of the service", apiKeyEnv)
 		}
 		if time.Now().After(deadline) {
 			return errors.New("the orchestrator did not come up in time, check the service log in the Zerops GUI")
@@ -695,7 +704,8 @@ func init() {
 	setupCmd.Flags().StringArrayVar(&flagSetupWarmups, "warmup", nil, "shell command a template runs in its guest before the memory is captured, as name=command (for example dev='claude --version'), so what it loads is resident in every spawn; repeatable, one per template name")
 	setupCmd.Flags().IntVar(&flagSetupCpu, "cpu", 0, "dedicated cpus of the workspace VM (min 2), the platform's default of 2 when left out")
 	setupCmd.Flags().IntVar(&flagSetupRam, "ram", 0, "RAM of the workspace VM in GiB (min 2), the sandboxes take theirs from it; the platform's default of 4 GiB when left out")
+	setupCmd.Flags().BoolVar(&flagSetupNoSubdom, "no-subdomain", false, "no subdomain access for the service: the API is reached through zproxy anyway, but the sandbox ports get no public URL, so no zbox open and no public or members ports")
 	setupCmd.Flags().IntVar(&flagSetupDisk, "disk", 0, "disk of the workspace VM in GiB (min 10), one pool for bases, sandboxes and snapshots; the platform's default of 10 GiB when left out")
 	destructive(teardownCmd)
-	rootCmd.AddCommand(setupCmd, teardownCmd, statusCmd)
+	rootCmd.AddCommand(setupCmd)
 }

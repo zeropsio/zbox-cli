@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// The GUI origin is the development default unless stored; a stored guiUrl loses its trailing slash.
+// The GUI origin is empty unless stored, the API's consent page URL then stands; a stored guiUrl loses its trailing slash.
 func TestEffectiveGuiUrl(t *testing.T) {
-	if got := (Config{ApiUrl: "https://api.app-futon.zerops.dev"}).EffectiveGuiUrl(); got != DefaultGuiUrl {
+	if got := (Config{ApiUrl: "https://api.app-futon.zerops.dev"}).EffectiveGuiUrl(); got != "" {
 		t.Error(got)
 	}
 	if got := (Config{ApiUrl: "x", GuiUrl: "https://g/"}).EffectiveGuiUrl(); got != "https://g" {
@@ -76,16 +76,16 @@ func TestPin(t *testing.T) {
 	if err := stored.Save(); err != nil {
 		t.Fatal(err)
 	}
-	if url, key := stored.EffectiveWorkspace(); url != "https://from-env" || key != "env-key" {
-		t.Errorf("env override %s %s", url, key)
+	if w := stored.EffectiveWorkspace(); w.WorkspaceUrl != "https://from-env" || w.ApiKey != "env-key" || !w.Direct() {
+		t.Errorf("env override %+v", w)
 	}
 
 	c, err := stored.Pin("bench")
 	if err != nil || !c.Pinned() || stored.Pinned() {
 		t.Fatal(err, c.Pinned(), stored.Pinned())
 	}
-	if url, key := c.EffectiveWorkspace(); url != "https://bench" || key != "k2" || c.ServiceId != "svc2" {
-		t.Errorf("pinned %s %s %s", url, key, c.ServiceId)
+	if w := c.EffectiveWorkspace(); w.WorkspaceUrl != "https://bench" || w.ApiKey != "k2" || c.ServiceId != "svc2" {
+		t.Errorf("pinned %+v %s", w, c.ServiceId)
 	}
 	if _, err := stored.Pin("keyless"); err == nil || !strings.Contains(err.Error(), "authorize") {
 		t.Errorf("keyless pinned: %v", err)
@@ -114,7 +114,7 @@ func TestPin(t *testing.T) {
 	if c.Pinned() || c.WorkspaceUrl != "https://mine" {
 		t.Errorf("after forget %v %s", c.Pinned(), c.WorkspaceUrl)
 	}
-	if got := current(); got.WorkspaceUrl != "https://mine" || len(got.Workspaces) != 2 || got.find("https://bench") >= 0 {
+	if got := current(); got.WorkspaceUrl != "https://mine" || len(got.Workspaces) != 2 || got.find(Workspace{ServiceId: "svc2"}) >= 0 {
 		t.Errorf("forgot the wrong one %+v", got.Workspaces)
 	}
 
@@ -128,5 +128,105 @@ func TestPin(t *testing.T) {
 	}
 	if got := current(); got.WorkspaceUrl != "" || got.ApiKey != "" || len(got.Workspaces) != 1 {
 		t.Errorf("current survived its forget %+v", got)
+	}
+}
+
+// A workspace of the account is told apart by its service id and needs no key: it is usable, reached through zproxy, and its minted access is saved into its entry, the flat fields when it is current, and the stored selection under a pin. One pointed at by hand is told apart by its URL.
+func TestAccess(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv(EnvConfigPath, path)
+	c := Config{}
+	mine := Workspace{Name: "mine", ServiceId: "svc1", ProjectId: "p1"}
+	if err := c.Assign(mine); err != nil {
+		t.Fatal(err)
+	}
+	if !c.HasWorkspace() || c.EffectiveWorkspace().Direct() || !c.IsCurrent(mine) {
+		t.Errorf("keyless account workspace not usable: %+v", c)
+	}
+	// The same service stored again, with a URL learnt later, replaces the entry rather than doubling it.
+	withUrl := mine
+	withUrl.WorkspaceUrl = "https://mine-8080.app"
+	if err := c.Remember(withUrl); err != nil || len(c.Workspaces) != 1 || c.WorkspaceUrl != withUrl.WorkspaceUrl {
+		t.Errorf("remember by identity: %v %+v", err, c.Workspaces)
+	}
+	if err := c.Remember(Workspace{Name: "byhand", WorkspaceUrl: "https://other", ApiKey: "k"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SaveAccess(mine, Access{Url: "https://proxy/service-api", Token: "t1"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Access == nil || got.Access.Token != "t1" || got.Workspaces[0].Access == nil || got.Workspaces[0].Access.Token != "t1" || got.Workspaces[1].Access != nil {
+		t.Errorf("access not saved where it belongs: %+v", got)
+	}
+	// Under a pin the access of the pinned workspace is saved into its entry and the selection stays.
+	pinned, err := got.Pin("byhand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pinned.SaveAccess(mine, Access{Url: "https://proxy/service-api", Token: "t2"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = Load(); got.ServiceId != "svc1" || got.Access.Token != "t2" || got.Workspaces[0].Access.Token != "t2" {
+		t.Errorf("pinned save: %+v", got)
+	}
+	if w, err := got.Lookup("svc1"); err != nil || w.Label() != "mine-8080.app" || (Workspace{ServiceId: "x"}).Label() != "x" {
+		t.Errorf("lookup %v %+v", err, w)
+	}
+}
+
+func TestCurrentName(t *testing.T) {
+	c := Config{Workspaces: []Workspace{{Name: "mine", ServiceId: "svc1", WorkspaceUrl: "https://mine-8080.example"}}}
+	c.setCurrent(c.Workspaces[0])
+	if w := c.EffectiveWorkspace(); w.Name != "mine" {
+		t.Errorf("listed workspace named %q", w.Name)
+	}
+	c.Workspaces = nil
+	if w := c.EffectiveWorkspace(); w.Name != "mine-8080" {
+		t.Errorf("unlisted workspace named %q", w.Name)
+	}
+}
+
+func TestHalfEnvPair(t *testing.T) {
+	t.Setenv(EnvWorkspaceUrl, "https://from-env")
+	t.Setenv(EnvWorkspaceKey, "")
+	if set, missing := HalfEnvPair(); set != EnvWorkspaceUrl || missing != EnvWorkspaceKey {
+		t.Errorf("half pair %q %q", set, missing)
+	}
+	// The pair never takes the current workspace's key for the missing half.
+	c := Config{ApiKey: "stale-key", WorkspaceUrl: "https://mine"}
+	if w := c.EffectiveWorkspace(); w.ApiKey != "" || w.WorkspaceUrl != "https://from-env" {
+		t.Errorf("half pair mixed with the current workspace: %+v", w)
+	}
+	t.Setenv(EnvWorkspaceKey, "k")
+	if set, _ := HalfEnvPair(); set != "" {
+		t.Errorf("whole pair reported half: %q", set)
+	}
+}
+
+func TestOverrideNotSaved(t *testing.T) {
+	t.Setenv(EnvConfigPath, filepath.Join(t.TempDir(), "config.json"))
+	c := Config{ApiUrl: "https://stored", GuiUrl: "https://gui"}
+	empty := ""
+	c.Override("https://flag", &empty)
+	if c.ApiUrl != "https://flag" || c.GuiUrl != "" {
+		t.Fatalf("override not applied: %s %q", c.ApiUrl, c.GuiUrl)
+	}
+	if err := c.Save(); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := Load()
+	if err != nil || saved.ApiUrl != "https://stored" || saved.GuiUrl != "https://gui" {
+		t.Errorf("one-run flags saved: %v %s %s", err, saved.ApiUrl, saved.GuiUrl)
+	}
+	c.AdoptOverrides()
+	if err := c.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if saved, _ = Load(); saved.ApiUrl != "https://flag" || saved.GuiUrl != "" {
+		t.Errorf("login did not adopt the flags: %s %q", saved.ApiUrl, saved.GuiUrl)
 	}
 }

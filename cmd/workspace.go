@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -23,11 +21,16 @@ var (
 	flagWorkspaceKey  string
 	flagWorkspaceName string
 	flagPolicyFile    string
+	flagDomainForm    string
+	flagOpenDomain    string
 )
 
 var workspaceCmd = &cobra.Command{
-	Use:   "workspace",
-	Short: "Show and configure the workspace",
+	Use:     "workspace",
+	Aliases: []string{"ws"},
+	Short:   "Show the workspace, or manage the workspaces with the subcommands",
+	Long:    "Without a subcommand the current workspace is described: API, domains, version, capacity, what is in use, the host facts and the policy. The subcommands manage the workspaces this machine knows (list, switch, authorize, use, forget), the current one (status, policy, domain, key, console) and its life (teardown); `zbox setup` creates one.",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -40,8 +43,7 @@ var workspaceCmd = &cobra.Command{
 		return emit(info, func() {
 			fields(append([]string{
 				"API", ws.BaseUrl,
-				"API host", info.ApiHost,
-				"Ingress host", info.IngressHost,
+				"Domains", domainsString(info.Domains),
 				"Version", info.Version,
 				"Substrate", lower(info.Substrate),
 				"Image", dash(str(info.ImageRelease)),
@@ -113,6 +115,7 @@ var workspacePolicyCmd = &cobra.Command{
 	Use:   "policy",
 	Short: "Print the workspace policy, or replace it with -f",
 	Long:  "Without -f the policy is printed as JSON. With -f the JSON file (or - for stdin) replaces the whole policy, so start from the printed one.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -139,7 +142,8 @@ var workspacePolicyCmd = &cobra.Command{
 
 var workspaceUseCmd = &cobra.Command{
 	Use:   "use <api-url>",
-	Short: "Point the CLI at an existing workspace by its API URL and key",
+	Short: "Point the CLI at a workspace by its API URL and key, outside the Zerops account",
+	Long:  "The escape hatch for a workspace the Zerops login does not reach: a script with the key of its own workspace, another account's service. The orchestrator is called at the URL with the key as the bearer, nothing goes through zproxy. A workspace of the account is stored with `zbox workspace authorize <service-id>` instead and needs no key.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagWorkspaceKey == "" {
@@ -163,19 +167,19 @@ var workspaceUseCmd = &cobra.Command{
 		if ref, source := workspaceRef(); ref != "" {
 			known := []config.Workspace{w}
 			for _, other := range c.Workspaces {
-				if other.WorkspaceUrl != w.WorkspaceUrl {
+				if !other.Same(w) {
 					known = append(known, other)
 				}
 			}
-			if named, err := (config.Config{Workspaces: known}).Lookup(ref); err != nil || named.WorkspaceUrl != w.WorkspaceUrl {
+			if named, err := (config.Config{Workspaces: known}).Lookup(ref); err != nil || !named.Same(w) {
 				return usagef("%s %s does not name the workspace being stored (%s, %s); name it, or run without to make it the current one", source, ref, w.Name, w.Host())
 			}
 			if err := c.Remember(w); err != nil {
 				return err
 			}
 			line := fmt.Sprintf("Stored workspace %s: %s (%s on %s).", w.Name, url, info.Version, lower(info.Substrate))
-			if current, ok := c.Current(); ok && current.WorkspaceUrl != w.WorkspaceUrl {
-				line += fmt.Sprintf(" The current one stays %s (%s).", current.Name, current.Host())
+			if current, ok := c.Current(); ok && !current.Same(w) {
+				line += fmt.Sprintf(" The current one stays %s (%s).", current.Name, current.Label())
 			}
 			result(w.Name, "%s", line)
 			return nil
@@ -191,6 +195,7 @@ var workspaceUseCmd = &cobra.Command{
 var workspaceForgetCmd = &cobra.Command{
 	Use:   "forget",
 	Short: "Drop the workspace assignment without deleting anything",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadSelected()
 		if err != nil {
@@ -201,7 +206,7 @@ var workspaceForgetCmd = &cobra.Command{
 			return err
 		}
 		if known {
-			say("Workspace %s (%s) forgotten.", forgotten.Name, forgotten.Host())
+			say("Workspace %s (%s) forgotten.", forgotten.Name, forgotten.Label())
 		} else {
 			say("Workspace forgotten.")
 		}
@@ -211,15 +216,17 @@ var workspaceForgetCmd = &cobra.Command{
 }
 
 var workspaceLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List the workspaces of the Zerops account, with the ones this machine holds a key for",
-	Long:  "Every Sandbox Workspace service (zbox@1) of the organisation is a workspace. A row with a name has its key stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List the workspaces of the Zerops account, with the ones stored here",
+	Long:    "Every Sandbox Workspace service (zbox@1) of the organisation is a workspace. A row with a name is stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first, which stores them without any secret. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		zc, err := zeropsClient(c)
+		zc, err := zeropsClient(cmd.Context(), &c)
 		if err != nil {
 			return emit(c.Workspaces, func() {
 				printWorkspaces(c)
@@ -245,17 +252,17 @@ var workspaceLsCmd = &cobra.Command{
 				}
 			}
 			listed := map[string]bool{}
-			tb := newTable("", "SERVICE ID", "NAME", "HOSTNAME", "PROJECT", "STATUS", "KEY").keyCol(1)
+			tb := newTable("", "SERVICE ID", "NAME", "HOSTNAME", "PROJECT", "STATUS", "STORED").keyCol(1)
 			for _, st := range stacks {
 				known, ok := byService[st.ServiceId]
 				listed[st.ServiceId] = true
-				tb.row(mark(c, known.WorkspaceUrl), st.ServiceId, dash(known.Name), st.Hostname, st.ProjectName, st.Status, map[bool]string{true: "stored", false: "-"}[ok])
+				tb.row(mark(c, known), st.ServiceId, dash(known.Name), st.Hostname, st.ProjectName, st.Status, map[bool]string{true: "yes", false: "-"}[ok])
 			}
 			for _, ws := range c.Workspaces {
-				if listed[ws.ServiceId] {
+				if ws.ServiceId != "" && listed[ws.ServiceId] {
 					continue
 				}
-				tb.row(mark(c, ws.WorkspaceUrl), dash(ws.ServiceId), ws.Name, ws.Host(), dash(ws.ProjectName), "not in this account", "stored")
+				tb.row(mark(c, ws), dash(ws.ServiceId), ws.Name, dash(ws.Host()), dash(ws.ProjectName), "not in this account", "yes")
 			}
 			tb.ifEmpty("No workspaces in the account. `zbox setup` creates one.")
 			tb.print()
@@ -265,13 +272,13 @@ var workspaceLsCmd = &cobra.Command{
 }
 
 // mark is the asterisk of the current workspace in listings, and the arrow of the one named for this run.
-func mark(c config.Config, workspaceUrl string) string {
+func mark(c config.Config, w config.Workspace) string {
 	switch {
-	case workspaceUrl == "":
+	case !w.Usable():
 		return " "
-	case workspaceUrl == overridden(c).WorkspaceUrl:
+	case overridden(c).Same(w):
 		return ">"
-	case workspaceUrl == c.WorkspaceUrl:
+	case c.IsCurrent(w):
 		return "*"
 	}
 	return " "
@@ -307,7 +314,7 @@ func printWorkspaces(c config.Config) {
 	}
 	tb := newTable("", "NAME", "API HOST", "PROJECT", "SERVICE ID").keyCol(1)
 	for _, ws := range c.Workspaces {
-		tb.row(mark(c, ws.WorkspaceUrl), ws.Name, ws.Host(), dash(ws.ProjectName), dash(ws.ServiceId))
+		tb.row(mark(c, ws), ws.Name, dash(ws.Host()), dash(ws.ProjectName), dash(ws.ServiceId))
 	}
 	tb.print()
 	printMarks(c)
@@ -315,56 +322,219 @@ func printWorkspaces(c config.Config) {
 
 var workspaceAuthorizeCmd = &cobra.Command{
 	Use:   "authorize <service-id>",
-	Short: "Fetch the API key of a workspace through the Zerops GUI and store it here",
-	Long:  "The workspace API key is a generated secret the public API does not reveal to a token. The Zerops GUI opens, the user confirms (the reveal asks for the password again), and the key is handed to the CLI on this machine without being shown. The workspace is stored under its hostname (`--name` overrides) and becomes the current one only when none is. `zbox workspace ls` lists the service ids.",
+	Short: "Store a workspace of the Zerops account here, no key involved",
+	Long:  "The workspace is reached through zproxy: the Zerops login mints an access to it (`POST /service-stack/{id}/ui-access`, BasicUser or above on the service) and zproxy adds the workspace key on the way, so nothing secret is stored here. The command checks the access can be minted, stores the workspace under its hostname (`--name` overrides) and makes it the current one only when none is. `zbox workspace list` lists the service ids.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		zc, err := zeropsClient(c)
+		zc, err := zeropsClient(cmd.Context(), &c)
 		if err != nil {
 			return err
 		}
-		w, err := authorizeWorkspace(cmd.Context(), &c, zc, args[0], flagWorkspaceName, func(s string) { fmt.Fprintln(os.Stderr, s) })
+		w, err := authorizeWorkspace(cmd.Context(), &c, zc, args[0], flagWorkspaceName)
 		if err != nil {
 			return err
 		}
-		if c.WorkspaceUrl == w.WorkspaceUrl {
-			result(w.Name, "Stored the key of workspace %s (%s), it is the current one.", w.Name, w.Host())
+		if c.IsCurrent(w) {
+			result(w.Name, "Stored workspace %s (%s), it is the current one.", w.Name, w.Label())
 		} else {
-			result(w.Name, "Stored the key of workspace %s (%s). `zbox switch %s` makes it the current one.", w.Name, w.Host(), w.Name)
+			result(w.Name, "Stored workspace %s (%s). `zbox workspace switch %s` makes it the current one.", w.Name, w.Label(), w.Name)
 		}
 		return nil
 	},
 }
 
-// authorizeWorkspace runs the workspace hand-over for the service and stores the result under the name (the service hostname when empty). The current workspace stays unless there is none. Shared with `zbox setup`, which lands here when the env read gives the generator placeholder and then switches to it.
-func authorizeWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, serviceId, name string, print func(string)) (config.Workspace, error) {
+// authorizeWorkspace stores the service as a workspace under the name (the service hostname when empty) and mints its first access, which proves the account reaches it. The current workspace stays unless there is none.
+func authorizeWorkspace(ctx context.Context, c *config.Config, zc *zerops.Client, serviceId, name string) (config.Workspace, error) {
 	stack, err := zc.ServiceStack(ctx, serviceId)
 	if err != nil {
 		return config.Workspace{}, err
 	}
-	values, err := browser.Handover(ctx, c.EffectiveGuiUrl(), browser.IntentWorkspace, url.Values{"serviceStackId": {serviceId}}, 5*time.Minute, print)
-	if err != nil {
-		return config.Workspace{}, err
-	}
-	apiHost, apiKey := strings.TrimSuffix(values.Get("apiHost"), "/"), values.Get("apiKey")
-	if apiHost == "" || apiKey == "" {
-		return config.Workspace{}, errors.New("the Zerops GUI answered without the workspace host and key")
-	}
-	if got := values.Get("serviceStackId"); got != "" && got != serviceId {
-		return config.Workspace{}, fmt.Errorf("the Zerops GUI answered for service %s, not %s", got, serviceId)
-	}
 	if name == "" {
 		name = stack.Name.Native()
 	}
-	w := config.Workspace{Name: name, ProjectId: string(stack.ProjectId), ProjectName: stack.Project.Name.Native(), ServiceId: serviceId, WorkspaceUrl: apiHost, ApiKey: apiKey}
+	w := config.Workspace{Name: name, ProjectId: string(stack.ProjectId), ProjectName: stack.Project.Name.Native(), ServiceId: serviceId}
+	// A workspace stored before keeps what it had, the access included, under the name given now.
+	if known, err := c.Lookup(serviceId); err == nil && known.Same(w) {
+		w.WorkspaceUrl, w.Access = known.WorkspaceUrl, known.Access
+	}
 	if err := c.Remember(w); err != nil {
 		return config.Workspace{}, err
 	}
+	if _, err := mintAccess(ctx, c, zc, w); err != nil {
+		return config.Workspace{}, err
+	}
+	// The API host is kept for the listings and for `zbox workspace switch`, read from the service env the platform writes; a workspace without subdomain access has none.
+	if apiHost, _ := subdomainHosts(ctx, zc, serviceId); apiHost != "" {
+		w.WorkspaceUrl = "https://" + apiHost
+		if known, err := c.Lookup(serviceId); err == nil {
+			w.Access = known.Access
+		}
+		if err := c.Remember(w); err != nil {
+			return config.Workspace{}, err
+		}
+	}
 	return w, nil
+}
+
+// subdomainHosts are the API host and the ingress host of the service, from the zeropsSubdomain env the platform writes for every published port; both empty without subdomain access or when the env cannot be read.
+func subdomainHosts(ctx context.Context, zc *zerops.Client, serviceId string) (string, string) {
+	value, found, err := zc.ServiceEnv(ctx, serviceId, "zeropsSubdomain")
+	if err != nil || !found {
+		return "", ""
+	}
+	return zerops.SubdomainHosts(value)
+}
+
+// domainsString lists the workspace domains the way `zbox workspace domain list` does, one `domain (form)` per entry.
+func domainsString(domains []api.BaseWorkspaceDomain) string {
+	if len(domains) == 0 {
+		return "none, `zbox workspace domain add <domain>` gives sandbox ports a public URL"
+	}
+	parts := make([]string, 0, len(domains))
+	for _, d := range domains {
+		parts = append(parts, fmt.Sprintf("%s (%s)", d.Domain, lower(d.Form)))
+	}
+	return strings.Join(parts, ", ")
+}
+
+var workspaceDomainCmd = &cobra.Command{
+	Use:   "domain",
+	Short: "The domains sandbox ports are published under",
+	Long:  "A sandbox port gets one public URL per domain of the workspace, in list order; the first one is what `zbox open` and the console open. The edge routing is Zerops's side: the dash form `{port}-{id}-<domain>` is for the Zerops subdomain of the ingress port (`zbox setup` adds it when subdomain access is on), the dot form `{port}-{id}.<domain>` for an own wildcard domain, `*.<domain>`, routed to the ingress port 8081 in the Zerops GUI with its DNS records (A, AAAA and the ACME CNAME the GUI shows).",
+}
+
+var workspaceDomainLsCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List the domains",
+	Args:    cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		info, err := ws.Info(cmd.Context())
+		if err != nil {
+			return err
+		}
+		return emit(info.Domains, func() { printDomains(info.Domains) })
+	},
+}
+
+var workspaceDomainAddCmd = &cobra.Command{
+	Use:   "add <domain>",
+	Short: "Add a domain, in the dot form unless --form dash",
+	Example: `  zbox workspace domain add sb.example.com
+  zbox workspace domain add zbox-f-8081.app-prg1.zerops.io --form dash`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		form, err := domainForm(flagDomainForm)
+		if err != nil {
+			return err
+		}
+		info, err := ws.Info(cmd.Context())
+		if err != nil {
+			return err
+		}
+		domain := strings.ToLower(strings.TrimSpace(args[0]))
+		for _, d := range info.Domains {
+			if d.Domain == domain {
+				return usagef("domain %s is already listed (%s)", domain, lower(d.Form))
+			}
+		}
+		info, err = ws.PutWorkspaceDomains(cmd.Context(), append(info.Domains, api.BaseWorkspaceDomain{Domain: domain, Form: form}))
+		if err != nil {
+			return err
+		}
+		return emit(info.Domains, func() {
+			say("Domain %s added, sandbox ports are published at %s.", domain, domainExample(api.BaseWorkspaceDomain{Domain: domain, Form: form}))
+			printDomains(info.Domains)
+		})
+	},
+}
+
+var workspaceDomainRmCmd = &cobra.Command{
+	Use:     "remove <domain>...",
+	Aliases: []string{"rm"},
+	Short:   "Remove domains",
+	Long:    "The domains are taken out of the list in one write; one that is not listed fails the command before anything changes. Sandbox ports lose their URLs under them.",
+	Args:    cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		info, err := ws.Info(cmd.Context())
+		if err != nil {
+			return err
+		}
+		listed := make(map[string]bool, len(info.Domains))
+		for _, d := range info.Domains {
+			listed[d.Domain] = true
+		}
+		gone := make(map[string]bool, len(args))
+		for _, a := range args {
+			domain := strings.ToLower(strings.TrimSpace(a))
+			if !listed[domain] {
+				return notFoundf("domain %s is not listed, see `zbox workspace domain list`", domain)
+			}
+			gone[domain] = true
+		}
+		kept := make([]api.BaseWorkspaceDomain, 0, len(info.Domains))
+		for _, d := range info.Domains {
+			if !gone[d.Domain] {
+				kept = append(kept, d)
+			}
+		}
+		info, err = ws.PutWorkspaceDomains(cmd.Context(), kept)
+		if err != nil {
+			return err
+		}
+		return emit(info.Domains, func() {
+			for _, d := range args {
+				say("Domain %s removed.", strings.ToLower(strings.TrimSpace(d)))
+			}
+			printDomains(info.Domains)
+		})
+	},
+}
+
+func domainForm(flag string) (api.BaseWorkspaceDomainForm, error) {
+	switch strings.ToLower(flag) {
+	case "dot":
+		return api.DOT, nil
+	case "dash":
+		return api.DASH, nil
+	}
+	return "", usagef("--form takes dot or dash, not %q", flag)
+}
+
+// domainExample is the host shape a sandbox port takes under the domain, the way the API builds it.
+func domainExample(d api.BaseWorkspaceDomain) string {
+	if d.Form == api.DASH {
+		return "{port}-{id}-" + d.Domain
+	}
+	return "{port}-{id}." + d.Domain
+}
+
+func printDomains(domains []api.BaseWorkspaceDomain) {
+	if len(domains) == 0 {
+		note("No domain, so no sandbox port has a public URL. `zbox workspace domain add <domain>` adds one.")
+		return
+	}
+	tb := newTable("DOMAIN", "FORM", "SANDBOX PORT")
+	for _, d := range domains {
+		tb.row(d.Domain, lower(d.Form), domainExample(d))
+	}
+	tb.print()
 }
 
 var switchCmd = &cobra.Command{
@@ -380,7 +550,7 @@ var switchCmd = &cobra.Command{
 		if len(args) == 0 {
 			return emit(c.Workspaces, func() { printWorkspaces(c) })
 		}
-		if err := refuseOverride("zbox switch"); err != nil {
+		if err := refuseOverride("zbox workspace switch"); err != nil {
 			return err
 		}
 		w, err := c.Lookup(args[0])
@@ -390,25 +560,29 @@ var switchCmd = &cobra.Command{
 		if err := c.Assign(w); err != nil {
 			return err
 		}
-		return emit(w, func() { result(w.Name, "Switched to %s (%s).", w.Name, w.Host()) })
+		return emit(w, func() { result(w.Name, "Switched to %s (%s).", w.Name, w.Label()) })
 	},
 }
 
 func init() {
 	workspacePolicyCmd.Flags().StringVarP(&flagPolicyFile, "file", "f", "", "JSON file with the new policy, - for stdin")
 	workspaceUseCmd.Flags().StringVar(&flagWorkspaceKey, "api-key", "", "workspace API key")
-	workspaceUseCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox switch`, defaults to the first label of the API host")
-	workspaceAuthorizeCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox switch`, defaults to the service hostname")
-	workspaceCmd.AddCommand(workspaceLsCmd, workspaceAuthorizeCmd, workspaceKeyCmd, workspacePolicyCmd, workspaceUseCmd, workspaceForgetCmd)
-	rootCmd.AddCommand(workspaceCmd, openCmd, consoleCmd, switchCmd)
+	workspaceUseCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox workspace switch`, defaults to the first label of the API host")
+	workspaceAuthorizeCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox workspace switch`, defaults to the service hostname")
+	openCmd.Flags().StringVar(&flagOpenDomain, "domain", "", "open the port under this workspace domain instead of the first one")
+	workspaceDomainAddCmd.Flags().StringVar(&flagDomainForm, "form", "dot", "dot for an own wildcard domain ({port}-{id}.<domain>), dash for a Zerops subdomain ({port}-{id}-<domain>)")
+	workspaceDomainCmd.AddCommand(workspaceDomainLsCmd, workspaceDomainAddCmd, workspaceDomainRmCmd)
+	workspaceCmd.AddCommand(workspaceLsCmd, workspaceAuthorizeCmd, workspaceKeyCmd, workspacePolicyCmd, workspaceDomainCmd, workspaceUseCmd, workspaceForgetCmd, switchCmd, consoleCmd, statusCmd, teardownCmd)
+	rootCmd.AddCommand(workspaceCmd, openCmd)
 }
 
 var openCmd = &cobra.Command{
 	Use:   "open <sandbox-id|name> [port]",
 	Short: "Open a port of a sandbox in the browser, signed in",
-	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. Scripts talk to a token port with a token from `zbox cred issue`, members ports take no API key. The console is `zbox console`.",
+	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. The URL is the port's first one, under the first workspace domain, unless --domain names another of them (`zbox workspace domain list`). Scripts talk to a token port with a token from `zbox cred issue`, members ports take no API key. The console is `zbox workspace console`.",
 	Example: `  zbox open app
-  zbox open app 3000`,
+  zbox open app 3000
+  zbox open app 3000 --domain sb.example.com`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
@@ -422,10 +596,25 @@ var openCmd = &cobra.Command{
 var consoleCmd = &cobra.Command{
 	Use:   "console",
 	Short: "Open the console of the workspace in the browser, signed in",
-	Long:  "The orchestrator serves the console at the root of the workspace API host. The command mints a single-use sign-in ticket with the workspace API key (`POST /console/login-ticket`, valid for 60 s) and opens `/console/login?ticket=`, which sets the console session cookie and redirects to `/`. The key itself never appears in a URL. Without a browser, paste the key from `zbox workspace key` into the console's own login form. A sandbox port is opened with `zbox open`.",
+	Long:  "The orchestrator serves the console at the root of its API. For a workspace of the account the command mints a fresh zproxy access for the browser (its own, not the CLI's, since the browser form carries the token in the URL) and opens it, `https://proxy.<domain>/service-ui/<token>/login`, where zproxy signs the browser in with the workspace key. For a workspace pointed at by hand it mints a single-use sign-in ticket with the key (`POST /console/login-ticket`, valid for 60 s) and opens `/console/login?ticket=` on the API host. A sandbox port is opened with `zbox open`.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws, err := workspace()
+		c, err := loadSelected()
+		if err != nil {
+			return err
+		}
+		if w := c.EffectiveWorkspace(); w.Usable() && !w.Direct() {
+			zc, err := zeropsClient(cmd.Context(), &c)
+			if err != nil {
+				return err
+			}
+			a, err := zc.UiAccess(cmd.Context(), w.ServiceId)
+			if err != nil {
+				return fmt.Errorf("mint the console access: %w", err)
+			}
+			return openInBrowser(a.UrlUi)
+		}
+		ws, err := connect(cmd.Context(), &c)
 		if err != nil {
 			return err
 		}
@@ -464,7 +653,7 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 			}
 		}
 		if !found {
-			return notFoundf("sandbox %s has no port %d declared, see `zbox port ls %s`", s.Id, n, s.Id)
+			return notFoundf("sandbox %s has no port %d declared, see `zbox port list %s`", s.Id, n, s.Id)
 		}
 	default:
 		var candidates []api.BaseIngressPort
@@ -489,6 +678,11 @@ func openPort(cmd *cobra.Command, ws *api.Workspace, id string, rest []string) e
 	base := portUrl(s, port.Port)
 	if base == "" {
 		return usagef("port %d of sandbox %s has no URL: %s ports are not reachable through the edge", port.Port, s.Id, lower(port.Access))
+	}
+	if flagOpenDomain != "" {
+		if base = portUrlUnder(s, port.Port, flagOpenDomain); base == "" {
+			return notFoundf("port %d of sandbox %s has no URL under %s, see `zbox workspace domain list`", port.Port, s.Id, flagOpenDomain)
+		}
 	}
 	var kind api.RequestPostIngressCredentialKind
 	switch port.Access {
@@ -519,12 +713,37 @@ func openInBrowser(target string) error {
 
 var workspaceKeyCmd = &cobra.Command{
 	Use:   "key",
-	Short: "Print the workspace API key, for the console sign-in or another machine",
+	Short: "Print the workspace API key, for `zbox workspace use --api-key` on a machine without the Zerops login",
+	Long:  "The key is the generated service env ZBOX_WORKSPACE_API_KEY. For a workspace of the account it is read from the service through the public API in sudo mode, which the browser login enters through the consent page (a read-only role gets REDACTED and is refused); the CLI itself never stores or sends it, zproxy does. For a workspace pointed at by hand the stored key is printed.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws, err := workspace()
+		c, err := loadSelected()
 		if err != nil {
 			return err
 		}
-		return emit(map[string]string{"apiKey": ws.ApiKey()}, func() { fmt.Println(ws.ApiKey()) })
+		w := c.EffectiveWorkspace()
+		if !w.Usable() {
+			return notAuthorized{noWorkspaceHint}
+		}
+		key := w.ApiKey
+		if !w.Direct() {
+			zc, err := zeropsClient(cmd.Context(), &c)
+			if err != nil {
+				return err
+			}
+			// A sensitive env is REDACTED outside sudo mode whatever the role.
+			if err := ensureSudo(cmd, c, zc); err != nil {
+				return err
+			}
+			value, found, err := zc.ServiceEnv(cmd.Context(), w.ServiceId, apiKeyEnv)
+			if err != nil {
+				return err
+			}
+			if !found || !keyReadable(value) {
+				return notAuthorized{fmt.Sprintf("the %s env of workspace %s is not readable with this login (a read-only role gets it redacted), the Zerops GUI shows it to an admin", apiKeyEnv, w.Name)}
+			}
+			key = value
+		}
+		return emit(map[string]string{"apiKey": key}, func() { fmt.Println(key) })
 	},
 }

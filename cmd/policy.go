@@ -47,9 +47,10 @@ var portCmd = &cobra.Command{
 }
 
 var portLsCmd = &cobra.Command{
-	Use:     "ls <id|name>",
+	Use:     "list <id|name>",
+	Aliases: []string{"ls"},
 	Short:   "List the ports of a sandbox with their URLs",
-	Example: `  zbox port ls app`,
+	Example: `  zbox port list app`,
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()

@@ -78,7 +78,7 @@ func init() {
 	pf.BoolVarP(&flagQuiet, "quiet", "q", false, "print only the ids of what was listed, created or changed, one per line")
 	pf.StringVar(&flagWorkspace, "workspace", "", "work on this known workspace for one run and leave the current one as it is: its name, service id, project name or API host (env "+config.EnvWorkspace+")")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL, stored by `zbox login`")
-	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin for the browser hand-offs, overrides guiUrl from the config")
+	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin that serves the login consent page in place of the one the API names, overrides guiUrl from the config")
 	_ = pf.MarkHidden("public-api-url")
 	_ = pf.MarkHidden("gui-url")
 }
@@ -88,11 +88,14 @@ func loadConfig() (config.Config, error) {
 	if err != nil {
 		return c, err
 	}
-	if flagApiUrl != "" {
-		c.ApiUrl = flagApiUrl
+	// The hidden flags hold for this run and are not saved by a refresh or an access mint on the way; `zbox login` adopts them, since storing them is its job. An empty --gui-url is a value too: it brings the API's own consent page back after a spell on the dev server.
+	var guiUrl *string
+	if rootCmd.PersistentFlags().Changed("gui-url") {
+		guiUrl = &flagGuiUrl
 	}
-	if flagGuiUrl != "" {
-		c.GuiUrl = flagGuiUrl
+	c.Override(flagApiUrl, guiUrl)
+	if set, missing := config.HalfEnvPair(); set != "" {
+		return c, usagef("%s is set without %s, the pair names a workspace only as a whole", set, missing)
 	}
 	return c, nil
 }
@@ -105,7 +108,7 @@ func workspaceRef() (ref, source string) {
 	return os.Getenv(config.EnvWorkspace), config.EnvWorkspace
 }
 
-// loadSelected is the config of the commands that work on a workspace: the workspace named for this run stands in for the current one (config.Pin), and saving such a config keeps the stored selection. The commands that manage the selection itself (switch, use, authorize, setup, ls) read loadConfig.
+// loadSelected is the config of the commands that work on a workspace: the workspace named for this run stands in for the current one (config.Pin), and saving such a config keeps the stored selection. The commands that manage the selection itself (switch, use, authorize, setup, list) read loadConfig.
 func loadSelected() (config.Config, error) {
 	c, err := loadConfig()
 	if err != nil {
@@ -134,7 +137,11 @@ func refuseOverride(command string) error {
 	return nil
 }
 
-func zeropsClient(c config.Config) (*zerops.Client, error) {
+// zeropsClient is the public API client of the login. A session about to run out is refreshed first and saved, through the pointer the caller keeps using.
+func zeropsClient(ctx context.Context, c *config.Config) (*zerops.Client, error) {
+	if err := refreshSession(ctx, c); err != nil {
+		return nil, err
+	}
 	token := c.EffectiveToken()
 	if token == "" {
 		return nil, notAuthorized{"not logged in, run `zbox login` first"}
@@ -142,17 +149,112 @@ func zeropsClient(c config.Config) (*zerops.Client, error) {
 	return zerops.New(c.ApiUrl, token), nil
 }
 
+// sessionMargin is how much of the access token's life has to be left for a run to start on it.
+const sessionMargin = time.Minute
+
+// refreshSession renews the session when its access token has under sessionMargin left. ZBOX_TOKEN leaves the stored session alone.
+// A refresh kills the old pair, and another zbox run may have refreshed since this one loaded the config, so the file is read again before and after a refusal.
+func refreshSession(ctx context.Context, c *config.Config) error {
+	if os.Getenv(config.EnvToken) != "" || c.Session == nil || time.Until(c.Session.ExpiresAt) > sessionMargin {
+		return nil
+	}
+	if fresh := storedSession(c.Session); fresh != nil {
+		c.Session = fresh
+		return nil
+	}
+	s, err := zerops.Refresh(ctx, c.ApiUrl, c.Session.RefreshToken)
+	if err != nil {
+		if fresh := storedSession(c.Session); fresh != nil {
+			c.Session = fresh
+			return nil
+		}
+		if zerops.IsCode(err, "refreshTokenInvalid") {
+			return notAuthorized{"the Zerops login ran out, run `zbox login` again"}
+		}
+		return fmt.Errorf("refresh the Zerops login: %w", err)
+	}
+	c.Session = &config.Session{AccessToken: s.AccessToken, ExpiresAt: s.ExpiresAt, RefreshToken: s.RefreshToken}
+	return c.Save()
+}
+
+// storedSession is the session in the file when it is a newer one than known and still good, nil otherwise.
+func storedSession(known *config.Session) *config.Session {
+	stored, err := config.Load()
+	if err != nil || stored.Session == nil || stored.Session.AccessToken == known.AccessToken || time.Until(stored.Session.ExpiresAt) <= sessionMargin {
+		return nil
+	}
+	return stored.Session
+}
+
+// noWorkspaceHint is the answer of every command that needs a workspace when none is in use.
+const noWorkspaceHint = "no workspace yet, run `zbox setup`, `zbox workspace authorize <service-id>` for one of the account, or `zbox workspace use <url> --api-key <key>`"
+
 // workspace is the orchestrator client of the assigned workspace. Most commands start here.
 func workspace() (*api.Workspace, error) {
 	c, err := loadSelected()
 	if err != nil {
 		return nil, err
 	}
-	if !c.HasWorkspace() {
-		return nil, notAuthorized{"no workspace yet, run `zbox setup` or `zbox workspace use <url> --api-key <key>`"}
+	return connect(context.Background(), &c)
+}
+
+// connect is the orchestrator client of the workspace in use. A workspace of the account is reached through zproxy: the stored access is used, minted first when there is none, and minted again by the client when zproxy says it expired (api.Workspace.Renew); each fresh access is saved. A workspace pointed at by hand is reached at its own API host with its key.
+func connect(ctx context.Context, c *config.Config) (*api.Workspace, error) {
+	w := c.EffectiveWorkspace()
+	if !w.Usable() {
+		return nil, notAuthorized{noWorkspaceHint}
 	}
-	url, key := c.EffectiveWorkspace()
-	return api.New(url, key), nil
+	if w.Direct() {
+		return api.New(w.WorkspaceUrl, w.ApiKey), nil
+	}
+	zc, err := zeropsClient(ctx, c)
+	if err != nil {
+		// Only a missing or dead login gets the sentence; a refresh that failed on the network keeps its class, so a script does not log in again for a timeout.
+		if errors.As(err, new(notAuthorized)) {
+			return nil, notAuthorized{fmt.Sprintf("%v: workspace %s is reached through the Zerops account", err, w.Name)}
+		}
+		return nil, err
+	}
+	mint := func(ctx context.Context) (string, error) {
+		a, err := mintAccess(ctx, c, zc, w)
+		if err != nil {
+			return "", err
+		}
+		return a.Token, nil
+	}
+	var access config.Access
+	if w.Access != nil {
+		access = *w.Access
+	}
+	if access.Token == "" || access.Url == "" {
+		if access, err = mintAccess(ctx, c, zc, w); err != nil {
+			return nil, err
+		}
+	}
+	ws := api.New(access.Url, access.Token)
+	ws.Renew = mint
+	return ws, nil
+}
+
+// mintAccess asks the public API for a zproxy access to the workspace service and stores it. The errors a reader can act on get a sentence: a stopped workspace, a read-only role, a workspace deleted elsewhere.
+func mintAccess(ctx context.Context, c *config.Config, zc *zerops.Client, w config.Workspace) (config.Access, error) {
+	a, err := zc.UiAccess(ctx, w.ServiceId)
+	if err != nil {
+		switch {
+		case zerops.IsCode(err, "serviceStackNoActiveContainer"):
+			return config.Access{}, unavailable{fmt.Sprintf("workspace %s (%s) is not running, start the service in the Zerops GUI", w.Name, w.Label())}
+		case zerops.IsCode(err, "insufficientPermissions"):
+			return config.Access{}, notAuthorized{fmt.Sprintf("the account has a read-only role on workspace %s (%s), reaching it needs BasicUser or above", w.Name, w.Label())}
+		case zerops.IsNotFound(err):
+			return config.Access{}, notFoundf("workspace %s (%s) is gone from the account, `zbox workspace forget` drops it here", w.Name, w.Label())
+		}
+		return config.Access{}, fmt.Errorf("mint the access to workspace %s: %w", w.Name, err)
+	}
+	access := config.Access{Url: a.UrlApi, Token: a.Token}
+	if err := c.SaveAccess(w, access); err != nil {
+		return config.Access{}, err
+	}
+	return access, nil
 }
 
 // ---- output

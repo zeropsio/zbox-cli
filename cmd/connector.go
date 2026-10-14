@@ -20,8 +20,10 @@ var connectorCmd = &cobra.Command{
 }
 
 var connectorLsCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "List the connectors and whether they are connected",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List the connectors and whether they are connected",
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

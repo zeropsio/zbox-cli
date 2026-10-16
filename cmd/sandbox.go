@@ -723,7 +723,7 @@ func init() {
 	f.StringVar(&flagNewTemplate, "template", "", "template to spawn from: digest, digest prefix or name")
 	f.StringVar(&flagNewNetwork, "network", "project_internet", "network mode, fixed for the sandbox's life: airgapped, project, internet, project_internet")
 	f.IntVar(&flagNewCpus, "cpus", 0, "cpu count")
-	f.StringVar(&flagNewMemory, "memory", "", "memory cap, for example 512m or 2g")
+	f.StringVar(&flagNewMemory, "memory", "", "memory cap, for example 512m or 2g, a multiple of 16m from 64m up; the workspace default (512m) when omitted")
 	f.DurationVar(&flagNewIdleTtl, "idle-ttl", 0, "park after this long without activity, for example 30m")
 	f.DurationVar(&flagNewAbsoluteTtl, "absolute-ttl", 0, "archive after this long no matter what, for example 24h")
 	f.StringArrayVarP(&flagNewPorts, "port", "p", nil, "port to expose as port[/protocol][/access], repeatable")

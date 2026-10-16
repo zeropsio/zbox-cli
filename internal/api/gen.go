@@ -1954,14 +1954,26 @@ type BaseWebhookEndpoint struct {
 
 // BaseWorkspaceCapacity defines model for BaseWorkspaceCapacity.
 type BaseWorkspaceCapacity struct {
+	// CpuOvercommit vCPUs the running sandboxes may reserve per core, the policy's cpuOvercommit or its default.
+	CpuOvercommit float32 `json:"cpuOvercommit"`
+
 	// Cpus Cores of the Workspace VM.
 	Cpus int `json:"cpus"`
 
 	// DiskBytes Size of the data volume that holds bases, templates, sandboxes and snapshots.
 	DiskBytes int64 `json:"diskBytes"`
 
-	// MemoryBytes Memory of the Workspace VM.
+	// DiskHeadroomBytes Free space the data volume must keep for a create, fork, restore, wake, snapshot or build to be admitted.
+	DiskHeadroomBytes int64 `json:"diskHeadroomBytes"`
+
+	// MemoryBytes Memory the sandboxes may reserve: the VM's memory less the core reserve. A running sandbox reserves its cap in full.
 	MemoryBytes int64 `json:"memoryBytes"`
+
+	// MemoryReserveBytes The policy's coreReserveBytes or its default: what the kernel and the core processes keep.
+	MemoryReserveBytes int64 `json:"memoryReserveBytes"`
+
+	// MemoryTotalBytes Memory of the Workspace VM, MemTotal as its kernel sees it.
+	MemoryTotalBytes int64 `json:"memoryTotalBytes"`
 }
 
 // BaseWorkspaceDomain defines model for BaseWorkspaceDomain.
@@ -2028,8 +2040,14 @@ type BaseWorkspaceHostCpuVendor string
 
 // BaseWorkspacePolicy defines model for BaseWorkspacePolicy.
 type BaseWorkspacePolicy struct {
-	AllowedNetworkModes       *[]string                                   `json:"allowedNetworkModes,omitempty"`
-	Bandwidth                 *BaseBandwidth                              `json:"bandwidth,omitempty"`
+	AllowedNetworkModes *[]string      `json:"allowedNetworkModes,omitempty"`
+	Bandwidth           *BaseBandwidth `json:"bandwidth,omitempty"`
+
+	// CoreReserveBytes Memory of the Workspace VM kept for the kernel, the orchestrator and the other core processes, taken off what the sandboxes may reserve. 512 MiB when absent, 0 is allowed.
+	CoreReserveBytes *int64 `json:"coreReserveBytes,omitempty"`
+
+	// CpuOvercommit How many vCPUs the running sandboxes may reserve per core of the Workspace, 1 reserves cores one to one. 8 when absent.
+	CpuOvercommit             *float32                                    `json:"cpuOvercommit,omitempty"`
 	DefaultHoldTimeoutSeconds *int                                        `json:"defaultHoldTimeoutSeconds,omitempty"`
 	DomainFilterEnforcement   *BaseWorkspacePolicyDomainFilterEnforcement `json:"domainFilterEnforcement,omitempty"`
 	MaxAbsoluteTtlSeconds     *int                                        `json:"maxAbsoluteTtlSeconds,omitempty"`
@@ -2046,16 +2064,22 @@ type BaseWorkspacePolicyDomainFilterEnforcement string
 
 // BaseWorkspaceUsage defines model for BaseWorkspaceUsage.
 type BaseWorkspaceUsage struct {
-	// Cpus Cores reserved by the running sandboxes.
+	// Builds Base pulls, base builds and template builds in progress, each reserving memory while it runs.
+	Builds int `json:"builds"`
+
+	// Cpus vCPUs reserved by the running sandboxes, against cpus times cpuOvercommit of the capacity.
 	Cpus int `json:"cpus"`
 
 	// DiskBytes Used bytes of the data volume.
 	DiskBytes int64 `json:"diskBytes"`
 
-	// MemoryBytes Memory reserved by the running sandboxes.
-	MemoryBytes      int64 `json:"memoryBytes"`
-	ParkedSandboxes  int   `json:"parkedSandboxes"`
-	RunningSandboxes int   `json:"runningSandboxes"`
+	// MemoryBytes Memory reserved by the running sandboxes and the builds in progress, against memoryBytes of the capacity.
+	MemoryBytes int64 `json:"memoryBytes"`
+
+	// MemoryResidentBytes Memory the running sandboxes actually hold right now, what their guests have touched and not given back.
+	MemoryResidentBytes int64 `json:"memoryResidentBytes"`
+	ParkedSandboxes     int   `json:"parkedSandboxes"`
+	RunningSandboxes    int   `json:"runningSandboxes"`
 }
 
 // Error defines model for Error.
@@ -2300,8 +2324,14 @@ type RequestPutWorkspaceDomains struct {
 
 // RequestPutWorkspacePolicy defines model for RequestPutWorkspacePolicy.
 type RequestPutWorkspacePolicy struct {
-	AllowedNetworkModes       *[]string                                         `json:"allowedNetworkModes,omitempty"`
-	Bandwidth                 *BaseBandwidth                                    `json:"bandwidth,omitempty"`
+	AllowedNetworkModes *[]string      `json:"allowedNetworkModes,omitempty"`
+	Bandwidth           *BaseBandwidth `json:"bandwidth,omitempty"`
+
+	// CoreReserveBytes Memory of the Workspace VM kept for the kernel, the orchestrator and the other core processes, taken off what the sandboxes may reserve. 512 MiB when absent, 0 is allowed.
+	CoreReserveBytes *int64 `json:"coreReserveBytes,omitempty"`
+
+	// CpuOvercommit How many vCPUs the running sandboxes may reserve per core of the Workspace, 1 reserves cores one to one. 8 when absent.
+	CpuOvercommit             *float32                                          `json:"cpuOvercommit,omitempty"`
 	DefaultHoldTimeoutSeconds *int                                              `json:"defaultHoldTimeoutSeconds,omitempty"`
 	DomainFilterEnforcement   *RequestPutWorkspacePolicyDomainFilterEnforcement `json:"domainFilterEnforcement,omitempty"`
 	MaxAbsoluteTtlSeconds     *int                                              `json:"maxAbsoluteTtlSeconds,omitempty"`

@@ -51,7 +51,7 @@ zbox rm -y $(zbox ls -q --status failed)
 | 4 | conflict (a state that does not allow the verb, a name taken, an operation in flight) | look at the state, then retry |
 | 5 | timed out (`--timeout`, a stopped `exec`, an API 504) | the work may go on, wait on the operation |
 | 6 | not authorized (no login, no workspace, a read-only role, a rejected key) | `zbox login`, `zbox setup` or `zbox workspace authorize` |
-| 7 | unavailable (502/503, network) | retry later |
+| 7 | unavailable (502/503, network, `workspaceFull`) | retry later, park a sandbox or scale the workspace |
 | 125 | `zbox exec` itself failed (the command did not run) | as above, by the message |
 | 130 | interrupted | |
 

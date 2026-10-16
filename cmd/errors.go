@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"os"
 	"strings"
 	"time"
@@ -108,6 +109,9 @@ func exitCode(err error) int {
 		switch {
 		case apiErr.Status == 404 || strings.HasSuffix(apiErr.Code, "NotFound"):
 			return exitNotFound
+		case apiErr.Code == "workspaceFull":
+			// Room comes back when a sandbox is parked or the workspace is scaled, so the answer is retry later, not conflict.
+			return exitUnavailable
 		case apiErr.Status == 400 || apiErr.Status == 422:
 			return exitUsage
 		case apiErr.Status == 401 || apiErr.Status == 403:
@@ -124,6 +128,22 @@ func exitCode(err error) int {
 		return exitUnavailable
 	}
 	return exitFailed
+}
+
+// readable spells a workspaceFull answer out in sizes, the API carries the numbers as metadata in bytes (vCPUs for cpu).
+func readable(err error) string {
+	if !api.IsCode(err, "workspaceFull") {
+		return err.Error()
+	}
+	resource := api.MetaValue(err, "resource")
+	size := bytesString
+	if resource == "cpu" {
+		size = func(n int64) string { return fmt.Sprintf("%d vcpu", n) }
+	}
+	requested, _ := strconv.ParseInt(api.MetaValue(err, "requested"), 10, 64)
+	free, _ := strconv.ParseInt(api.MetaValue(err, "free"), 10, 64)
+	usable, _ := strconv.ParseInt(api.MetaValue(err, "usable"), 10, 64)
+	return fmt.Sprintf("workspace full: %s %s needed, %s free of %s; park a sandbox or scale the workspace", resource, size(requested), size(free), size(usable))
 }
 
 // isCobraUsage catches the errors cobra raises before any hook of ours runs, an unknown command or flag.
@@ -145,7 +165,7 @@ func (e unavailable) Error() string { return e.msg }
 // reportError prints the error to stderr: one JSON object under --json, `error: …` otherwise.
 func reportError(err error, code int) {
 	if !flagJson {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		fmt.Fprintln(os.Stderr, "error:", readable(err))
 		return
 	}
 	out := map[string]any{"message": err.Error(), "exitCode": code}

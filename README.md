@@ -1,6 +1,8 @@
 # zbox CLI
 
-Agent sandboxes on Zerops. The CLI creates a sandbox workspace in your Zerops account and manages the sandboxes inside it. One Zerops service is one workspace, a VM that runs every sandbox as a Firecracker guest.
+**Beta.** zbox and Zerops Box are in beta: behaviour, commands, flags and the API can change without notice.
+
+Agent sandboxes on Zerops. The CLI creates a Zerops Box workspace in your Zerops account and manages the sandboxes inside it. One Zerops service is one workspace, a VM that runs every sandbox as a Firecracker guest.
 
 ## Install
 
@@ -70,7 +72,7 @@ claude mcp add zbox -- zbox mcp --template dev   # MCP server on stdio: run_code
 
 Output is a table on a terminal and tab-separated with a header when piped; `--json` prints the API objects as they are, `-q` only the ids (`id=$(zbox new -q --template dev)`). Mutations wait for their operation (`--timeout` bounds the wait, `--no-wait` skips it) and exit non-zero when it fails. Destructive commands ask on a terminal and need `--yes` otherwise. Commands are spelled out (`list`, `remove`, `rename`, `workspace`, `operation`, `credential`, `snapshot`, `integration`) and take their short forms as aliases (`ls`, `rm`, `mv`, `ws`, `op`, `cred`, `snap`, `int`); everything that manages a workspace sits under `zbox workspace`, `zbox setup` is the one convenience at the top. Exit codes and the rest of the output contract: `zbox --help` and [docs/cli-ux.md](docs/cli-ux.md).
 
-Also there: `rename` (or `mv`), `set` (rename, TTLs), `policy`, `template`, `credential` (tickets and tokens for preview ports), `connector` (claude, github, codex logins), `integration`, `attach`, `detach` and `attachments` (credential proxy), `webhook`, `session`, `process`, `ps` (the guest's processes), `file`, `ssh`, `ssh-config`, `ssh-key`, `lineage`, `export`, `import`, `metrics`, `quarantine`.
+Also there: `rename` (or `mv`), `set` (rename, TTLs), `policy`, `template`, `credential` (tickets and tokens for preview ports), `connector` (claude, github, codex logins), `integration`, `attach`, `detach` and `attachments` (credential proxy), `webhook`, `session`, `process`, `ps` (the guest's processes), `file`, `ssh`, `ssh-config`, `lineage`, `metrics`, `quarantine`.
 
 ### SSH
 

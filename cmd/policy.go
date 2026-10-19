@@ -66,11 +66,11 @@ var portLsCmd = &cobra.Command{
 }
 
 var portOpenCmd = &cobra.Command{
-	Use:   "open <id|name> <port[/protocol][/access]>...",
+	Use:   "open <id|name> <port[/access]>...",
 	Short: "Declare ports on a sandbox, keeping the ones already there",
-	Long:  "A port is port[/protocol][/access]: 3000, 3000/public, 5432/tcp/project. Access is members (default, the workspace API key), project, ticket, token or public. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
+	Long:  "A port is port[/access]: 3000, 3000/public, 5432/project. Access is members (default, the workspace API key), project, ticket, token or public. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
 	Example: `  zbox port open app 3000
-  zbox port open app 8080/public 5432/tcp/project`,
+  zbox port open app 8080/public 5432/project`,
 	Args: cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ports, err := parsePorts(args[1:])
@@ -132,7 +132,7 @@ func changePorts(cmd *cobra.Command, id string, edit func([]api.BaseIngressPort)
 	return emit(declaredPorts(s), func() { printPorts(s) })
 }
 
-// parsePorts reads port[/protocol][/access] specs. The tokens after the port are recognised by value, so the order does not matter.
+// parsePorts reads port[/protocol][/access] specs. The tokens after the port are recognised by value, so the order does not matter. The tcp protocol is out of the help for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the case stays.
 func parsePorts(specs []string) ([]api.BaseIngressPort, error) {
 	var out []api.BaseIngressPort
 	for _, spec := range specs {

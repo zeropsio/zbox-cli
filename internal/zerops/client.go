@@ -172,7 +172,7 @@ func (c *Client) UserInfo(ctx context.Context) (User, error) {
 // RecipeSource marks the imported service as a zbox workspace. It rides in the request body, not the YAML, and the public API returns it on every service stack, which is how the Zerops GUI lists workspaces (`zeropsSetup` is not returned).
 const RecipeSource = "zeropsio/zbox"
 
-// WorkspaceStack is a workspace service of the account, a Sandbox Workspace service (zbox@1).
+// WorkspaceStack is a workspace service of the account, a Box Workspace service (zbox@1).
 type WorkspaceStack struct {
 	ServiceId   string
 	Hostname    string
@@ -181,8 +181,8 @@ type WorkspaceStack struct {
 	Status      string
 }
 
-// workspaceType is the service stack type id of the Sandbox Workspace service, zbox@1 is only its import alias. The docker services the v0 workspaces were imported as are not listed any more, the orchestrator has no docker substrate since 2026-09-21.
-const workspaceType = "sandbox_workspace"
+// workspaceType is the service stack type id of the Box Workspace service (`zbox`, `sandbox_workspace` until 2026-10-19), zbox@1 is only its import alias. The docker services the v0 workspaces were imported as are not listed any more, the orchestrator has no docker substrate since 2026-09-21.
+const workspaceType = "zbox"
 
 // Workspaces lists the workspace services of the organisation. The `recipeSource` marker is sent on import but the search index does not carry it, so it is not filtered on.
 func (c *Client) Workspaces(ctx context.Context, clientId string) ([]WorkspaceStack, error) {

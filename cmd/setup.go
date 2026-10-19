@@ -25,7 +25,7 @@ const (
 	defaultHostname = "zbox"
 	// defaultBaseImage is the base a workspace gets when neither --base nor --build names one, pulled by the orchestrator from the tarball URL.
 	defaultBaseImage = config.DefaultBaseImage
-	// The service env the Sandbox Workspace controller generates the workspace API key into at service create. The CLI never stores it, zproxy holds it; `zbox workspace key` reads it for the user.
+	// The service env the Box Workspace controller generates the workspace API key into at service create. The CLI never stores it, zproxy holds it; `zbox workspace key` reads it for the user.
 	apiKeyEnv = "ZBOX_WORKSPACE_API_KEY"
 	// How long a new service gets to turn ACTIVE with its container after the import's processes finished, before the access can be minted.
 	accessTimeout = 2 * time.Minute
@@ -460,6 +460,8 @@ var statusCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
+		// The one place the beta is said at run time, a hint, not on every command.
+		note("%s.", betaNotice)
 		c, err := loadSelected()
 		if err != nil {
 			return err

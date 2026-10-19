@@ -51,7 +51,7 @@ zbox rm -y $(zbox ls -q --status failed)
 | 4 | conflict (a state that does not allow the verb, a name taken, an operation in flight) | look at the state, then retry |
 | 5 | timed out (`--timeout`, a stopped `exec`, an API 504) | the work may go on, wait on the operation |
 | 6 | not authorized (no login, no workspace, a read-only role, a rejected key) | `zbox login`, `zbox setup` or `zbox workspace authorize` |
-| 7 | unavailable (502/503, network) | retry later |
+| 7 | unavailable (502/503, network, `workspaceFull`) | retry later, park a sandbox or scale the workspace |
 | 125 | `zbox exec` itself failed (the command did not run) | as above, by the message |
 | 130 | interrupted | |
 
@@ -87,7 +87,7 @@ A verb whose intent is a target state succeeds when the target is already reache
 
 ## 9. References
 
-- A sandbox is named by id or name everywhere it is taken: positional arguments (`sandboxArgs`) and flags (`--sandbox`, `--parent`, `--peer` through `resolveFlag`).
+- A sandbox is named by id or name everywhere it is taken: positional arguments (`sandboxArgs`) and flags (`--sandbox`, `--parent` through `resolveFlag`).
 - Bases and templates take a name, a digest or a digest prefix. An ambiguous reference is a usage error that lists the candidates.
 
 ## 10. Help
@@ -102,4 +102,4 @@ A verb whose intent is a target state succeeds when the target is already reache
 
 - Text output is short and plain: no jokes, no filler, never softening a cost or a restart.
 - The same word is used for the same thing everywhere. A workspace is never a pool, a sandbox is never a VM, and you terminate a sandbox but delete everything else.
-- Booleans in tables are `yes`/`no` (`on`/`off` for a switch such as lineage export). Enums are printed as the API spells them, and flags accept any case.
+- Booleans in tables are `yes`/`no` (`on`/`off` for a switch). Enums are printed as the API spells them, and flags accept any case.

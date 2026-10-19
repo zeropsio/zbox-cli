@@ -195,7 +195,7 @@ func rateString(r *api.BaseRate) string {
 	return fmt.Sprintf("%d/s burst %d", r.RequestsPerSecond, r.Burst)
 }
 
-// parseAttachment reads the --integration form of `zbox new`: name, or label=name, or label=peer:<sandbox>:<port>.
+// parseAttachment reads the --integration form of `zbox new`: name, or label=name, or label=peer:<sandbox>:<port>. The peer form is hidden from the help for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the parser stays.
 func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) {
 	label, target, found := strings.Cut(spec, "=")
 	if !found {
@@ -220,8 +220,8 @@ func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) 
 
 var attachCmd = &cobra.Command{
 	Use:     "attach <sandbox-id|name> <label>",
-	Short:   "Attach an integration or a peer sandbox to a sandbox under a label",
-	Long:    "The sandbox then reaches it at http://<label>.int.<workspace-domain>/. Give --integration for a defined integration or --peer with --peer-port for another sandbox's published port.",
+	Short:   "Attach an integration to a sandbox under a label",
+	Long:    "The sandbox then reaches it at http://<label>.int.<workspace-domain>/. Give --integration for a defined integration, the label by default.",
 	Example: `  zbox attach app stripe`,
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -317,6 +317,9 @@ func init() {
 	attachCmd.Flags().StringVar(&flagAttachInt, "integration", "", "integration name, defaults to the label")
 	attachCmd.Flags().StringVar(&flagAttachPeer, "peer", "", "id of the peer sandbox")
 	attachCmd.Flags().IntVar(&flagAttachPeerPort, "peer-port", 0, "published port of the peer sandbox")
+	// Peer attachments are hidden for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the flags still work.
+	_ = attachCmd.Flags().MarkHidden("peer")
+	_ = attachCmd.Flags().MarkHidden("peer-port")
 	destructive(integrationRmCmd)
 	rootCmd.AddCommand(integrationCmd, attachCmd, detachCmd, attachmentsCmd)
 }

@@ -29,10 +29,13 @@ var (
 	flagQuiet     bool
 )
 
+// betaNotice marks every zbox surface while Zerops Box ships as a beta (v0): the root help, the README and one stderr line of `zbox workspace status`. Visual only, nothing else changes.
+const betaNotice = "zbox and Zerops Box are in beta: behaviour, commands, flags and the API can change without notice"
+
 var rootCmd = &cobra.Command{
 	Use:   "zbox",
 	Short: "Agent sandboxes on Zerops",
-	Long: `zbox creates a sandbox workspace in your Zerops account and manages the sandboxes inside it.
+	Long: `zbox creates a Zerops Box workspace in your Zerops account and manages the sandboxes inside it.
 
 Output: a table on a terminal, tab-separated values with a header line when stdout is a pipe,
 the API objects as JSON with --json, only the ids with --quiet. Progress and hints go to stderr.
@@ -42,7 +45,9 @@ Exit codes: 0 ok, 1 failed, 2 usage, 3 not found, 4 conflict (state, name, an op
 5 timed out, 6 not authorized, 7 unavailable (retry later), 130 interrupted.
 zbox exec exits with the command's own code, and with 125 when zbox itself failed.
 
-Sandboxes are named by id or name everywhere. Destructive commands ask on a terminal and need --yes otherwise.`,
+Sandboxes are named by id or name everywhere. Destructive commands ask on a terminal and need --yes otherwise.
+
+` + betaNotice + `.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

@@ -342,10 +342,12 @@ func writeOut(r io.Reader, path string) error {
 	return f.Close()
 }
 
+// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
 var sshKeyCmd = &cobra.Command{
-	Use:   "ssh-key <id|name> [public-key-file]",
-	Short: "Install an OpenSSH public key for an image's own sshd, defaults to ~/.ssh/id_ed25519.pub",
-	Args:  cobra.RangeArgs(1, 2),
+	Use:    "ssh-key <id|name> [public-key-file]",
+	Short:  "Install an OpenSSH public key for an image's own sshd, defaults to ~/.ssh/id_ed25519.pub",
+	Hidden: true,
+	Args:   cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {

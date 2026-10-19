@@ -48,7 +48,7 @@ var newCmd = &cobra.Command{
 	Aliases: []string{"create"},
 	Short:   "Create a sandbox",
 	Long: `Create a sandbox from a base (--base) or a template (--template). With neither, the workspace's only ready base is used.
-Ports are declared as port[/protocol][/access], for example 3000, 3000/public, 5432/tcp/project. Access is one of members (default), project, ticket, token, public.
+Ports are declared as port[/access], for example 3000, 3000/public, 5432/project. Access is one of members (default), project, ticket, token, public.
 Arguments after -- replace the image's command.`,
 	Example: `  zbox new app --base ubuntu -- sleep infinity
   zbox new web --template dev -p 3000/public
@@ -545,7 +545,7 @@ func portFields(s *api.BaseSandbox) []string {
 	return out
 }
 
-// portUrl is the first URL the API derived for a port, the one `zbox open` takes; empty for one that has none (a TCP port, or no workspace domain).
+// portUrl is the first URL the API derived for a port, the one `zbox open` takes; empty for one that has none (no workspace domain).
 func portUrl(s *api.BaseSandbox, port int) string {
 	for _, h := range s.Hosts {
 		if h.Port == port {
@@ -723,10 +723,10 @@ func init() {
 	f.StringVar(&flagNewTemplate, "template", "", "template to spawn from: digest, digest prefix or name")
 	f.StringVar(&flagNewNetwork, "network", "project_internet", "network mode, fixed for the sandbox's life: airgapped, project, internet, project_internet")
 	f.IntVar(&flagNewCpus, "cpus", 0, "cpu count")
-	f.StringVar(&flagNewMemory, "memory", "", "memory cap, for example 512m or 2g")
+	f.StringVar(&flagNewMemory, "memory", "", "memory cap, for example 512m or 2g, a multiple of 16m from 64m up; the workspace default (512m) when omitted")
 	f.DurationVar(&flagNewIdleTtl, "idle-ttl", 0, "park after this long without activity, for example 30m")
 	f.DurationVar(&flagNewAbsoluteTtl, "absolute-ttl", 0, "archive after this long no matter what, for example 24h")
-	f.StringArrayVarP(&flagNewPorts, "port", "p", nil, "port to expose as port[/protocol][/access], repeatable")
+	f.StringArrayVarP(&flagNewPorts, "port", "p", nil, "port to expose as port[/access], repeatable")
 	f.StringArrayVar(&flagNewIntegration, "integration", nil, "integration to attach as name or label=name, repeatable")
 	f.StringVar(&flagNewSecrets, "secrets", "", "which workspace envs to deliver: none, allowlist, all (makes the sandbox secret bearing)")
 	f.StringArrayVar(&flagNewSecretNames, "secret", nil, "env name to deliver, repeatable, implies --secrets allowlist")

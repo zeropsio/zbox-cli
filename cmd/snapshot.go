@@ -140,9 +140,9 @@ var lineageLsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			tb := newTable("ID", "EXPORT", "CREATED")
+			tb := newTable("ID", "CREATED")
 			for _, l := range list {
-				tb.row(l.Id, onOff(l.ExportEnabled), when(l.Created))
+				tb.row(l.Id, when(l.Created))
 			}
 			tb.ifEmpty("No lineages yet, every sandbox starts one.")
 			tb.print()
@@ -163,14 +163,16 @@ var lineageGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return emit(l, func() { fields("ID", l.Id, "Export", onOff(l.ExportEnabled), "Created", when(l.Created)) })
+		return emit(l, func() { fields("ID", l.Id, "Created", when(l.Created)) })
 	},
 }
 
+// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
 var lineageSetCmd = &cobra.Command{
-	Use:   "set <id> --export on|off",
-	Short: "Turn lineage export on or off",
-	Args:  cobra.ExactArgs(1),
+	Use:    "set <id> --export on|off",
+	Short:  "Turn lineage export on or off",
+	Hidden: true,
+	Args:   cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -192,10 +194,12 @@ var lineageSetCmd = &cobra.Command{
 	},
 }
 
+// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
 var lineageExportCmd = &cobra.Command{
-	Use:   "export <id>",
-	Short: "Export a lineage to project object storage, full or incremental since the last export",
-	Args:  cobra.ExactArgs(1),
+	Use:    "export <id>",
+	Short:  "Export a lineage to project object storage, full or incremental since the last export",
+	Hidden: true,
+	Args:   cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
@@ -209,9 +213,11 @@ var lineageExportCmd = &cobra.Command{
 	},
 }
 
+// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
 var exportCmd = &cobra.Command{
-	Use:   "export",
-	Short: "Inspect lineage exports",
+	Use:    "export",
+	Short:  "Inspect lineage exports",
+	Hidden: true,
 }
 
 var exportLsCmd = &cobra.Command{
@@ -267,11 +273,13 @@ func printExport(e *api.BaseExport) {
 	fields(pairs...)
 }
 
+// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
 var importCmd = &cobra.Command{
-	Use:   "import",
-	Short: "Import an exported lineage into this workspace",
-	Long:  "Import an export of a lineage by its object storage key.",
-	Args:  cobra.NoArgs,
+	Use:    "import",
+	Short:  "Import an exported lineage into this workspace",
+	Long:   "Import an export of a lineage by its object storage key.",
+	Hidden: true,
+	Args:   cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagImportSource == "" {
 			return usagef("--source is required")

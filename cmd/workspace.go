@@ -97,18 +97,28 @@ func hostFields(h api.BaseWorkspaceHost) []string {
 	}
 }
 
-// capacityString is the VM as the host sees it: cores, MemTotal, the size of the data volume.
+// capacityString is the admission envelope: the vCPUs the sandboxes may reserve over the cores, the memory they may reserve and the
+// reserve taken off the VM's memory for it, the data volume with the headroom a verb must leave.
 func capacityString(c api.BaseWorkspaceCapacity) string {
-	return fmt.Sprintf("%d cpu, %s, %s disk", c.Cpus, bytesString(c.MemoryBytes), bytesString(c.DiskBytes))
+	return fmt.Sprintf("%d vcpu (%d cores x %g), %s memory (%s less %s reserve), %s disk (%s headroom)",
+		int(float64(c.Cpus)*float64(c.CpuOvercommit)), c.Cpus, c.CpuOvercommit,
+		bytesString(c.MemoryBytes), bytesString(c.MemoryTotalBytes), bytesString(c.MemoryReserveBytes),
+		bytesString(c.DiskBytes), bytesString(c.DiskHeadroomBytes))
 }
 
-// usageString is what the running sandboxes reserve of it and what the data volume holds across bases, templates, sandboxes and snapshots.
+// usageString is what is reserved of the capacity (every running sandbox reserves its cap in full, a build its share), what the sandboxes
+// hold right now, and what the data volume holds across bases, templates, sandboxes and snapshots.
 func usageString(u api.BaseWorkspaceUsage) string {
 	noun := "sandboxes"
 	if u.RunningSandboxes == 1 {
 		noun = "sandbox"
 	}
-	return fmt.Sprintf("%d cpu, %s by %d running %s (%d parked), %s disk", u.Cpus, bytesString(u.MemoryBytes), u.RunningSandboxes, noun, u.ParkedSandboxes, bytesString(u.DiskBytes))
+	builds := ""
+	if u.Builds > 0 {
+		builds = fmt.Sprintf(" and %d builds", u.Builds)
+	}
+	return fmt.Sprintf("%d vcpu, %s memory reserved by %d running %s%s (%d parked), %s resident, %s disk",
+		u.Cpus, bytesString(u.MemoryBytes), u.RunningSandboxes, noun, builds, u.ParkedSandboxes, bytesString(u.MemoryResidentBytes), bytesString(u.DiskBytes))
 }
 
 var workspacePolicyCmd = &cobra.Command{
@@ -219,7 +229,7 @@ var workspaceLsCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List the workspaces of the Zerops account, with the ones stored here",
-	Long:    "Every Sandbox Workspace service (zbox@1) of the organisation is a workspace. A row with a name is stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first, which stores them without any secret. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
+	Long:    "Every Box Workspace service (zbox@1) of the organisation is a workspace. A row with a name is stored here and can be switched to; the others need `zbox workspace authorize <service-id>` first, which stores them without any secret. Workspaces assigned with `zbox workspace use` that are not in the account are listed after.",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := loadConfig()

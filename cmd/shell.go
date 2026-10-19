@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -73,7 +72,7 @@ func attachShell(ctx context.Context, ws *api.Workspace, sandboxId, sessionId, t
 		}
 	}()
 	winch := make(chan os.Signal, 1)
-	signal.Notify(winch, syscall.SIGWINCH)
+	notifyResize(winch)
 	defer signal.Stop(winch)
 
 	deadline := time.Time{}

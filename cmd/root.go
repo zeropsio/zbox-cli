@@ -32,6 +32,9 @@ var (
 // betaNotice marks every zbox surface while Zerops Box ships as a beta (v0): the root help, the README and one stderr line of `zbox workspace status`. Visual only, nothing else changes.
 const betaNotice = "zbox and Zerops Box are in beta: behaviour, commands, flags and the API can change without notice"
 
+// version is the release tag the binary was built from, set by the release workflow through -ldflags "-X github.com/zeropsio/zbox-cli/cmd.version=v0.24"; a local build says dev.
+var version = "dev"
+
 var rootCmd = &cobra.Command{
 	Use:   "zbox",
 	Short: "Agent sandboxes on Zerops",
@@ -48,6 +51,7 @@ zbox exec exits with the command's own code, and with 125 when zbox itself faile
 Sandboxes are named by id or name everywhere. Destructive commands ask on a terminal and need --yes otherwise.
 
 ` + betaNotice + `.`,
+	Version:       version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

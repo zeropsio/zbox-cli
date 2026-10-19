@@ -6,21 +6,31 @@ Agent sandboxes on Zerops. The CLI creates a Zerops Box workspace in your Zerops
 
 ## Install
 
-Needs Go 1.25 or newer. The binary lands in `$(go env GOPATH)/bin`, which has to be on your `PATH`.
-
-From a clone:
+One line on Linux and macOS (amd64 and arm64), it downloads the latest release, checks its sha256 and puts `zbox` into `/usr/local/bin` when that is writable, else `~/.local/bin`:
 
 ```sh
-git clone git@github.com:zeropsio/zbox-cli.git
-cd zbox-cli
-go install ./cmd/zbox
+curl -fsSL https://box.zerops.io/install | sh
 ```
 
-Or straight with `go install`. The repo is private, so Go has to fetch it over your git credentials instead of the public module proxy:
+On Windows (amd64 and arm64) in PowerShell, into `%LOCALAPPDATA%\Programs\zbox` and onto your user `PATH`:
+
+```powershell
+irm https://box.zerops.io/install.ps1 | iex
+```
+
+`ZBOX_VERSION=v0.24` pins a release and `ZBOX_INSTALL_DIR` picks the directory, for both scripts. The scripts are [install.sh](install.sh) and [install.ps1](install.ps1) in this repo, the binaries and `checksums.txt` are on the [releases page](https://github.com/zeropsio/zbox-cli/releases), one per target (`zbox-linux-amd64`, `zbox-darwin-arm64`, `zbox-windows-amd64.exe`, ...), so a download by hand works too. `zbox --version` says what is installed.
+
+From source, with Go 1.25 or newer (`make install` builds into `~/.local/bin`, `go install ./cmd/zbox` into `$(go env GOPATH)/bin`):
 
 ```sh
-export GOPRIVATE=github.com/zeropsio
-git config --global url."git@github.com:".insteadOf "https://github.com/"   # only when HTTPS to GitHub has no credentials
+git clone https://github.com/zeropsio/zbox-cli.git
+cd zbox-cli
+make install
+```
+
+Or straight with `go install`:
+
+```sh
 go install github.com/zeropsio/zbox-cli/cmd/zbox@latest
 ```
 
@@ -28,12 +38,12 @@ go install github.com/zeropsio/zbox-cli/cmd/zbox@latest
 
 ```sh
 zbox login                    # confirm a code in the Zerops GUI, or: zbox login --token <PAT>, or --email; zbox register creates an account
-zbox setup                    # creates the Zerops project with the workspace, waits for its default base and builds the dev and big warm templates
-zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname)
-zbox setup --template dev:4g:2  # builds only a warm template named dev (4 GB, 2 cpus); the default builds dev:4g:2 and big:16g:4, --template none builds none
-zbox setup --cpu 2 --ram 8 --disk 50  # a small workspace VM instead of the default 24 cpu, 128 GB, 250 GB
+zbox setup                    # creates a Zerops project (zbox-<timestamp>, --project names it) with the workspace and pulls the default base
+zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname, zbox by default)
+zbox setup --base hello=ubuntu:26.04 --template dev=2:4g@hello  # pulls a base named hello and builds a warm template dev on it (2 cpus, 4 GiB); none are built by default
+zbox setup --cpu 4 --ram 8 --disk 50  # pins the size of the workspace VM, the platform's defaults for the type otherwise (2 cpus, 4 GiB, 10 GiB)
 zbox setup --warmup dev='claude --version'  # the dev template runs this before its memory is captured, so claude is resident in every spawn
-zbox setup --image ubuntu:26.04  # the first base, written into the service env ZBOX_WORKSPACE_BASES; add more there (whitespace or commas) and reload the service
+zbox setup --build app=./app   # builds the Dockerfile context into a base named app on the new workspace (.dockerignore honoured); zbox base build does it later
 zbox workspace status         # the login, the workspace, whether it answers, its capacity and what is in use
 
 zbox workspace list           # the workspaces of the account, the stored ones are named
@@ -48,7 +58,7 @@ zbox workspace domain list    # where sandbox ports are published: the ingress s
 zbox workspace domain add sb.example.com   # *.sb.example.com routed to port 8081 in Zerops gives every port https://<port>-<id>.sb.example.com
 
 zbox base add ubuntu:24.04    # any OCI image becomes a base
-zbox new mybox -p 3000        # sandbox from the only base, port 3000 opens only with a one-time ticket (zbox open mybox)
+zbox new mybox -p 3000        # sandbox from the only ready base (--base picks one), port 3000 opens only with a one-time ticket (zbox open mybox)
 zbox new app --template dev -p 3000/public --memory 2g --idle-ttl 30m  # resumes the template's memory, a public port
 zbox template create --name node --base ubuntu:24.04 --warm --warmup "node -e \"require('http')\""  # warm template, the runtime loaded before the snapshot
 zbox list                     # or zbox ls: every list, remove and rename command has its short form (ls, rm, mv)
@@ -90,7 +100,7 @@ zbox ssh app -- -L 3000:localhost:3000
 
 `zbox park app` keeps a memory image, the wake resumes the sandbox where it was in under a second. `zbox park app --no-memory` shuts the guest down instead: the disk stays, everything running inside ends, and the next wake is a cold boot that picks up the current secrets, workspace env and policy. A sandbox whose secret selection changed since its last delivery is stale: anything that would wake it implicitly (ssh, the shell, a request) answers `secretsStale`, and only `zbox wake app --redeliver-secrets` boots it with the new selection.
 
-The workspace is a managed Zerops service (`zbox@1`): nothing is deployed to it, the orchestrator ships with the platform and starts on its own. The service env `ZBOX_WORKSPACE_BASES` lists the bases it registers at start (image references or `docker save` tarball URLs, separated by whitespace or commas), `zbox setup` writes the first one; an edit applies at the next service reload (keeps the sandboxes up) or restart (reboots the VM, parks every sandbox). Templates are created through the API (`zbox setup` does it after the base is READY, `zbox template create --warm` any time).
+The workspace is a managed Zerops service (`zbox@1`, type "Box Workspace"): nothing is deployed to it, the orchestrator ships with the platform and starts on its own. Bases are registered through the API (`zbox base add` for an image reference or a `docker save` tarball URL, `zbox base build` for a Dockerfile context), `zbox setup` pulls the default image unless `--base` or `--build` name others; templates likewise (`zbox setup --template` once the bases are in, `zbox template create --warm` any time). A service reload keeps the sandboxes up, a restart reboots the VM and parks every sandbox.
 
 State lives in `~/.config/zbox/config.json` (override with `ZBOX_CONFIG`). `ZBOX_TOKEN` overrides the stored Zerops token, `ZBOX_WORKSPACE` (or `--workspace`) picks a stored workspace for one run, `ZBOX_WORKSPACE_URL` and `ZBOX_API_KEY` override the workspace entirely.
 

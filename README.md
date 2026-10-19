@@ -18,7 +18,7 @@ On Windows (amd64 and arm64) in PowerShell, into `%LOCALAPPDATA%\Programs\zbox` 
 irm https://box.zerops.io/install.ps1 | iex
 ```
 
-`ZBOX_VERSION=v0.24` pins a release and `ZBOX_INSTALL_DIR` picks the directory, for both scripts. The scripts are [install.sh](install.sh) and [install.ps1](install.ps1) in this repo, the binaries and `checksums.txt` are on the [releases page](https://github.com/zeropsio/zbox-cli/releases), one per target (`zbox-linux-amd64`, `zbox-darwin-arm64`, `zbox-windows-amd64.exe`, ...), so a download by hand works too. `zbox --version` says what is installed.
+`ZBOX_VERSION=v0.24` pins a release and `ZBOX_INSTALL_DIR` picks the directory, for both scripts. A tag with a hyphen (`v0.24-rc1`) is published as a pre-release: the scripts skip it unless `ZBOX_VERSION` names it. The scripts are [install.sh](install.sh) and [install.ps1](install.ps1) in this repo, the binaries and `checksums.txt` are on the [releases page](https://github.com/zeropsio/zbox-cli/releases), one per target (`zbox-linux-amd64`, `zbox-darwin-arm64`, `zbox-windows-amd64.exe`, ...), so a download by hand works too. `zbox --version` says what is installed.
 
 From source, with Go 1.25 or newer (`make install` builds into `~/.local/bin`, `go install ./cmd/zbox` into `$(go env GOPATH)/bin`):
 

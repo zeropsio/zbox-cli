@@ -64,3 +64,5 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          # A tag with a hyphen (v0.24-rc1) is a pre-release: the pipeline runs whole, but releases/latest and the install scripts keep pointing at the last real release.
+          prerelease: ${{ contains(github.ref_name, '-') }}

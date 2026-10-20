@@ -9,7 +9,7 @@ Agent sandboxes on Zerops. The CLI creates a Zerops Box workspace in your Zerops
 One line on Linux and macOS (amd64 and arm64), it downloads the latest release, checks its sha256 and puts `zbox` into `/usr/local/bin` when that is writable, else `~/.local/bin`:
 
 ```sh
-curl -fsSL https://box.zerops.io/install | sh
+curl -fsSL https://box.zerops.io/install.sh | sh
 ```
 
 On Windows (amd64 and arm64) in PowerShell, into `%LOCALAPPDATA%\Programs\zbox` and onto your user `PATH`:

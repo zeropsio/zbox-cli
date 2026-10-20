@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the zbox CLI from its GitHub release: curl -fsSL https://box.zerops.io/install | sh
+# Installs the zbox CLI from its GitHub release: curl -fsSL https://box.zerops.io/install.sh | sh
 #
 #   ZBOX_VERSION      release tag to install (v0.24), the latest release when unset
 #   ZBOX_INSTALL_DIR  where the binary goes, /usr/local/bin when writable, else ~/.local/bin

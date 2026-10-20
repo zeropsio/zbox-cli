@@ -1470,21 +1470,34 @@ type BaseDomainFilterEnforcement string
 
 // BaseEgress defines model for BaseEgress.
 type BaseEgress struct {
-	Allow          []BaseEgressRule  `json:"allow"`
-	Bandwidth      *BaseBandwidth    `json:"bandwidth,omitempty"`
-	Deny           []BaseEgressRule  `json:"deny"`
-	Dns            BaseEgressDns     `json:"dns"`
-	DomainFilter   *BaseDomainFilter `json:"domainFilter,omitempty"`
-	MaxConnections *int              `json:"maxConnections,omitempty"`
-	Packets        *BasePacketRate   `json:"packets,omitempty"`
+	// Allow Destinations the sandbox may reach within its network mode. With an egress document present, nothing else is reachable but the credential proxy and the resolver.
+	Allow []BaseEgressRule `json:"allow"`
+
+	// Bandwidth Not enforced yet, refused when set.
+	Bandwidth *BaseBandwidth `json:"bandwidth,omitempty"`
+
+	// Deny Destinations dropped ahead of every allow rule.
+	Deny []BaseEgressRule `json:"deny"`
+
+	// Dns Which resolver the sandbox reaches on port 53. There is no egress resolver yet, EGRESS is refused.
+	Dns BaseEgressDns `json:"dns"`
+
+	// DomainFilter Not enforced yet, refused when set.
+	DomainFilter *BaseDomainFilter `json:"domainFilter,omitempty"`
+
+	// MaxConnections Not enforced yet, refused when set.
+	MaxConnections *int `json:"maxConnections,omitempty"`
+
+	// Packets Not enforced yet, refused when set.
+	Packets *BasePacketRate `json:"packets,omitempty"`
 }
 
-// BaseEgressDns defines model for BaseEgress.Dns.
+// BaseEgressDns Which resolver the sandbox reaches on port 53. There is no egress resolver yet, EGRESS is refused.
 type BaseEgressDns string
 
 // BaseEgressRule defines model for BaseEgressRule.
 type BaseEgressRule struct {
-	// Cidr A CIDR, or the named set `project` for the project network.
+	// Cidr An IPv4 prefix, a bare address, or the named set `project` for the project network.
 	Cidr string `json:"cidr"`
 
 	// Ports Destination ports. Empty means every port.
@@ -1594,17 +1607,17 @@ type BaseHooks struct {
 type BaseIngress struct {
 	HoldTimeoutSeconds *int `json:"holdTimeoutSeconds,omitempty"`
 
-	// MaxBodyBytes Accepted but not enforced in v1.
+	// MaxBodyBytes Accepted but not enforced yet.
 	MaxBodyBytes *int64 `json:"maxBodyBytes,omitempty"`
 
-	// MaxConnections Accepted but not enforced in v1.
+	// MaxConnections Accepted but not enforced yet.
 	MaxConnections *int `json:"maxConnections,omitempty"`
 
-	// MaxHeldRequests Accepted but not enforced in v1.
+	// MaxHeldRequests Accepted but not enforced yet.
 	MaxHeldRequests *int              `json:"maxHeldRequests,omitempty"`
 	Ports           []BaseIngressPort `json:"ports"`
 
-	// Rate Accepted but not enforced in v1.
+	// Rate Accepted but not enforced yet.
 	Rate *BaseRate `json:"rate,omitempty"`
 
 	// Ssh Open port 22 to project sources, design §7.2.

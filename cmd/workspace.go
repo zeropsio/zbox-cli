@@ -632,7 +632,7 @@ var consoleCmd = &cobra.Command{
 		if err != nil {
 			var e api.ApiError
 			if errors.As(err, &e) && e.Status == 404 {
-				return fmt.Errorf("the workspace runs an orchestrator from before 2026-09-24 without the console ticket route; restart the service to pick up the current one, or paste the key from `zbox workspace key` into the console's login form at %s", ws.BaseUrl)
+				return fmt.Errorf("the workspace runs an older orchestrator without the console ticket route; restart the service to pick up the current one, or paste the key from `zbox workspace key` into the console's login form at %s", ws.BaseUrl)
 			}
 			return fmt.Errorf("mint a console ticket: %w", err)
 		}

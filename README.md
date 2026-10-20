@@ -104,4 +104,8 @@ The workspace is a managed Zerops service (`zbox@1`, type "Box Workspace"): noth
 
 State lives in `~/.config/zbox/config.json` (override with `ZBOX_CONFIG`). `ZBOX_TOKEN` overrides the stored Zerops token, `ZBOX_WORKSPACE` (or `--workspace`) picks a stored workspace for one run, `ZBOX_WORKSPACE_URL` and `ZBOX_API_KEY` override the workspace entirely.
 
-The API client is generated from the orchestrator's OpenAPI file, see `CLAUDE.md`.
+The API client is generated from the orchestrator's OpenAPI file, `internal/api/openapi.yml` (`go generate ./internal/api`).
+
+## License
+
+[MIT](LICENSE).

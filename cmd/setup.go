@@ -161,7 +161,7 @@ func createWorkspace(ctx context.Context, c *config.Config) error {
 			byName[p.name] = base
 		}
 	}
-	// Templates are not built at start any more (since 2026-10-06), they are created through the API the way `zbox template create --warm` does, one after the other, each waited for.
+	// Templates are not built at start, they are created through the API the way `zbox template create --warm` does, one after the other, each waited for.
 	for _, t := range templates {
 		base := byName[t.Base]
 		screen.Step("Building the warm template " + t.Name + " on " + baseLabel(base))
@@ -623,7 +623,7 @@ func waitForPing(ctx context.Context, ws *api.Workspace) error {
 	}
 }
 
-// No template by default since 2026-10-09: a workspace boots from its base, a warm template is asked for with --template.
+// No template by default: a workspace boots from its base, a warm template is asked for with --template.
 var defaultTemplates []string
 
 // setupTemplate is one warm template the setup creates through the API once the base is READY. Zero MemoryBytes or Cpus leave the sandbox default. Warmup is the shell command run in the build guest before its memory is captured, empty for none.

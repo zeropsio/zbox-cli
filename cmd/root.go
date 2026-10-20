@@ -305,7 +305,7 @@ func firstLine(s string) string {
 	return s
 }
 
-// took is the span between two API timestamps at millisecond resolution: whole seconds hide that a wake takes 400 ms and a park 3 s (the user's rule of 2026-09-22, "1s is too high of resolution"). An unfinished span is a dash.
+// took is the span between two API timestamps at millisecond resolution: whole seconds hide that a wake takes 400 ms and a park 3 s. An unfinished span is a dash.
 func took(created string, finished *string) string {
 	if finished == nil {
 		return "-"

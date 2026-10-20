@@ -4,7 +4,7 @@ import "testing"
 
 // The consent page URL is the API's unless a GUI origin stands in for its scheme and host; the request stays.
 func TestConsentUrl(t *testing.T) {
-	const verification = "https://futon.devel.zerops.dev/authorize-login?request=abc"
+	const verification = "https://app.zerops.io/authorize-login?request=abc"
 	if got, err := consentUrl(verification, ""); err != nil || got != verification {
 		t.Error(got, err)
 	}

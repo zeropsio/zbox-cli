@@ -8,7 +8,7 @@ import (
 
 // The GUI origin is empty unless stored, the API's consent page URL then stands; a stored guiUrl loses its trailing slash.
 func TestEffectiveGuiUrl(t *testing.T) {
-	if got := (Config{ApiUrl: "https://api.app-futon.zerops.dev"}).EffectiveGuiUrl(); got != "" {
+	if got := (Config{ApiUrl: "https://api.app-prg1.zerops.io"}).EffectiveGuiUrl(); got != "" {
 		t.Error(got)
 	}
 	if got := (Config{ApiUrl: "x", GuiUrl: "https://g/"}).EffectiveGuiUrl(); got != "https://g" {
@@ -19,21 +19,21 @@ func TestEffectiveGuiUrl(t *testing.T) {
 // Switching resolves names, hosts, prefixes and service ids, refuses a name that belongs to another workspace, and forget names the others.
 func TestWorkspaces(t *testing.T) {
 	c := Config{Workspaces: []Workspace{
-		{Name: "futon", WorkspaceUrl: "https://zbox-c-8080.app-futon.zerops.dev", ServiceId: "svc1"},
+		{Name: "prod", WorkspaceUrl: "https://zbox-c-8080.app-prg1.zerops.io", ServiceId: "svc1"},
 		{Name: "local", WorkspaceUrl: "http://127.0.0.1:18080"},
 	}}
-	for _, ref := range []string{"futon", "zbox-c", "zbox-c-8080.app-futon.zerops.dev", "svc1", "https://zbox-c-8080.app-futon.zerops.dev/"} {
-		if w, err := c.Lookup(ref); err != nil || w.Name != "futon" {
+	for _, ref := range []string{"prod", "zbox-c", "zbox-c-8080.app-prg1.zerops.io", "svc1", "https://zbox-c-8080.app-prg1.zerops.io/"} {
+		if w, err := c.Lookup(ref); err != nil || w.Name != "prod" {
 			t.Errorf("%s -> %v %v", ref, w.Name, err)
 		}
 	}
 	if _, err := c.Lookup("nope"); err == nil {
 		t.Error("unknown ref accepted")
 	}
-	if DefaultName("https://zbox-c-8080.app-futon.zerops.dev") != "zbox-c-8080" {
+	if DefaultName("https://zbox-c-8080.app-prg1.zerops.io") != "zbox-c-8080" {
 		t.Error("default name")
 	}
-	if got := (Config{WorkspaceUrl: "http://127.0.0.1:18080", Workspaces: c.Workspaces}).Others(); len(got) != 1 || got[0] != "futon" {
+	if got := (Config{WorkspaceUrl: "http://127.0.0.1:18080", Workspaces: c.Workspaces}).Others(); len(got) != 1 || got[0] != "prod" {
 		t.Errorf("others %v", got)
 	}
 }
@@ -41,16 +41,16 @@ func TestWorkspaces(t *testing.T) {
 // A ref that fits several workspaces is refused with the candidates, whole matches come before prefixes, and the project is a way to name a workspace only while it holds one.
 func TestLookupAmbiguous(t *testing.T) {
 	c := Config{Workspaces: []Workspace{
-		{Name: "zbox", ProjectName: "zbox-demo", ProjectId: "p1", ServiceId: "svc1", WorkspaceUrl: "https://zbox-30-8080.app-alpha.zerops.dev", ApiKey: "k1"},
-		{Name: "zboxbench", ProjectName: "zbox-matej", ProjectId: "p2", ServiceId: "svc2", WorkspaceUrl: "https://zboxbench-1a-8080.app-alpha.zerops.dev", ApiKey: "k2"},
-		{Name: "matej", ProjectName: "zbox-matej", ProjectId: "p2", ServiceId: "svc3", WorkspaceUrl: "https://zbox-1a-8080.app-alpha.zerops.dev", ApiKey: "k3"},
+		{Name: "zbox", ProjectName: "zbox-demo", ProjectId: "p1", ServiceId: "svc1", WorkspaceUrl: "https://zbox-30-8080.app-prg1.zerops.io", ApiKey: "k1"},
+		{Name: "zboxbench", ProjectName: "zbox-team", ProjectId: "p2", ServiceId: "svc2", WorkspaceUrl: "https://zboxbench-1a-8080.app-prg1.zerops.io", ApiKey: "k2"},
+		{Name: "team", ProjectName: "zbox-team", ProjectId: "p2", ServiceId: "svc3", WorkspaceUrl: "https://zbox-1a-8080.app-prg1.zerops.io", ApiKey: "k3"},
 	}}
-	for ref, name := range map[string]string{"zbox": "zbox", "zboxb": "zboxbench", "svc3": "matej", "zbox-demo": "zbox", "p1": "zbox", "zboxbench-1a": "zboxbench"} {
+	for ref, name := range map[string]string{"zbox": "zbox", "zboxb": "zboxbench", "svc3": "team", "zbox-demo": "zbox", "p1": "zbox", "zboxbench-1a": "zboxbench"} {
 		if w, err := c.Lookup(ref); err != nil || w.Name != name {
 			t.Errorf("%s -> %v %v", ref, w.Name, err)
 		}
 	}
-	for ref, candidates := range map[string][]string{"zbox-matej": {"svc2", "svc3"}, "p2": {"svc2", "svc3"}, "zbox-": {"svc1", "svc3"}} {
+	for ref, candidates := range map[string][]string{"zbox-team": {"svc2", "svc3"}, "p2": {"svc2", "svc3"}, "zbox-": {"svc1", "svc3"}} {
 		_, err := c.Lookup(ref)
 		if err == nil || !strings.Contains(err.Error(), "several") || !strings.Contains(err.Error(), candidates[0]) || !strings.Contains(err.Error(), candidates[1]) {
 			t.Errorf("%s -> %v", ref, err)

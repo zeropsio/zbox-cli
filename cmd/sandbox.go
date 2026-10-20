@@ -603,8 +603,8 @@ func printPorts(s *api.BaseSandbox) {
 // openUrl is the URL of a port as the user opens it: the router takes a fresh credential once as a query
 // parameter, exchanges it for a session cookie and redirects to the clean URL. MEMBERS and TICKET ports
 // take a ticket, TOKEN ports a token, appended when one is given (`zbox cred issue` and `zbox open` mint
-// them; a listing has none and prints the bare URL). A MEMBERS port takes no workspace key at all since
-// 2026-10-01. PUBLIC ports stay bare and PROJECT ports are not reachable through the edge.
+// them; a listing has none and prints the bare URL). A MEMBERS port takes no workspace key at all.
+// PUBLIC ports stay bare and PROJECT ports are not reachable through the edge.
 func openUrl(url string, access api.BaseIngressPortAccess, secret string) string {
 	if url == "" {
 		return ""

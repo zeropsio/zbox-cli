@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	// DefaultApiUrl is the Zerops public API the CLI works against: production prg1 since 2026-10-20 (the dev environments before that: futon from 2026-10-01, alpha from 2026-09-22, futon before that). A stored apiUrl wins, `zbox login --public-api-url` moves a config over to a dev environment.
+	// DefaultApiUrl is the Zerops public API the CLI works against. A stored apiUrl wins, `zbox login --public-api-url` moves a config over to another environment.
 	DefaultApiUrl = "https://api.app-prg1.zerops.io"
-	// DefaultBaseImage is the image registered as the first base of a new workspace: the saved default sandbox image (ubuntu 26.04 with claude, gh, codex, python3, node 24 and cron) on the production Box storage bucket through the Zerops CDN since 2026-10-20 (the plumbing bucket from 2026-10-12, the same bytes as the futon and alpha copies before it), which the orchestrator pulls and flattens from the tarball URL. A plain registry reference works as well.
+	// DefaultBaseImage is the image registered as the first base of a new workspace: the saved default sandbox image (ubuntu 26.04 with claude, gh, codex, python3, node 24 and cron) served through the Zerops CDN, which the orchestrator pulls and flattens from the tarball URL. A plain registry reference works as well.
 	DefaultBaseImage = "https://storage.cdn.zerops.app/4ga3k-boxstorage/zbox/zbox-base.tar.gz"
 
 	EnvConfigPath   = "ZBOX_CONFIG"
@@ -114,7 +114,7 @@ func (w Workspace) Same(o Workspace) bool {
 	return w.identity() == o.identity() && (w.ServiceId != "" || w.WorkspaceUrl != "")
 }
 
-// DefaultName names a workspace assigned without a name after the first label of its API host, `zbox-c-8080` for `https://zbox-c-8080.app-futon.zerops.dev`.
+// DefaultName names a workspace assigned without a name after the first label of its API host, `zbox-c-8080` for `https://zbox-c-8080.app-prg1.zerops.io`.
 func DefaultName(workspaceUrl string) string {
 	host := Workspace{WorkspaceUrl: workspaceUrl}.Host()
 	if i := strings.Index(host, "."); i > 0 {

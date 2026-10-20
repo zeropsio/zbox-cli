@@ -132,7 +132,7 @@ func changePorts(cmd *cobra.Command, id string, edit func([]api.BaseIngressPort)
 	return emit(declaredPorts(s), func() { printPorts(s) })
 }
 
-// parsePorts reads port[/protocol][/access] specs. The tokens after the port are recognised by value, so the order does not matter. The tcp protocol is out of the help for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the case stays.
+// parsePorts reads port[/protocol][/access] specs. The tokens after the port are recognised by value, so the order does not matter. The tcp protocol is out of the help for the beta, the case stays.
 func parsePorts(specs []string) ([]api.BaseIngressPort, error) {
 	var out []api.BaseIngressPort
 	for _, spec := range specs {

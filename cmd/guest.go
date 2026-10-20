@@ -342,7 +342,7 @@ func writeOut(r io.Reader, path string) error {
 	return f.Close()
 }
 
-// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
+// Hidden for the beta: the feature has nothing working behind it yet.
 var sshKeyCmd = &cobra.Command{
 	Use:    "ssh-key <id|name> [public-key-file]",
 	Short:  "Install an OpenSSH public key for an image's own sshd, defaults to ~/.ssh/id_ed25519.pub",

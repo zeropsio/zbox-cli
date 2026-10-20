@@ -1,4 +1,4 @@
-# oapi-codegen config for the orchestrator client. Regenerate with `go generate ./internal/api` (see CLAUDE.md).
+# oapi-codegen config for the orchestrator client. Regenerate with `go generate ./internal/api`.
 package: api
 output: gen.go
 generate:

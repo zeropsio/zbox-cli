@@ -167,7 +167,7 @@ var lineageGetCmd = &cobra.Command{
 	},
 }
 
-// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
+// Hidden for the beta: the feature has nothing working behind it yet.
 var lineageSetCmd = &cobra.Command{
 	Use:    "set <id> --export on|off",
 	Short:  "Turn lineage export on or off",
@@ -194,7 +194,7 @@ var lineageSetCmd = &cobra.Command{
 	},
 }
 
-// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
+// Hidden for the beta: the feature has nothing working behind it yet.
 var lineageExportCmd = &cobra.Command{
 	Use:    "export <id>",
 	Short:  "Export a lineage to project object storage, full or incremental since the last export",
@@ -213,7 +213,7 @@ var lineageExportCmd = &cobra.Command{
 	},
 }
 
-// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
+// Hidden for the beta: the feature has nothing working behind it yet.
 var exportCmd = &cobra.Command{
 	Use:    "export",
 	Short:  "Inspect lineage exports",
@@ -273,7 +273,7 @@ func printExport(e *api.BaseExport) {
 	fields(pairs...)
 }
 
-// Hidden for the beta: the feature has nothing working behind it yet. The record of what is hidden and why is nest pkg/zerops/orchestrator/zbox/HIDDEN.md.
+// Hidden for the beta: the feature has nothing working behind it yet.
 var importCmd = &cobra.Command{
 	Use:    "import",
 	Short:  "Import an exported lineage into this workspace",

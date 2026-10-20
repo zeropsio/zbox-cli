@@ -70,7 +70,7 @@ type Access struct {
 	UrlApi     string
 }
 
-// UiAccess mints a zproxy access for the workspace service. The route is not in the released SDK yet, so it is posted by hand. A `urlApi` missing from the answer (a public API from before 2026-10-13) is derived from `urlUi`, the proxy host with the API prefix.
+// UiAccess mints a zproxy access for the workspace service. The route is not in the released SDK yet, so it is posted by hand. A `urlApi` missing from the answer (an older public API) is derived from `urlUi`, the proxy host with the API prefix.
 func (c *Client) UiAccess(ctx context.Context, serviceId string) (Access, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiUrl+"/api/rest/public/service-stack/"+serviceId+"/ui-access", nil)
 	if err != nil {
@@ -181,7 +181,7 @@ type WorkspaceStack struct {
 	Status      string
 }
 
-// workspaceType is the service stack type id of the Box Workspace service (`zbox`, `sandbox_workspace` until 2026-10-19), zbox@1 is only its import alias. The docker services the v0 workspaces were imported as are not listed any more, the orchestrator has no docker substrate since 2026-09-21.
+// workspaceType is the service stack type id of the Box Workspace service, zbox@1 is only its import alias.
 const workspaceType = "zbox"
 
 // Workspaces lists the workspace services of the organisation. The `recipeSource` marker is sent on import but the search index does not carry it, so it is not filtered on.

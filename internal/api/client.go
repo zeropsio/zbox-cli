@@ -741,7 +741,7 @@ type ConsoleTicket struct {
 	Expires string `json:"expires"`
 }
 
-// ConsoleLoginTicket mints a single-use ticket for /console/login?ticket=, so the workspace API key never appears in a URL. An orchestrator from before 2026-09-24 has no such route and answers 404.
+// ConsoleLoginTicket mints a single-use ticket for /console/login?ticket=, so the workspace API key never appears in a URL. An older orchestrator has no such route and answers 404.
 func (c *Workspace) ConsoleLoginTicket(ctx context.Context) (*ConsoleTicket, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+"/console/login-ticket", nil)
 	if err != nil {

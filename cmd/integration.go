@@ -195,7 +195,7 @@ func rateString(r *api.BaseRate) string {
 	return fmt.Sprintf("%d/s burst %d", r.RequestsPerSecond, r.Burst)
 }
 
-// parseAttachment reads the --integration form of `zbox new`: name, or label=name, or label=peer:<sandbox>:<port>. The peer form is hidden from the help for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the parser stays.
+// parseAttachment reads the --integration form of `zbox new`: name, or label=name, or label=peer:<sandbox>:<port>. The peer form is hidden from the help for the beta, the parser stays.
 func parseAttachment(spec string) (api.RequestPostIntegrationAttachment, error) {
 	label, target, found := strings.Cut(spec, "=")
 	if !found {
@@ -317,7 +317,7 @@ func init() {
 	attachCmd.Flags().StringVar(&flagAttachInt, "integration", "", "integration name, defaults to the label")
 	attachCmd.Flags().StringVar(&flagAttachPeer, "peer", "", "id of the peer sandbox")
 	attachCmd.Flags().IntVar(&flagAttachPeerPort, "peer-port", 0, "published port of the peer sandbox")
-	// Peer attachments are hidden for the beta (nest pkg/zerops/orchestrator/zbox/HIDDEN.md), the flags still work.
+	// Peer attachments are hidden for the beta, the flags still work.
 	_ = attachCmd.Flags().MarkHidden("peer")
 	_ = attachCmd.Flags().MarkHidden("peer-port")
 	destructive(integrationRmCmd)

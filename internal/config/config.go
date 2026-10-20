@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	// DefaultApiUrl is the Zerops public API of the dev environment the CLI works against: futon since 2026-10-01 (alpha from 2026-09-22, futon before that). A stored apiUrl wins, `zbox login --public-api-url` moves a config over.
-	DefaultApiUrl = "https://api.app-futon.zerops.dev"
+	// DefaultApiUrl is the Zerops public API the CLI works against: production prg1 since 2026-10-20 (the dev environments before that: futon from 2026-10-01, alpha from 2026-09-22, futon before that). A stored apiUrl wins, `zbox login --public-api-url` moves a config over to a dev environment.
+	DefaultApiUrl = "https://api.app-prg1.zerops.io"
 	// DefaultBaseImage is the image registered as the first base of a new workspace: the saved default sandbox image (ubuntu 26.04 with claude, gh, codex, python3, node 24 and cron) on the production Box storage bucket through the Zerops CDN since 2026-10-20 (the plumbing bucket from 2026-10-12, the same bytes as the futon and alpha copies before it), which the orchestrator pulls and flattens from the tarball URL. A plain registry reference works as well.
 	DefaultBaseImage = "https://storage.cdn.zerops.app/4ga3k-boxstorage/zbox/zbox-base.tar.gz"
 

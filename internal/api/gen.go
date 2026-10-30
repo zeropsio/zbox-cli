@@ -121,16 +121,17 @@ func (e BaseEgressDns) Valid() bool {
 
 // Defines values for BaseEventFromStatus.
 const (
-	BaseEventFromStatusARCHIVED   BaseEventFromStatus = "ARCHIVED"
-	BaseEventFromStatusCREATING   BaseEventFromStatus = "CREATING"
-	BaseEventFromStatusFAILED     BaseEventFromStatus = "FAILED"
-	BaseEventFromStatusFORKING    BaseEventFromStatus = "FORKING"
-	BaseEventFromStatusPARKED     BaseEventFromStatus = "PARKED"
-	BaseEventFromStatusPARKING    BaseEventFromStatus = "PARKING"
-	BaseEventFromStatusRESTORING  BaseEventFromStatus = "RESTORING"
-	BaseEventFromStatusRUNNING    BaseEventFromStatus = "RUNNING"
-	BaseEventFromStatusTERMINATED BaseEventFromStatus = "TERMINATED"
-	BaseEventFromStatusWAKING     BaseEventFromStatus = "WAKING"
+	BaseEventFromStatusARCHIVED    BaseEventFromStatus = "ARCHIVED"
+	BaseEventFromStatusCREATING    BaseEventFromStatus = "CREATING"
+	BaseEventFromStatusFAILED      BaseEventFromStatus = "FAILED"
+	BaseEventFromStatusFORKING     BaseEventFromStatus = "FORKING"
+	BaseEventFromStatusPARKED      BaseEventFromStatus = "PARKED"
+	BaseEventFromStatusPARKING     BaseEventFromStatus = "PARKING"
+	BaseEventFromStatusRESTORING   BaseEventFromStatus = "RESTORING"
+	BaseEventFromStatusRUNNING     BaseEventFromStatus = "RUNNING"
+	BaseEventFromStatusTERMINATED  BaseEventFromStatus = "TERMINATED"
+	BaseEventFromStatusTERMINATING BaseEventFromStatus = "TERMINATING"
+	BaseEventFromStatusWAKING      BaseEventFromStatus = "WAKING"
 )
 
 // Valid indicates whether the value is a known member of the BaseEventFromStatus enum.
@@ -154,6 +155,8 @@ func (e BaseEventFromStatus) Valid() bool {
 		return true
 	case BaseEventFromStatusTERMINATED:
 		return true
+	case BaseEventFromStatusTERMINATING:
+		return true
 	case BaseEventFromStatusWAKING:
 		return true
 	default:
@@ -163,16 +166,17 @@ func (e BaseEventFromStatus) Valid() bool {
 
 // Defines values for BaseEventToStatus.
 const (
-	BaseEventToStatusARCHIVED   BaseEventToStatus = "ARCHIVED"
-	BaseEventToStatusCREATING   BaseEventToStatus = "CREATING"
-	BaseEventToStatusFAILED     BaseEventToStatus = "FAILED"
-	BaseEventToStatusFORKING    BaseEventToStatus = "FORKING"
-	BaseEventToStatusPARKED     BaseEventToStatus = "PARKED"
-	BaseEventToStatusPARKING    BaseEventToStatus = "PARKING"
-	BaseEventToStatusRESTORING  BaseEventToStatus = "RESTORING"
-	BaseEventToStatusRUNNING    BaseEventToStatus = "RUNNING"
-	BaseEventToStatusTERMINATED BaseEventToStatus = "TERMINATED"
-	BaseEventToStatusWAKING     BaseEventToStatus = "WAKING"
+	BaseEventToStatusARCHIVED    BaseEventToStatus = "ARCHIVED"
+	BaseEventToStatusCREATING    BaseEventToStatus = "CREATING"
+	BaseEventToStatusFAILED      BaseEventToStatus = "FAILED"
+	BaseEventToStatusFORKING     BaseEventToStatus = "FORKING"
+	BaseEventToStatusPARKED      BaseEventToStatus = "PARKED"
+	BaseEventToStatusPARKING     BaseEventToStatus = "PARKING"
+	BaseEventToStatusRESTORING   BaseEventToStatus = "RESTORING"
+	BaseEventToStatusRUNNING     BaseEventToStatus = "RUNNING"
+	BaseEventToStatusTERMINATED  BaseEventToStatus = "TERMINATED"
+	BaseEventToStatusTERMINATING BaseEventToStatus = "TERMINATING"
+	BaseEventToStatusWAKING      BaseEventToStatus = "WAKING"
 )
 
 // Valid indicates whether the value is a known member of the BaseEventToStatus enum.
@@ -196,6 +200,8 @@ func (e BaseEventToStatus) Valid() bool {
 		return true
 	case BaseEventToStatusTERMINATED:
 		return true
+	case BaseEventToStatusTERMINATING:
+		return true
 	case BaseEventToStatusWAKING:
 		return true
 	default:
@@ -205,22 +211,23 @@ func (e BaseEventToStatus) Valid() bool {
 
 // Defines values for BaseEventType.
 const (
-	BaseEventTypeARCHIVED      BaseEventType = "ARCHIVED"
-	BaseEventTypeCREATED       BaseEventType = "CREATED"
-	BaseEventTypeDELETED       BaseEventType = "DELETED"
-	BaseEventTypeEXPORTED      BaseEventType = "EXPORTED"
-	BaseEventTypeFAILED        BaseEventType = "FAILED"
-	BaseEventTypeFORKED        BaseEventType = "FORKED"
-	BaseEventTypeHOOKFINISHED  BaseEventType = "HOOK_FINISHED"
-	BaseEventTypePARKED        BaseEventType = "PARKED"
-	BaseEventTypePOLICYCHANGED BaseEventType = "POLICY_CHANGED"
-	BaseEventTypeREADY         BaseEventType = "READY"
-	BaseEventTypeRESTORED      BaseEventType = "RESTORED"
-	BaseEventTypeSECRETSSTALE  BaseEventType = "SECRETS_STALE"
-	BaseEventTypeSESSIONCLOSED BaseEventType = "SESSION_CLOSED"
-	BaseEventTypeSESSIONOPENED BaseEventType = "SESSION_OPENED"
-	BaseEventTypeSNAPSHOTTAKEN BaseEventType = "SNAPSHOT_TAKEN"
-	BaseEventTypeWOKE          BaseEventType = "WOKE"
+	BaseEventTypeARCHIVED        BaseEventType = "ARCHIVED"
+	BaseEventTypeCREATED         BaseEventType = "CREATED"
+	BaseEventTypeDELETED         BaseEventType = "DELETED"
+	BaseEventTypeEXPORTED        BaseEventType = "EXPORTED"
+	BaseEventTypeFAILED          BaseEventType = "FAILED"
+	BaseEventTypeFORKED          BaseEventType = "FORKED"
+	BaseEventTypeHOOKFINISHED    BaseEventType = "HOOK_FINISHED"
+	BaseEventTypeOPERATIONFAILED BaseEventType = "OPERATION_FAILED"
+	BaseEventTypePARKED          BaseEventType = "PARKED"
+	BaseEventTypePOLICYCHANGED   BaseEventType = "POLICY_CHANGED"
+	BaseEventTypeREADY           BaseEventType = "READY"
+	BaseEventTypeRESTORED        BaseEventType = "RESTORED"
+	BaseEventTypeSECRETSSTALE    BaseEventType = "SECRETS_STALE"
+	BaseEventTypeSESSIONCLOSED   BaseEventType = "SESSION_CLOSED"
+	BaseEventTypeSESSIONOPENED   BaseEventType = "SESSION_OPENED"
+	BaseEventTypeSNAPSHOTTAKEN   BaseEventType = "SNAPSHOT_TAKEN"
+	BaseEventTypeWOKE            BaseEventType = "WOKE"
 )
 
 // Valid indicates whether the value is a known member of the BaseEventType enum.
@@ -239,6 +246,8 @@ func (e BaseEventType) Valid() bool {
 	case BaseEventTypeFORKED:
 		return true
 	case BaseEventTypeHOOKFINISHED:
+		return true
+	case BaseEventTypeOPERATIONFAILED:
 		return true
 	case BaseEventTypePARKED:
 		return true
@@ -267,6 +276,7 @@ func (e BaseEventType) Valid() bool {
 const (
 	BaseExportKindFULL        BaseExportKind = "FULL"
 	BaseExportKindINCREMENTAL BaseExportKind = "INCREMENTAL"
+	BaseExportKindUPLOADED    BaseExportKind = "UPLOADED"
 )
 
 // Valid indicates whether the value is a known member of the BaseExportKind enum.
@@ -275,6 +285,8 @@ func (e BaseExportKind) Valid() bool {
 	case BaseExportKindFULL:
 		return true
 	case BaseExportKindINCREMENTAL:
+		return true
+	case BaseExportKindUPLOADED:
 		return true
 	default:
 		return false
@@ -302,24 +314,42 @@ func (e BaseExportStatus) Valid() bool {
 	}
 }
 
+// Defines values for BaseExportStorage.
+const (
+	BaseExportStorageFILE BaseExportStorage = "FILE"
+	BaseExportStorageS3   BaseExportStorage = "S3"
+)
+
+// Valid indicates whether the value is a known member of the BaseExportStorage enum.
+func (e BaseExportStorage) Valid() bool {
+	switch e {
+	case BaseExportStorageFILE:
+		return true
+	case BaseExportStorageS3:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BaseFileEntryType.
 const (
-	DIRECTORY BaseFileEntryType = "DIRECTORY"
-	FILE      BaseFileEntryType = "FILE"
-	OTHER     BaseFileEntryType = "OTHER"
-	SYMLINK   BaseFileEntryType = "SYMLINK"
+	BaseFileEntryTypeDIRECTORY BaseFileEntryType = "DIRECTORY"
+	BaseFileEntryTypeFILE      BaseFileEntryType = "FILE"
+	BaseFileEntryTypeOTHER     BaseFileEntryType = "OTHER"
+	BaseFileEntryTypeSYMLINK   BaseFileEntryType = "SYMLINK"
 )
 
 // Valid indicates whether the value is a known member of the BaseFileEntryType enum.
 func (e BaseFileEntryType) Valid() bool {
 	switch e {
-	case DIRECTORY:
+	case BaseFileEntryTypeDIRECTORY:
 		return true
-	case FILE:
+	case BaseFileEntryTypeFILE:
 		return true
-	case OTHER:
+	case BaseFileEntryTypeOTHER:
 		return true
-	case SYMLINK:
+	case BaseFileEntryTypeSYMLINK:
 		return true
 	default:
 		return false
@@ -580,16 +610,17 @@ func (e BaseSandboxNetworkMode) Valid() bool {
 
 // Defines values for BaseSandboxStatus.
 const (
-	BaseSandboxStatusARCHIVED   BaseSandboxStatus = "ARCHIVED"
-	BaseSandboxStatusCREATING   BaseSandboxStatus = "CREATING"
-	BaseSandboxStatusFAILED     BaseSandboxStatus = "FAILED"
-	BaseSandboxStatusFORKING    BaseSandboxStatus = "FORKING"
-	BaseSandboxStatusPARKED     BaseSandboxStatus = "PARKED"
-	BaseSandboxStatusPARKING    BaseSandboxStatus = "PARKING"
-	BaseSandboxStatusRESTORING  BaseSandboxStatus = "RESTORING"
-	BaseSandboxStatusRUNNING    BaseSandboxStatus = "RUNNING"
-	BaseSandboxStatusTERMINATED BaseSandboxStatus = "TERMINATED"
-	BaseSandboxStatusWAKING     BaseSandboxStatus = "WAKING"
+	BaseSandboxStatusARCHIVED    BaseSandboxStatus = "ARCHIVED"
+	BaseSandboxStatusCREATING    BaseSandboxStatus = "CREATING"
+	BaseSandboxStatusFAILED      BaseSandboxStatus = "FAILED"
+	BaseSandboxStatusFORKING     BaseSandboxStatus = "FORKING"
+	BaseSandboxStatusPARKED      BaseSandboxStatus = "PARKED"
+	BaseSandboxStatusPARKING     BaseSandboxStatus = "PARKING"
+	BaseSandboxStatusRESTORING   BaseSandboxStatus = "RESTORING"
+	BaseSandboxStatusRUNNING     BaseSandboxStatus = "RUNNING"
+	BaseSandboxStatusTERMINATED  BaseSandboxStatus = "TERMINATED"
+	BaseSandboxStatusTERMINATING BaseSandboxStatus = "TERMINATING"
+	BaseSandboxStatusWAKING      BaseSandboxStatus = "WAKING"
 )
 
 // Valid indicates whether the value is a known member of the BaseSandboxStatus enum.
@@ -612,6 +643,8 @@ func (e BaseSandboxStatus) Valid() bool {
 	case BaseSandboxStatusRUNNING:
 		return true
 	case BaseSandboxStatusTERMINATED:
+		return true
+	case BaseSandboxStatusTERMINATING:
 		return true
 	case BaseSandboxStatusWAKING:
 		return true
@@ -641,6 +674,54 @@ func (e BaseSandboxHostAccess) Valid() bool {
 	case BaseSandboxHostAccessTICKET:
 		return true
 	case BaseSandboxHostAccessTOKEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BaseSandboxOperationKind.
+const (
+	BaseSandboxOperationKindBUILDBASE     BaseSandboxOperationKind = "BUILD_BASE"
+	BaseSandboxOperationKindBUILDTEMPLATE BaseSandboxOperationKind = "BUILD_TEMPLATE"
+	BaseSandboxOperationKindCREATE        BaseSandboxOperationKind = "CREATE"
+	BaseSandboxOperationKindEXPORT        BaseSandboxOperationKind = "EXPORT"
+	BaseSandboxOperationKindFORK          BaseSandboxOperationKind = "FORK"
+	BaseSandboxOperationKindIMPORT        BaseSandboxOperationKind = "IMPORT"
+	BaseSandboxOperationKindPARK          BaseSandboxOperationKind = "PARK"
+	BaseSandboxOperationKindPULLBASE      BaseSandboxOperationKind = "PULL_BASE"
+	BaseSandboxOperationKindRESTORE       BaseSandboxOperationKind = "RESTORE"
+	BaseSandboxOperationKindSNAPSHOT      BaseSandboxOperationKind = "SNAPSHOT"
+	BaseSandboxOperationKindTERMINATE     BaseSandboxOperationKind = "TERMINATE"
+	BaseSandboxOperationKindWAKE          BaseSandboxOperationKind = "WAKE"
+)
+
+// Valid indicates whether the value is a known member of the BaseSandboxOperationKind enum.
+func (e BaseSandboxOperationKind) Valid() bool {
+	switch e {
+	case BaseSandboxOperationKindBUILDBASE:
+		return true
+	case BaseSandboxOperationKindBUILDTEMPLATE:
+		return true
+	case BaseSandboxOperationKindCREATE:
+		return true
+	case BaseSandboxOperationKindEXPORT:
+		return true
+	case BaseSandboxOperationKindFORK:
+		return true
+	case BaseSandboxOperationKindIMPORT:
+		return true
+	case BaseSandboxOperationKindPARK:
+		return true
+	case BaseSandboxOperationKindPULLBASE:
+		return true
+	case BaseSandboxOperationKindRESTORE:
+		return true
+	case BaseSandboxOperationKindSNAPSHOT:
+		return true
+	case BaseSandboxOperationKindTERMINATE:
+		return true
+	case BaseSandboxOperationKindWAKE:
 		return true
 	default:
 		return false
@@ -939,6 +1020,7 @@ func (e ResponseConnectorStatus) Valid() bool {
 const (
 	ResponseExportKindFULL        ResponseExportKind = "FULL"
 	ResponseExportKindINCREMENTAL ResponseExportKind = "INCREMENTAL"
+	ResponseExportKindUPLOADED    ResponseExportKind = "UPLOADED"
 )
 
 // Valid indicates whether the value is a known member of the ResponseExportKind enum.
@@ -947,6 +1029,8 @@ func (e ResponseExportKind) Valid() bool {
 	case ResponseExportKindFULL:
 		return true
 	case ResponseExportKindINCREMENTAL:
+		return true
+	case ResponseExportKindUPLOADED:
 		return true
 	default:
 		return false
@@ -968,6 +1052,24 @@ func (e ResponseExportStatus) Valid() bool {
 	case ResponseExportStatusFINISHED:
 		return true
 	case ResponseExportStatusRUNNING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResponseExportStorage.
+const (
+	ResponseExportStorageFILE ResponseExportStorage = "FILE"
+	ResponseExportStorageS3   ResponseExportStorage = "S3"
+)
+
+// Valid indicates whether the value is a known member of the ResponseExportStorage enum.
+func (e ResponseExportStorage) Valid() bool {
+	switch e {
+	case ResponseExportStorageFILE:
+		return true
+	case ResponseExportStorageS3:
 		return true
 	default:
 		return false
@@ -1114,16 +1216,17 @@ func (e ResponseSandboxNetworkMode) Valid() bool {
 
 // Defines values for ResponseSandboxStatus.
 const (
-	ResponseSandboxStatusARCHIVED   ResponseSandboxStatus = "ARCHIVED"
-	ResponseSandboxStatusCREATING   ResponseSandboxStatus = "CREATING"
-	ResponseSandboxStatusFAILED     ResponseSandboxStatus = "FAILED"
-	ResponseSandboxStatusFORKING    ResponseSandboxStatus = "FORKING"
-	ResponseSandboxStatusPARKED     ResponseSandboxStatus = "PARKED"
-	ResponseSandboxStatusPARKING    ResponseSandboxStatus = "PARKING"
-	ResponseSandboxStatusRESTORING  ResponseSandboxStatus = "RESTORING"
-	ResponseSandboxStatusRUNNING    ResponseSandboxStatus = "RUNNING"
-	ResponseSandboxStatusTERMINATED ResponseSandboxStatus = "TERMINATED"
-	ResponseSandboxStatusWAKING     ResponseSandboxStatus = "WAKING"
+	ResponseSandboxStatusARCHIVED    ResponseSandboxStatus = "ARCHIVED"
+	ResponseSandboxStatusCREATING    ResponseSandboxStatus = "CREATING"
+	ResponseSandboxStatusFAILED      ResponseSandboxStatus = "FAILED"
+	ResponseSandboxStatusFORKING     ResponseSandboxStatus = "FORKING"
+	ResponseSandboxStatusPARKED      ResponseSandboxStatus = "PARKED"
+	ResponseSandboxStatusPARKING     ResponseSandboxStatus = "PARKING"
+	ResponseSandboxStatusRESTORING   ResponseSandboxStatus = "RESTORING"
+	ResponseSandboxStatusRUNNING     ResponseSandboxStatus = "RUNNING"
+	ResponseSandboxStatusTERMINATED  ResponseSandboxStatus = "TERMINATED"
+	ResponseSandboxStatusTERMINATING ResponseSandboxStatus = "TERMINATING"
+	ResponseSandboxStatusWAKING      ResponseSandboxStatus = "WAKING"
 )
 
 // Valid indicates whether the value is a known member of the ResponseSandboxStatus enum.
@@ -1146,6 +1249,8 @@ func (e ResponseSandboxStatus) Valid() bool {
 	case ResponseSandboxStatusRUNNING:
 		return true
 	case ResponseSandboxStatusTERMINATED:
+		return true
+	case ResponseSandboxStatusTERMINATING:
 		return true
 	case ResponseSandboxStatusWAKING:
 		return true
@@ -1518,7 +1623,9 @@ type BaseEvent struct {
 	// Seq Per-sandbox cursor.
 	Seq      int                `json:"seq"`
 	ToStatus *BaseEventToStatus `json:"toStatus,omitempty"`
-	Type     BaseEventType      `json:"type"`
+
+	// Type FAILED: the sandbox turned FAILED. OPERATION_FAILED: an operation failed and the sandbox kept a usable status, the payload's reason says why.
+	Type BaseEventType `json:"type"`
 }
 
 // BaseEventFromStatus defines model for BaseEvent.FromStatus.
@@ -1527,38 +1634,44 @@ type BaseEventFromStatus string
 // BaseEventToStatus defines model for BaseEvent.ToStatus.
 type BaseEventToStatus string
 
-// BaseEventType defines model for BaseEvent.Type.
+// BaseEventType FAILED: the sandbox turned FAILED. OPERATION_FAILED: an operation failed and the sandbox kept a usable status, the payload's reason says why.
 type BaseEventType string
-
-// BaseExecCommand defines model for BaseExecCommand.
-type BaseExecCommand struct {
-	// Command argv, executed without a shell.
-	Command        []string                `json:"command"`
-	Env            *map[string]interface{} `json:"env,omitempty"`
-	TimeoutSeconds *int                    `json:"timeoutSeconds,omitempty"`
-	WorkingDir     *string                 `json:"workingDir,omitempty"`
-}
 
 // BaseExport defines model for BaseExport.
 type BaseExport struct {
-	Created       string           `json:"created"`
-	Destination   string           `json:"destination"`
-	Error         *string          `json:"error,omitempty"`
-	Finished      *string          `json:"finished,omitempty"`
-	Id            string           `json:"id"`
-	Kind          BaseExportKind   `json:"kind"`
-	LineageId     string           `json:"lineageId"`
-	SinceExportId *string          `json:"sinceExportId,omitempty"`
-	SizeBytes     *int64           `json:"sizeBytes,omitempty"`
-	SnapshotName  string           `json:"snapshotName"`
-	Status        BaseExportStatus `json:"status"`
+	Created string `json:"created"`
+
+	// Destination The archive: `<url>/<bucket>/<key>` for S3, the download route `/api/rest/export/{id}/archive` of this API for FILE.
+	Destination string  `json:"destination"`
+	Error       *string `json:"error,omitempty"`
+	Finished    *string `json:"finished,omitempty"`
+	HasMemory   bool    `json:"hasMemory"`
+	Id          string  `json:"id"`
+
+	// Kind UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
+	Kind          BaseExportKind `json:"kind"`
+	LineageId     string         `json:"lineageId"`
+	SandboxId     string         `json:"sandboxId"`
+	SinceExportId *string        `json:"sinceExportId,omitempty"`
+	SizeBytes     *int64         `json:"sizeBytes,omitempty"`
+
+	// SnapshotId The snapshot that was exported, null for the parked sandbox itself.
+	SnapshotId   *string          `json:"snapshotId,omitempty"`
+	SnapshotName string           `json:"snapshotName"`
+	Status       BaseExportStatus `json:"status"`
+
+	// Storage S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+	Storage BaseExportStorage `json:"storage"`
 }
 
-// BaseExportKind defines model for BaseExport.Kind.
+// BaseExportKind UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
 type BaseExportKind string
 
 // BaseExportStatus defines model for BaseExport.Status.
 type BaseExportStatus string
+
+// BaseExportStorage S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+type BaseExportStorage string
 
 // BaseFileEntry defines model for BaseFileEntry.
 type BaseFileEntry struct {
@@ -1575,10 +1688,10 @@ type BaseFileEntryType string
 
 // BaseGuestSession defines model for BaseGuestSession.
 type BaseGuestSession struct {
-	Closed   *string          `json:"closed,omitempty"`
-	Command  *BaseExecCommand `json:"command,omitempty"`
-	Created  string           `json:"created"`
-	ExitCode *int             `json:"exitCode,omitempty"`
+	Closed   *string             `json:"closed,omitempty"`
+	Command  *BaseSessionCommand `json:"command,omitempty"`
+	Created  string              `json:"created"`
+	ExitCode *int                `json:"exitCode,omitempty"`
 
 	// HasOutput Whether a recorded output stream can be fetched.
 	HasOutput bool                   `json:"hasOutput"`
@@ -1647,7 +1760,7 @@ type BaseIngressCredentialKind string
 
 // BaseIngressPort defines model for BaseIngressPort.
 type BaseIngressPort struct {
-	// Access Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+	// Access Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.
 	Access BaseIngressPortAccess `json:"access"`
 
 	// Aliases Customer-owned hostnames mapped to this port.
@@ -1662,7 +1775,7 @@ type BaseIngressPort struct {
 	Websocket     *bool `json:"websocket,omitempty"`
 }
 
-// BaseIngressPortAccess Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+// BaseIngressPortAccess Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.
 type BaseIngressPortAccess string
 
 // BaseIngressPortProtocol defines model for BaseIngressPort.Protocol.
@@ -1802,30 +1915,54 @@ type BaseRate struct {
 	RequestsPerSecond int `json:"requestsPerSecond"`
 }
 
+// BaseS3Target defines model for BaseS3Target.
+type BaseS3Target struct {
+	// AccessKeyIdEnv Name of the Workspace environment variable holding the access key id.
+	AccessKeyIdEnv string `json:"accessKeyIdEnv"`
+	Bucket         string `json:"bucket"`
+
+	// SecretAccessKeyEnv Name of the Workspace environment variable holding the secret access key.
+	SecretAccessKeyEnv string `json:"secretAccessKeyEnv"`
+
+	// Url Endpoint of the S3 API, for example `https://storage-prg1.zerops.io`.
+	Url string `json:"url"`
+}
+
 // BaseSandbox defines model for BaseSandbox.
 type BaseSandbox struct {
-	AbsoluteDeadline   *string            `json:"absoluteDeadline,omitempty"`
-	AbsoluteTtlSeconds *int               `json:"absoluteTtlSeconds,omitempty"`
-	BaseDigest         string             `json:"baseDigest"`
-	Cpus               int                `json:"cpus"`
-	Created            string             `json:"created"`
-	FailedReason       *string            `json:"failedReason,omitempty"`
-	Hosts              []BaseSandboxHost  `json:"hosts"`
-	Id                 string             `json:"id"`
-	IdleDeadline       *string            `json:"idleDeadline,omitempty"`
-	IdleTtlSeconds     *int               `json:"idleTtlSeconds,omitempty"`
-	LastActivity       string             `json:"lastActivity"`
-	LaunchContract     BaseLaunchContract `json:"launchContract"`
-	LineageId          string             `json:"lineageId"`
-	MemoryBytes        int64              `json:"memoryBytes"`
-	Name               *string            `json:"name,omitempty"`
+	// AbsoluteDeadline When the sandbox is archived and destroyed, created plus absoluteTtlSeconds. An ARCHIVED sandbox keeps the deadline that ended it.
+	AbsoluteDeadline   *string `json:"absoluteDeadline,omitempty"`
+	AbsoluteTtlSeconds *int    `json:"absoluteTtlSeconds,omitempty"`
+	BaseDigest         string  `json:"baseDigest"`
+	Cpus               int     `json:"cpus"`
+	Created            string  `json:"created"`
+
+	// DiskBytes Size of the writable disk, a cap and not a reservation: blocks the guest never wrote take no space on the Workspace.
+	DiskBytes    int64             `json:"diskBytes"`
+	FailedReason *string           `json:"failedReason,omitempty"`
+	Hosts        []BaseSandboxHost `json:"hosts"`
+	Id           string            `json:"id"`
+
+	// IdleDeadline When the sandbox is parked for idleness, lastActivity plus idleTtlSeconds. Null without an idle TTL and while the sandbox is not running.
+	IdleDeadline   *string `json:"idleDeadline,omitempty"`
+	IdleTtlSeconds *int    `json:"idleTtlSeconds,omitempty"`
+
+	// LastActivity The last boot, call into the guest (exec, process, files, shell, SSH) or ingress request. An open shell or SSH connection counts as activity while it lasts.
+	LastActivity   string            `json:"lastActivity"`
+	LaunchContract BaseSandboxLaunch `json:"launchContract"`
+	LineageId      string            `json:"lineageId"`
+	MemoryBytes    int64             `json:"memoryBytes"`
+	Name           *string           `json:"name,omitempty"`
 
 	// NetworkMode Fixed at create, design §5.8.
-	NetworkMode      BaseSandboxNetworkMode `json:"networkMode"`
-	ParentId         *string                `json:"parentId,omitempty"`
-	Policy           BaseSandboxPolicy      `json:"policy"`
-	PolicyGeneration int                    `json:"policyGeneration"`
-	SecretBearing    bool                   `json:"secretBearing"`
+	NetworkMode BaseSandboxNetworkMode `json:"networkMode"`
+
+	// Operation The operation in flight on the sandbox, null when none is. One at a time, every other verb answers operationInFlight meanwhile.
+	Operation        *BaseSandboxOperation `json:"operation,omitempty"`
+	ParentId         *string               `json:"parentId,omitempty"`
+	Policy           BaseSandboxPolicy     `json:"policy"`
+	PolicyGeneration int                   `json:"policyGeneration"`
+	SecretBearing    bool                  `json:"secretBearing"`
 
 	// SecretsStale Derived: the Workspace environment changed something this sandbox was given, design §5.9.
 	SecretsStale   bool              `json:"secretsStale"`
@@ -1843,7 +1980,7 @@ type BaseSandboxStatus string
 
 // BaseSandboxHost defines model for BaseSandboxHost.
 type BaseSandboxHost struct {
-	// Access Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+	// Access Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.
 	Access BaseSandboxHostAccess `json:"access"`
 	Port   int                   `json:"port"`
 
@@ -1851,8 +1988,28 @@ type BaseSandboxHost struct {
 	Url string `json:"url"`
 }
 
-// BaseSandboxHostAccess Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+// BaseSandboxHostAccess Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.
 type BaseSandboxHostAccess string
+
+// BaseSandboxLaunch defines model for BaseSandboxLaunch.
+type BaseSandboxLaunch struct {
+	Cmd        *[]string `json:"cmd,omitempty"`
+	Entrypoint *[]string `json:"entrypoint,omitempty"`
+
+	// EnvNames The names of the launch env, sorted. The guest gets the values, the API never answers them.
+	EnvNames   []string `json:"envNames"`
+	WorkingDir *string  `json:"workingDir,omitempty"`
+}
+
+// BaseSandboxOperation defines model for BaseSandboxOperation.
+type BaseSandboxOperation struct {
+	Id    string                   `json:"id"`
+	Kind  BaseSandboxOperationKind `json:"kind"`
+	Since string                   `json:"since"`
+}
+
+// BaseSandboxOperationKind defines model for BaseSandboxOperation.Kind.
+type BaseSandboxOperationKind string
 
 // BaseSandboxPolicy defines model for BaseSandboxPolicy.
 type BaseSandboxPolicy struct {
@@ -1865,23 +2022,54 @@ type BaseSandboxPolicy struct {
 
 // BaseSecrets defines model for BaseSecrets.
 type BaseSecrets struct {
+	// Aliases Guest env name to Workspace env name, delivered with ALLOWLIST and ALL_ENVS, for example `{"DATABASE_URL": "DB_URL_SB42"}`. An alias wins over a Workspace env of the same name, staleness covers the mapping.
+	Aliases *map[string]interface{} `json:"aliases,omitempty"`
+
 	// Mode Which Workspace environment variables are delivered into the sandbox. Anything but NONE makes the sandbox secret bearing, design §5.9.
-	Mode  BaseSecretsMode `json:"mode"`
-	Names *[]string       `json:"names,omitempty"`
+	Mode BaseSecretsMode `json:"mode"`
+
+	// Names ALLOWLIST only: the Workspace env names delivered under their own names.
+	Names *[]string `json:"names,omitempty"`
 }
 
 // BaseSecretsMode Which Workspace environment variables are delivered into the sandbox. Anything but NONE makes the sandbox secret bearing, design §5.9.
 type BaseSecretsMode string
 
+// BaseSecretsCeiling defines model for BaseSecretsCeiling.
+type BaseSecretsCeiling struct {
+	// AllowedModes The secrets modes a sandbox policy may take, of NONE, ALLOWLIST and ALL_ENVS. Every mode when absent.
+	AllowedModes *[]string `json:"allowedModes,omitempty"`
+
+	// AllowedNames The Workspace env names a sandbox policy may select or alias. No limit when absent or empty. ALL_ENVS selects every name, so a list refuses it.
+	AllowedNames *[]string `json:"allowedNames,omitempty"`
+}
+
+// BaseSessionCommand defines model for BaseSessionCommand.
+type BaseSessionCommand struct {
+	Command []string `json:"command"`
+
+	// EnvNames The names of the env the command was given, sorted. The API never answers the values.
+	EnvNames       []string `json:"envNames"`
+	TimeoutSeconds *int     `json:"timeoutSeconds,omitempty"`
+	WorkingDir     *string  `json:"workingDir,omitempty"`
+}
+
 // BaseSnapshot defines model for BaseSnapshot.
 type BaseSnapshot struct {
-	Created   string           `json:"created"`
-	HasMemory bool             `json:"hasMemory"`
-	Id        string           `json:"id"`
-	Kind      BaseSnapshotKind `json:"kind"`
-	Name      *string          `json:"name,omitempty"`
-	SandboxId string           `json:"sandboxId"`
-	SizeBytes *int64           `json:"sizeBytes,omitempty"`
+	// Cpus Size of the sandbox when the snapshot was taken, null for a snapshot from before the record. A restore with memory keeps it.
+	Cpus        *int             `json:"cpus,omitempty"`
+	Created     string           `json:"created"`
+	DiskBytes   *int64           `json:"diskBytes,omitempty"`
+	HasMemory   bool             `json:"hasMemory"`
+	Id          string           `json:"id"`
+	Kind        BaseSnapshotKind `json:"kind"`
+	MemoryBytes *int64           `json:"memoryBytes,omitempty"`
+	Name        *string          `json:"name,omitempty"`
+	SandboxId   string           `json:"sandboxId"`
+
+	// SecretBearing The sandbox had received secrets when the snapshot was taken, so its disk may hold them: it does not export, and a restore child is secret bearing.
+	SecretBearing bool   `json:"secretBearing"`
+	SizeBytes     *int64 `json:"sizeBytes,omitempty"`
 }
 
 // BaseSnapshotKind defines model for BaseSnapshot.Kind.
@@ -1896,10 +2084,13 @@ type BaseSnapshotSchedule struct {
 
 // BaseTemplate defines model for BaseTemplate.
 type BaseTemplate struct {
-	BaseDigest   string  `json:"baseDigest"`
-	Cpus         int     `json:"cpus"`
-	Created      string  `json:"created"`
-	Digest       string  `json:"digest"`
+	BaseDigest string `json:"baseDigest"`
+	Cpus       int    `json:"cpus"`
+	Created    string `json:"created"`
+	Digest     string `json:"digest"`
+
+	// DiskBytes Size of the template's disk, the default of sandboxes spawned from it. A spawn of another disk size boots the template's disk cold.
+	DiskBytes    int64   `json:"diskBytes"`
 	FailedReason *string `json:"failedReason,omitempty"`
 
 	// HasMemory A warmed template carries the identity-free memory snapshot, design §5.1 step 3.
@@ -1934,6 +2125,23 @@ type BaseTemplatePolicy struct {
 	Snapshots             *BaseSnapshotSchedule `json:"snapshots,omitempty"`
 	WaitPage              *string               `json:"waitPage,omitempty"`
 	WakeOnRequestAllowed  *bool                 `json:"wakeOnRequestAllowed,omitempty"`
+}
+
+// BaseToken defines model for BaseToken.
+type BaseToken struct {
+	Created string `json:"created"`
+
+	// Expires Null for a token that never expires.
+	Expires *string `json:"expires,omitempty"`
+	Id      string  `json:"id"`
+
+	// LastUsedAt Updated at most once a minute.
+	LastUsedAt *string `json:"lastUsedAt,omitempty"`
+	Name       string  `json:"name"`
+	RevokedAt  *string `json:"revokedAt,omitempty"`
+
+	// Scopes What the token may call: admin (every route but tokens), sandbox (implies sandbox:read), sandbox:read, base, integration, webhook, workspace. A sandbox token selects secrets within the secrets ceiling of the Workspace policy, and the workspace scope sets that ceiling.
+	Scopes []string `json:"scopes"`
 }
 
 // BaseWebhookDelivery defines model for BaseWebhookDelivery.
@@ -2060,16 +2268,23 @@ type BaseWorkspacePolicy struct {
 	CoreReserveBytes *int64 `json:"coreReserveBytes,omitempty"`
 
 	// CpuOvercommit How many vCPUs the running sandboxes may reserve per core of the Workspace, 1 reserves cores one to one. 8 when absent.
-	CpuOvercommit             *float32                                    `json:"cpuOvercommit,omitempty"`
+	CpuOvercommit *float32 `json:"cpuOvercommit,omitempty"`
+
+	// DefaultDiskBytes Disk size of a sandbox created from a base without diskBytes, 10 GiB when absent. A sandbox from a template takes the template's.
+	DefaultDiskBytes          *int64                                      `json:"defaultDiskBytes,omitempty"`
 	DefaultHoldTimeoutSeconds *int                                        `json:"defaultHoldTimeoutSeconds,omitempty"`
 	DomainFilterEnforcement   *BaseWorkspacePolicyDomainFilterEnforcement `json:"domainFilterEnforcement,omitempty"`
 	MaxAbsoluteTtlSeconds     *int                                        `json:"maxAbsoluteTtlSeconds,omitempty"`
 	MaxCpus                   *int                                        `json:"maxCpus,omitempty"`
+	MaxDiskBytes              *int64                                      `json:"maxDiskBytes,omitempty"`
 	MaxIdleTtlSeconds         *int                                        `json:"maxIdleTtlSeconds,omitempty"`
 	MaxMemoryBytes            *int64                                      `json:"maxMemoryBytes,omitempty"`
 	Rate                      *BaseRate                                   `json:"rate,omitempty"`
-	TcpPortRangeFrom          *int                                        `json:"tcpPortRangeFrom,omitempty"`
-	TcpPortRangeTo            *int                                        `json:"tcpPortRangeTo,omitempty"`
+
+	// Secrets The ceiling of every sandbox's secrets selection, checked on create, on a policy change and on import. No limit when absent.
+	Secrets          *BaseSecretsCeiling `json:"secrets,omitempty"`
+	TcpPortRangeFrom *int                `json:"tcpPortRangeFrom,omitempty"`
+	TcpPortRangeTo   *int                `json:"tcpPortRangeTo,omitempty"`
 }
 
 // BaseWorkspacePolicyDomainFilterEnforcement defines model for BaseWorkspacePolicy.DomainFilterEnforcement.
@@ -2110,6 +2325,15 @@ type InDtoBodyPostIntegrationAttachment struct {
 	PeerSandboxId   *string `json:"peerSandboxId,omitempty"`
 }
 
+// InDtoBodyPostSandboxForkChild defines model for InDtoBodyPostSandboxForkChild.
+type InDtoBodyPostSandboxForkChild struct {
+	// Cpus The parent's size when absent. A child of another size boots cold from the parent's disk instead of resuming its memory.
+	Cpus        *int    `json:"cpus,omitempty"`
+	DiskBytes   *int64  `json:"diskBytes,omitempty"`
+	MemoryBytes *int64  `json:"memoryBytes,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
+
 // RequestFileUpload defines model for RequestFileUpload.
 type RequestFileUpload = openapi_types.File
 
@@ -2133,10 +2357,38 @@ type RequestPostExec struct {
 	WorkingDir     *string                 `json:"workingDir,omitempty"`
 }
 
+// RequestPostExport defines model for RequestPostExport.
+type RequestPostExport struct {
+	// Prefix Key prefix in the bucket. The object is `<prefix><lineageId>/<sandboxId>/<exportId>.tar.zst`.
+	Prefix *string `json:"prefix,omitempty"`
+
+	// SandboxId A PARKED sandbox: its disk, and its memory image when the park kept one. Exactly one of sandboxId and snapshotId.
+	SandboxId *string `json:"sandboxId,omitempty"`
+
+	// SnapshotId A snapshot: its disk, and its memory image when it has one.
+	SnapshotId *string `json:"snapshotId,omitempty"`
+
+	// Target The caller's bucket. Without it the archive is a file on the Workspace, downloaded through `GET /export/{id}/archive`.
+	Target *BaseS3Target `json:"target,omitempty"`
+
+	// WithMemory Carry the memory image when there is one, the default. False exports the disk alone.
+	WithMemory *bool `json:"withMemory,omitempty"`
+}
+
 // RequestPostImport defines model for RequestPostImport.
 type RequestPostImport struct {
-	// Source Object storage key of the export.
-	Source string `json:"source"`
+	// ExportId A finished FILE export of this Workspace, imported from its file.
+	ExportId *string `json:"exportId,omitempty"`
+
+	// Key Object key of the archive in the bucket, the key of an export's destination.
+	Key  *string `json:"key,omitempty"`
+	Name *string `json:"name,omitempty"`
+
+	// Source The bucket holding the archive, with `key`. Exactly one of source and exportId.
+	Source *BaseS3Target `json:"source,omitempty"`
+
+	// WithMemory Resume the archive's memory image, the default. It resumes only on the same Firecracker release, CPU model and base build, otherwise the sandbox boots cold from the disk.
+	WithMemory *bool `json:"withMemory,omitempty"`
 }
 
 // RequestPostIngressCredential defines model for RequestPostIngressCredential.
@@ -2169,20 +2421,20 @@ type RequestPostIntegrationAttachment struct {
 	PeerSandboxId   *string `json:"peerSandboxId,omitempty"`
 }
 
-// RequestPostLineageExport defines model for RequestPostLineageExport.
-type RequestPostLineageExport struct {
-	// Destination Object storage key prefix, defaults to the Workspace setting.
-	Destination *string `json:"destination,omitempty"`
-}
-
 // RequestPostSandbox defines model for RequestPostSandbox.
 type RequestPostSandbox struct {
+	// AbsoluteTtlSeconds Archive and destroy the sandbox this many seconds after its creation.
 	AbsoluteTtlSeconds *int `json:"absoluteTtlSeconds,omitempty"`
 
 	// BaseDigest Cold boot from a base. Exactly one of baseDigest and templateDigest.
-	BaseDigest     *string `json:"baseDigest,omitempty"`
-	Cpus           *int    `json:"cpus,omitempty"`
-	IdleTtlSeconds *int    `json:"idleTtlSeconds,omitempty"`
+	BaseDigest *string `json:"baseDigest,omitempty"`
+	Cpus       *int    `json:"cpus,omitempty"`
+
+	// DiskBytes Size of the writable disk, the template's or the Workspace policy's defaultDiskBytes when absent.
+	DiskBytes *int64 `json:"diskBytes,omitempty"`
+
+	// IdleTtlSeconds Park the sandbox after this many seconds without activity.
+	IdleTtlSeconds *int `json:"idleTtlSeconds,omitempty"`
 
 	// Integrations Attachments on top of the template's defaults. Empty for none.
 	Integrations []InDtoBodyPostIntegrationAttachment `json:"integrations"`
@@ -2208,6 +2460,9 @@ type RequestPostSandboxNetworkMode string
 
 // RequestPostSandboxFork defines model for RequestPostSandboxFork.
 type RequestPostSandboxFork struct {
+	// Children One entry per child with its own name and size, instead of count and names. Empty for none.
+	Children []InDtoBodyPostSandboxForkChild `json:"children"`
+
 	// Count Number of children, default 1. One capture, one durable outcome per child.
 	Count *int      `json:"count,omitempty"`
 	Names *[]string `json:"names,omitempty"`
@@ -2227,13 +2482,24 @@ type RequestPostSandboxSnapshot struct {
 
 // RequestPostSandboxWake defines model for RequestPostSandboxWake.
 type RequestPostSandboxWake struct {
-	// RedeliverSecrets Deliver the current secret selection to a stale sandbox, design §5.9.
+	// Cpus A size that differs from the sandbox's needs a cold boot: a running sandbox parks without memory and boots again, a sandbox parked with memory refuses it.
+	Cpus *int `json:"cpus,omitempty"`
+
+	// DiskBytes Grows or shrinks the disk before the boot. A shrink below what the files hold fails the operation with diskTooSmall and the minimum.
+	DiskBytes   *int64 `json:"diskBytes,omitempty"`
+	MemoryBytes *int64 `json:"memoryBytes,omitempty"`
+
+	// RedeliverSecrets Deliver the current secret selection to a stale sandbox, design §5.9. On a running sandbox it parks without memory and boots again.
 	RedeliverSecrets *bool `json:"redeliverSecrets,omitempty"`
 }
 
 // RequestPostSnapshotRestore defines model for RequestPostSnapshotRestore.
 type RequestPostSnapshotRestore struct {
-	Name *string `json:"name,omitempty"`
+	// Cpus The snapshot's size when absent. A restore with memory refuses another size, a disk restore takes any.
+	Cpus        *int    `json:"cpus,omitempty"`
+	DiskBytes   *int64  `json:"diskBytes,omitempty"`
+	MemoryBytes *int64  `json:"memoryBytes,omitempty"`
+	Name        *string `json:"name,omitempty"`
 
 	// WithMemory Resume the snapshot's memory image in the new sandbox when it has one.
 	WithMemory *bool `json:"withMemory,omitempty"`
@@ -2250,6 +2516,9 @@ type RequestPostTemplate struct {
 	BaseDigest string `json:"baseDigest"`
 	Cpus       *int   `json:"cpus,omitempty"`
 
+	// DiskBytes Size of the template's disk and the default of sandboxes spawned from it, the Workspace policy's defaultDiskBytes when absent.
+	DiskBytes *int64 `json:"diskBytes,omitempty"`
+
 	// MemoryBytes Size of the warmed memory image and the default of sandboxes spawned from the template, the Workspace default when absent.
 	MemoryBytes *int64              `json:"memoryBytes,omitempty"`
 	Name        *string             `json:"name,omitempty"`
@@ -2260,6 +2529,17 @@ type RequestPostTemplate struct {
 
 	// Warmup Shell command run in the guest before its memory is captured, for example `node -e "require('http')"` or `claude --version`, so the runtime it loads is resident in every spawn. Only with warm.
 	Warmup *string `json:"warmup,omitempty"`
+}
+
+// RequestPostToken defines model for RequestPostToken.
+type RequestPostToken struct {
+	Name string `json:"name"`
+
+	// Scopes One or more of admin, sandbox, sandbox:read, base, integration, webhook, workspace. A sandbox token selects secrets within the secrets ceiling of the Workspace policy, and the workspace scope sets that ceiling.
+	Scopes []string `json:"scopes"`
+
+	// TtlSeconds Without it the token never expires.
+	TtlSeconds *int `json:"ttlSeconds,omitempty"`
 }
 
 // RequestPostWebhook defines model for RequestPostWebhook.
@@ -2303,9 +2583,14 @@ type RequestPutLineage struct {
 
 // RequestPutSandbox defines model for RequestPutSandbox.
 type RequestPutSandbox struct {
-	AbsoluteTtlSeconds *int    `json:"absoluteTtlSeconds,omitempty"`
-	IdleTtlSeconds     *int    `json:"idleTtlSeconds,omitempty"`
-	Name               *string `json:"name,omitempty"`
+	// AbsoluteTtlSeconds Archive and destroy the sandbox this many seconds after its creation. Null or left out clears it.
+	AbsoluteTtlSeconds *int `json:"absoluteTtlSeconds,omitempty"`
+
+	// IdleTtlSeconds Park the sandbox after this many seconds without activity. Null or left out clears it.
+	IdleTtlSeconds *int `json:"idleTtlSeconds,omitempty"`
+
+	// Name The three fields are replaced together, null or left out clears one. Send the current values of the fields you keep.
+	Name *string `json:"name,omitempty"`
 }
 
 // RequestPutSandboxPolicy defines model for RequestPutSandboxPolicy.
@@ -2344,16 +2629,23 @@ type RequestPutWorkspacePolicy struct {
 	CoreReserveBytes *int64 `json:"coreReserveBytes,omitempty"`
 
 	// CpuOvercommit How many vCPUs the running sandboxes may reserve per core of the Workspace, 1 reserves cores one to one. 8 when absent.
-	CpuOvercommit             *float32                                          `json:"cpuOvercommit,omitempty"`
+	CpuOvercommit *float32 `json:"cpuOvercommit,omitempty"`
+
+	// DefaultDiskBytes Disk size of a sandbox created from a base without diskBytes, 10 GiB when absent. A sandbox from a template takes the template's.
+	DefaultDiskBytes          *int64                                            `json:"defaultDiskBytes,omitempty"`
 	DefaultHoldTimeoutSeconds *int                                              `json:"defaultHoldTimeoutSeconds,omitempty"`
 	DomainFilterEnforcement   *RequestPutWorkspacePolicyDomainFilterEnforcement `json:"domainFilterEnforcement,omitempty"`
 	MaxAbsoluteTtlSeconds     *int                                              `json:"maxAbsoluteTtlSeconds,omitempty"`
 	MaxCpus                   *int                                              `json:"maxCpus,omitempty"`
+	MaxDiskBytes              *int64                                            `json:"maxDiskBytes,omitempty"`
 	MaxIdleTtlSeconds         *int                                              `json:"maxIdleTtlSeconds,omitempty"`
 	MaxMemoryBytes            *int64                                            `json:"maxMemoryBytes,omitempty"`
 	Rate                      *BaseRate                                         `json:"rate,omitempty"`
-	TcpPortRangeFrom          *int                                              `json:"tcpPortRangeFrom,omitempty"`
-	TcpPortRangeTo            *int                                              `json:"tcpPortRangeTo,omitempty"`
+
+	// Secrets The ceiling of every sandbox's secrets selection, checked on create, on a policy change and on import. No limit when absent.
+	Secrets          *BaseSecretsCeiling `json:"secrets,omitempty"`
+	TcpPortRangeFrom *int                `json:"tcpPortRangeFrom,omitempty"`
+	TcpPortRangeTo   *int                `json:"tcpPortRangeTo,omitempty"`
 }
 
 // RequestPutWorkspacePolicyDomainFilterEnforcement defines model for RequestPutWorkspacePolicy.DomainFilterEnforcement.
@@ -2464,24 +2756,39 @@ type ResponseExecResult struct {
 
 // ResponseExport defines model for ResponseExport.
 type ResponseExport struct {
-	Created       string               `json:"created"`
-	Destination   string               `json:"destination"`
-	Error         *string              `json:"error,omitempty"`
-	Finished      *string              `json:"finished,omitempty"`
-	Id            string               `json:"id"`
-	Kind          ResponseExportKind   `json:"kind"`
-	LineageId     string               `json:"lineageId"`
-	SinceExportId *string              `json:"sinceExportId,omitempty"`
-	SizeBytes     *int64               `json:"sizeBytes,omitempty"`
-	SnapshotName  string               `json:"snapshotName"`
-	Status        ResponseExportStatus `json:"status"`
+	Created string `json:"created"`
+
+	// Destination The archive: `<url>/<bucket>/<key>` for S3, the download route `/api/rest/export/{id}/archive` of this API for FILE.
+	Destination string  `json:"destination"`
+	Error       *string `json:"error,omitempty"`
+	Finished    *string `json:"finished,omitempty"`
+	HasMemory   bool    `json:"hasMemory"`
+	Id          string  `json:"id"`
+
+	// Kind UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
+	Kind          ResponseExportKind `json:"kind"`
+	LineageId     string             `json:"lineageId"`
+	SandboxId     string             `json:"sandboxId"`
+	SinceExportId *string            `json:"sinceExportId,omitempty"`
+	SizeBytes     *int64             `json:"sizeBytes,omitempty"`
+
+	// SnapshotId The snapshot that was exported, null for the parked sandbox itself.
+	SnapshotId   *string              `json:"snapshotId,omitempty"`
+	SnapshotName string               `json:"snapshotName"`
+	Status       ResponseExportStatus `json:"status"`
+
+	// Storage S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+	Storage ResponseExportStorage `json:"storage"`
 }
 
-// ResponseExportKind defines model for ResponseExport.Kind.
+// ResponseExportKind UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
 type ResponseExportKind string
 
 // ResponseExportStatus defines model for ResponseExport.Status.
 type ResponseExportStatus string
+
+// ResponseExportStorage S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+type ResponseExportStorage string
 
 // ResponseExportList defines model for ResponseExportList.
 type ResponseExportList struct {
@@ -2501,10 +2808,10 @@ type ResponseGetPing struct {
 
 // ResponseGuestSession defines model for ResponseGuestSession.
 type ResponseGuestSession struct {
-	Closed   *string          `json:"closed,omitempty"`
-	Command  *BaseExecCommand `json:"command,omitempty"`
-	Created  string           `json:"created"`
-	ExitCode *int             `json:"exitCode,omitempty"`
+	Closed   *string             `json:"closed,omitempty"`
+	Command  *BaseSessionCommand `json:"command,omitempty"`
+	Created  string              `json:"created"`
+	ExitCode *int                `json:"exitCode,omitempty"`
 
 	// HasOutput Whether a recorded output stream can be fetched.
 	HasOutput bool                       `json:"hasOutput"`
@@ -2524,7 +2831,7 @@ type ResponseGuestSessionStatus string
 type ResponseIngressCredentialIssued struct {
 	Credential BaseIngressCredential `json:"credential"`
 
-	// Secret Returned exactly once.
+	// Secret Returned exactly once. A ticket goes into `?ticket=`, a token into `X-Zerops-Box-Authorization: Bearer <token>` or once into `?token=`.
 	Secret string `json:"secret"`
 }
 
@@ -2625,28 +2932,39 @@ type ResponseQuarantineList struct {
 
 // ResponseSandbox defines model for ResponseSandbox.
 type ResponseSandbox struct {
-	AbsoluteDeadline   *string            `json:"absoluteDeadline,omitempty"`
-	AbsoluteTtlSeconds *int               `json:"absoluteTtlSeconds,omitempty"`
-	BaseDigest         string             `json:"baseDigest"`
-	Cpus               int                `json:"cpus"`
-	Created            string             `json:"created"`
-	FailedReason       *string            `json:"failedReason,omitempty"`
-	Hosts              []BaseSandboxHost  `json:"hosts"`
-	Id                 string             `json:"id"`
-	IdleDeadline       *string            `json:"idleDeadline,omitempty"`
-	IdleTtlSeconds     *int               `json:"idleTtlSeconds,omitempty"`
-	LastActivity       string             `json:"lastActivity"`
-	LaunchContract     BaseLaunchContract `json:"launchContract"`
-	LineageId          string             `json:"lineageId"`
-	MemoryBytes        int64              `json:"memoryBytes"`
-	Name               *string            `json:"name,omitempty"`
+	// AbsoluteDeadline When the sandbox is archived and destroyed, created plus absoluteTtlSeconds. An ARCHIVED sandbox keeps the deadline that ended it.
+	AbsoluteDeadline   *string `json:"absoluteDeadline,omitempty"`
+	AbsoluteTtlSeconds *int    `json:"absoluteTtlSeconds,omitempty"`
+	BaseDigest         string  `json:"baseDigest"`
+	Cpus               int     `json:"cpus"`
+	Created            string  `json:"created"`
+
+	// DiskBytes Size of the writable disk, a cap and not a reservation: blocks the guest never wrote take no space on the Workspace.
+	DiskBytes    int64             `json:"diskBytes"`
+	FailedReason *string           `json:"failedReason,omitempty"`
+	Hosts        []BaseSandboxHost `json:"hosts"`
+	Id           string            `json:"id"`
+
+	// IdleDeadline When the sandbox is parked for idleness, lastActivity plus idleTtlSeconds. Null without an idle TTL and while the sandbox is not running.
+	IdleDeadline   *string `json:"idleDeadline,omitempty"`
+	IdleTtlSeconds *int    `json:"idleTtlSeconds,omitempty"`
+
+	// LastActivity The last boot, call into the guest (exec, process, files, shell, SSH) or ingress request. An open shell or SSH connection counts as activity while it lasts.
+	LastActivity   string            `json:"lastActivity"`
+	LaunchContract BaseSandboxLaunch `json:"launchContract"`
+	LineageId      string            `json:"lineageId"`
+	MemoryBytes    int64             `json:"memoryBytes"`
+	Name           *string           `json:"name,omitempty"`
 
 	// NetworkMode Fixed at create, design §5.8.
-	NetworkMode      ResponseSandboxNetworkMode `json:"networkMode"`
-	ParentId         *string                    `json:"parentId,omitempty"`
-	Policy           BaseSandboxPolicy          `json:"policy"`
-	PolicyGeneration int                        `json:"policyGeneration"`
-	SecretBearing    bool                       `json:"secretBearing"`
+	NetworkMode ResponseSandboxNetworkMode `json:"networkMode"`
+
+	// Operation The operation in flight on the sandbox, null when none is. One at a time, every other verb answers operationInFlight meanwhile.
+	Operation        *BaseSandboxOperation `json:"operation,omitempty"`
+	ParentId         *string               `json:"parentId,omitempty"`
+	Policy           BaseSandboxPolicy     `json:"policy"`
+	PolicyGeneration int                   `json:"policyGeneration"`
+	SecretBearing    bool                  `json:"secretBearing"`
 
 	// SecretsStale Derived: the Workspace environment changed something this sandbox was given, design §5.9.
 	SecretsStale   bool                  `json:"secretsStale"`
@@ -2689,13 +3007,20 @@ type ResponseShell struct {
 
 // ResponseSnapshot defines model for ResponseSnapshot.
 type ResponseSnapshot struct {
-	Created   string               `json:"created"`
-	HasMemory bool                 `json:"hasMemory"`
-	Id        string               `json:"id"`
-	Kind      ResponseSnapshotKind `json:"kind"`
-	Name      *string              `json:"name,omitempty"`
-	SandboxId string               `json:"sandboxId"`
-	SizeBytes *int64               `json:"sizeBytes,omitempty"`
+	// Cpus Size of the sandbox when the snapshot was taken, null for a snapshot from before the record. A restore with memory keeps it.
+	Cpus        *int                 `json:"cpus,omitempty"`
+	Created     string               `json:"created"`
+	DiskBytes   *int64               `json:"diskBytes,omitempty"`
+	HasMemory   bool                 `json:"hasMemory"`
+	Id          string               `json:"id"`
+	Kind        ResponseSnapshotKind `json:"kind"`
+	MemoryBytes *int64               `json:"memoryBytes,omitempty"`
+	Name        *string              `json:"name,omitempty"`
+	SandboxId   string               `json:"sandboxId"`
+
+	// SecretBearing The sandbox had received secrets when the snapshot was taken, so its disk may hold them: it does not export, and a restore child is secret bearing.
+	SecretBearing bool   `json:"secretBearing"`
+	SizeBytes     *int64 `json:"sizeBytes,omitempty"`
 }
 
 // ResponseSnapshotKind defines model for ResponseSnapshot.Kind.
@@ -2726,10 +3051,13 @@ type ResponseSuccess struct {
 
 // ResponseTemplate defines model for ResponseTemplate.
 type ResponseTemplate struct {
-	BaseDigest   string  `json:"baseDigest"`
-	Cpus         int     `json:"cpus"`
-	Created      string  `json:"created"`
-	Digest       string  `json:"digest"`
+	BaseDigest string `json:"baseDigest"`
+	Cpus       int    `json:"cpus"`
+	Created    string `json:"created"`
+	Digest     string `json:"digest"`
+
+	// DiskBytes Size of the template's disk, the default of sandboxes spawned from it. A spawn of another disk size boots the template's disk cold.
+	DiskBytes    int64   `json:"diskBytes"`
 	FailedReason *string `json:"failedReason,omitempty"`
 
 	// HasMemory A warmed template carries the identity-free memory snapshot, design §5.1 step 3.
@@ -2753,6 +3081,18 @@ type ResponseTemplateStatus string
 // ResponseTemplateList defines model for ResponseTemplateList.
 type ResponseTemplateList struct {
 	Items []BaseTemplate `json:"items"`
+}
+
+// ResponseTokenIssued defines model for ResponseTokenIssued.
+type ResponseTokenIssued struct {
+	// Secret Returned exactly once, sent as `Authorization: Bearer <secret>` like the Workspace API key.
+	Secret string    `json:"secret"`
+	Token  BaseToken `json:"token"`
+}
+
+// ResponseTokenList defines model for ResponseTokenList.
+type ResponseTokenList struct {
+	Items []BaseToken `json:"items"`
 }
 
 // ResponseWebhookCreated defines model for ResponseWebhookCreated.
@@ -2814,7 +3154,7 @@ type AfterId = int64
 // AfterSeq Per-sandbox cursor: return events with a greater seq.
 type AfterSeq = int
 
-// BeforeId Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.
+// BeforeId Cursor: the id of the last lineage of the previous page, the answer continues with the lineages created before it.
 type BeforeId = string
 
 // BeforeSeq Backwards cursor: return the newest events with a smaller seq, newest first. Implies newestFirst.
@@ -2880,6 +3220,9 @@ type To = string
 // WaitSeconds Hold the answer until the operation finishes or fails, at most this many seconds (30 at most). Omitted or 0 answers at once.
 type WaitSeconds = int
 
+// WithMemory Resume the archive's memory image, the default. Only an archive this Workspace exported resumes, any other boots cold from its disk.
+type WithMemory = bool
+
 // PostBaseParams defines parameters for PostBase.
 type PostBaseParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
@@ -2915,6 +3258,11 @@ type GetEventStreamParams struct {
 	SandboxId *SandboxId `form:"sandboxId,omitempty" json:"sandboxId,omitempty"`
 }
 
+// PostExportParams defines parameters for PostExport.
+type PostExportParams struct {
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
 // GetExportListParams defines parameters for GetExportList.
 type GetExportListParams struct {
 	LineageId *LineageId `form:"lineageId,omitempty" json:"lineageId,omitempty"`
@@ -2925,9 +3273,21 @@ type PostImportParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
-// PostLineageExportParams defines parameters for PostLineageExport.
-type PostLineageExportParams struct {
-	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+// PostImportUploadParams defines parameters for PostImportUpload.
+type PostImportUploadParams struct {
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// WithMemory Resume the archive's memory image, the default. Only an archive this Workspace exported resumes, any other boots cold from its disk.
+	WithMemory *WithMemory `form:"withMemory,omitempty" json:"withMemory,omitempty"`
+}
+
+// GetLineageListParams defines parameters for GetLineageList.
+type GetLineageListParams struct {
+	// BeforeId Cursor: the id of the last lineage of the previous page, the answer continues with the lineages created before it.
+	BeforeId *BeforeId `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+
+	// Limit Page size, 1000 at most. Without it the answer holds every lineage. The list is ordered newest first.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetOperationListParams defines parameters for GetOperationList.
@@ -2937,7 +3297,7 @@ type GetOperationListParams struct {
 	Kind      *GetOperationListParamsKind   `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// BeforeId Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.
-	BeforeId *BeforeId `form:"beforeId,omitempty" json:"beforeId,omitempty"`
+	BeforeId *string `form:"beforeId,omitempty" json:"beforeId,omitempty"`
 
 	// Limit Page size, 100 when omitted and 1000 at most. The list is ordered newest first.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -2962,7 +3322,7 @@ type PostSandboxParams struct {
 
 // GetSandboxListParams defines parameters for GetSandboxList.
 type GetSandboxListParams struct {
-	// Status Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.
+	// Status Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATING, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.
 	Status    *[]string  `form:"status,omitempty" json:"status,omitempty"`
 	LineageId *LineageId `form:"lineageId,omitempty" json:"lineageId,omitempty"`
 	ParentId  *ParentId  `form:"parentId,omitempty" json:"parentId,omitempty"`
@@ -3088,6 +3448,11 @@ type PostTemplateParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// GetTokenListParams defines parameters for GetTokenList.
+type GetTokenListParams struct {
+	IncludeRevoked *IncludeRevoked `form:"includeRevoked,omitempty" json:"includeRevoked,omitempty"`
+}
+
 // GetWebhookDeliveryListParams defines parameters for GetWebhookDeliveryList.
 type GetWebhookDeliveryListParams struct {
 	Status *GetWebhookDeliveryListParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -3106,6 +3471,9 @@ type PutBaseJSONRequestBody = RequestPutBase
 // PutConnectorCredentialJSONRequestBody defines body for PutConnectorCredential for application/json ContentType.
 type PutConnectorCredentialJSONRequestBody = RequestPutConnectorCredential
 
+// PostExportJSONRequestBody defines body for PostExport for application/json ContentType.
+type PostExportJSONRequestBody = RequestPostExport
+
 // PostImportJSONRequestBody defines body for PostImport for application/json ContentType.
 type PostImportJSONRequestBody = RequestPostImport
 
@@ -3117,9 +3485,6 @@ type PutIntegrationJSONRequestBody = RequestPutIntegration
 
 // PutLineageJSONRequestBody defines body for PutLineage for application/json ContentType.
 type PutLineageJSONRequestBody = RequestPutLineage
-
-// PostLineageExportJSONRequestBody defines body for PostLineageExport for application/json ContentType.
-type PostLineageExportJSONRequestBody = RequestPostLineageExport
 
 // PostSandboxJSONRequestBody defines body for PostSandbox for application/json ContentType.
 type PostSandboxJSONRequestBody = RequestPostSandbox
@@ -3165,6 +3530,9 @@ type PostTemplateJSONRequestBody = RequestPostTemplate
 
 // PutTemplateJSONRequestBody defines body for PutTemplate for application/json ContentType.
 type PutTemplateJSONRequestBody = RequestPutTemplate
+
+// PostTokenJSONRequestBody defines body for PostToken for application/json ContentType.
+type PostTokenJSONRequestBody = RequestPostToken
 
 // PostWebhookJSONRequestBody defines body for PostWebhook for application/json ContentType.
 type PostWebhookJSONRequestBody = RequestPostWebhook
@@ -3313,11 +3681,25 @@ type ClientInterface interface {
 	// GetEventStream performs a GET /api/rest/event-stream (the `GetEventStream` operationId) request.
 	GetEventStream(ctx context.Context, params *GetEventStreamParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostExportWithBody performs a POST /api/rest/export (the `PostExport` operationId) request,
+	// with any type of body and a specified content type.
+	PostExportWithBody(ctx context.Context, params *PostExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostExport performs a POST /api/rest/export (the `PostExport` operationId) request.
+	// Takes a body of the `application/json` content type.
+	PostExport(ctx context.Context, params *PostExportParams, body PostExportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetExportList performs a GET /api/rest/export-list (the `GetExportList` operationId) request.
 	GetExportList(ctx context.Context, params *GetExportListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteExport performs a DELETE /api/rest/export/{id} (the `DeleteExport` operationId) request.
+	DeleteExport(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetExport performs a GET /api/rest/export/{id} (the `GetExport` operationId) request.
 	GetExport(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetExportArchive performs a GET /api/rest/export/{id}/archive (the `GetExportArchive` operationId) request.
+	GetExportArchive(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostImportWithBody performs a POST /api/rest/import (the `PostImport` operationId) request,
 	// with any type of body and a specified content type.
@@ -3326,6 +3708,10 @@ type ClientInterface interface {
 	// PostImport performs a POST /api/rest/import (the `PostImport` operationId) request.
 	// Takes a body of the `application/json` content type.
 	PostImport(ctx context.Context, params *PostImportParams, body PostImportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostImportUploadWithBody performs a POST /api/rest/import/upload (the `PostImportUpload` operationId) request,
+	// with any type of body and a specified content type.
+	PostImportUploadWithBody(ctx context.Context, params *PostImportUploadParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteIngressCredential performs a DELETE /api/rest/ingress-credential/{id} (the `DeleteIngressCredential` operationId) request.
 	DeleteIngressCredential(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3356,7 +3742,7 @@ type ClientInterface interface {
 	PutIntegration(ctx context.Context, name string, body PutIntegrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetLineageList performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
-	GetLineageList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetLineageList(ctx context.Context, params *GetLineageListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetLineage performs a GET /api/rest/lineage/{id} (the `GetLineage` operationId) request.
 	GetLineage(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3368,14 +3754,6 @@ type ClientInterface interface {
 	// PutLineage performs a PUT /api/rest/lineage/{id} (the `PutLineage` operationId) request.
 	// Takes a body of the `application/json` content type.
 	PutLineage(ctx context.Context, id Id, body PutLineageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PostLineageExportWithBody performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request,
-	// with any type of body and a specified content type.
-	PostLineageExportWithBody(ctx context.Context, id Id, params *PostLineageExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PostLineageExport performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request.
-	// Takes a body of the `application/json` content type.
-	PostLineageExport(ctx context.Context, id Id, params *PostLineageExportParams, body PostLineageExportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetOperationList performs a GET /api/rest/operation-list (the `GetOperationList` operationId) request.
 	GetOperationList(ctx context.Context, params *GetOperationListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3593,6 +3971,20 @@ type ClientInterface interface {
 	// PutTemplate performs a PUT /api/rest/template/{digest} (the `PutTemplate` operationId) request.
 	// Takes a body of the `application/json` content type.
 	PutTemplate(ctx context.Context, digest Digest, body PutTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostTokenWithBody performs a POST /api/rest/token (the `PostToken` operationId) request,
+	// with any type of body and a specified content type.
+	PostTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostToken performs a POST /api/rest/token (the `PostToken` operationId) request.
+	// Takes a body of the `application/json` content type.
+	PostToken(ctx context.Context, body PostTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTokenList performs a GET /api/rest/token-list (the `GetTokenList` operationId) request.
+	GetTokenList(ctx context.Context, params *GetTokenListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteToken performs a DELETE /api/rest/token/{id} (the `DeleteToken` operationId) request.
+	DeleteToken(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostWebhookWithBody performs a POST /api/rest/webhook (the `PostWebhook` operationId) request,
 	// with any type of body and a specified content type.
@@ -3883,6 +4275,34 @@ func (c *Client) GetEventStream(ctx context.Context, params *GetEventStreamParam
 	return c.Client.Do(req)
 }
 
+// PostExportWithBody performs a POST /api/rest/export (the `PostExport` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PostExportWithBody(ctx context.Context, params *PostExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostExportRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PostExport performs a POST /api/rest/export (the `PostExport` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) PostExport(ctx context.Context, params *PostExportParams, body PostExportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostExportRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetExportList performs a GET /api/rest/export-list (the `GetExportList` operationId) request.
 func (c *Client) GetExportList(ctx context.Context, params *GetExportListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetExportListRequest(c.Server, params)
@@ -3896,9 +4316,35 @@ func (c *Client) GetExportList(ctx context.Context, params *GetExportListParams,
 	return c.Client.Do(req)
 }
 
+// DeleteExport performs a DELETE /api/rest/export/{id} (the `DeleteExport` operationId) request.
+func (c *Client) DeleteExport(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteExportRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetExport performs a GET /api/rest/export/{id} (the `GetExport` operationId) request.
 func (c *Client) GetExport(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetExportRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetExportArchive performs a GET /api/rest/export/{id}/archive (the `GetExportArchive` operationId) request.
+func (c *Client) GetExportArchive(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetExportArchiveRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -3927,6 +4373,20 @@ func (c *Client) PostImportWithBody(ctx context.Context, params *PostImportParam
 // Takes a body of the `application/json` content type.
 func (c *Client) PostImport(ctx context.Context, params *PostImportParams, body PostImportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostImportRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PostImportUploadWithBody performs a POST /api/rest/import/upload (the `PostImportUpload` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PostImportUploadWithBody(ctx context.Context, params *PostImportUploadParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostImportUploadRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4046,8 +4506,8 @@ func (c *Client) PutIntegration(ctx context.Context, name string, body PutIntegr
 }
 
 // GetLineageList performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
-func (c *Client) GetLineageList(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetLineageListRequest(c.Server)
+func (c *Client) GetLineageList(ctx context.Context, params *GetLineageListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetLineageListRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -4089,34 +4549,6 @@ func (c *Client) PutLineageWithBody(ctx context.Context, id Id, contentType stri
 // Takes a body of the `application/json` content type.
 func (c *Client) PutLineage(ctx context.Context, id Id, body PutLineageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutLineageRequest(c.Server, id, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// PostLineageExportWithBody performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request,
-// with any type of body and a specified content type.
-func (c *Client) PostLineageExportWithBody(ctx context.Context, id Id, params *PostLineageExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostLineageExportRequestWithBody(c.Server, id, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// PostLineageExport performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request.
-// Takes a body of the `application/json` content type.
-func (c *Client) PostLineageExport(ctx context.Context, id Id, params *PostLineageExportParams, body PostLineageExportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostLineageExportRequest(c.Server, id, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4954,6 +5386,60 @@ func (c *Client) PutTemplateWithBody(ctx context.Context, digest Digest, content
 // Takes a body of the `application/json` content type.
 func (c *Client) PutTemplate(ctx context.Context, digest Digest, body PutTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutTemplateRequest(c.Server, digest, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PostTokenWithBody performs a POST /api/rest/token (the `PostToken` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) PostTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostTokenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PostToken performs a POST /api/rest/token (the `PostToken` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) PostToken(ctx context.Context, body PostTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostTokenRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetTokenList performs a GET /api/rest/token-list (the `GetTokenList` operationId) request.
+func (c *Client) GetTokenList(ctx context.Context, params *GetTokenListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTokenListRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteToken performs a DELETE /api/rest/token/{id} (the `DeleteToken` operationId) request.
+func (c *Client) DeleteToken(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTokenRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -5802,6 +6288,59 @@ func NewGetEventStreamRequest(server string, params *GetEventStreamParams) (*htt
 	return req, nil
 }
 
+// NewPostExportRequest calls the generic PostExport builder with application/json body
+func NewPostExportRequest(server string, params *PostExportParams, body PostExportJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostExportRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewPostExportRequestWithBody constructs an http.Request for the PostExport method, with any body, and a specified content type
+func NewPostExportRequestWithBody(server string, params *PostExportParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/export")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("Idempotency-Key", headerParam0)
+
+	}
+
+	return req, nil
+}
+
 // NewGetExportListRequest constructs an http.Request for the GetExportList method
 func NewGetExportListRequest(server string, params *GetExportListParams) (*http.Request, error) {
 	var err error
@@ -5856,6 +6395,40 @@ func NewGetExportListRequest(server string, params *GetExportListParams) (*http.
 	return req, nil
 }
 
+// NewDeleteExportRequest constructs an http.Request for the DeleteExport method
+func NewDeleteExportRequest(server string, id Id) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/export/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetExportRequest constructs an http.Request for the GetExport method
 func NewGetExportRequest(server string, id Id) (*http.Request, error) {
 	var err error
@@ -5873,6 +6446,40 @@ func NewGetExportRequest(server string, id Id) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/rest/export/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetExportArchiveRequest constructs an http.Request for the GetExportArchive method
+func NewGetExportArchiveRequest(server string, id Id) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/export/%s/archive", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5939,6 +6546,74 @@ func NewPostImportRequestWithBody(server string, params *PostImportParams, conte
 		req.Header.Set("Idempotency-Key", headerParam0)
 
 	}
+
+	return req, nil
+}
+
+// NewPostImportUploadRequestWithBody constructs an http.Request for the PostImportUpload method, with any body, and a specified content type
+func NewPostImportUploadRequestWithBody(server string, params *PostImportUploadParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/import/upload")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Name != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "name", *params.Name, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.WithMemory != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "withMemory", *params.WithMemory, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -6160,7 +6835,7 @@ func NewPutIntegrationRequestWithBody(server string, name string, contentType st
 }
 
 // NewGetLineageListRequest constructs an http.Request for the GetLineageList method
-func NewGetLineageListRequest(server string) (*http.Request, error) {
+func NewGetLineageListRequest(server string, params *GetLineageListParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -6176,6 +6851,45 @@ func NewGetLineageListRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.BeforeId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "beforeId", *params.BeforeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -6263,66 +6977,6 @@ func NewPutLineageRequestWithBody(server string, id Id, contentType string, body
 	}
 
 	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewPostLineageExportRequest calls the generic PostLineageExport builder with application/json body
-func NewPostLineageExportRequest(server string, id Id, params *PostLineageExportParams, body PostLineageExportJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostLineageExportRequestWithBody(server, id, params, "application/json", bodyReader)
-}
-
-// NewPostLineageExportRequestWithBody constructs an http.Request for the PostLineageExport method, with any body, and a specified content type
-func NewPostLineageExportRequestWithBody(server string, id Id, params *PostLineageExportParams, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/rest/lineage/%s/export", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		var headerParam0 string
-
-		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("Idempotency-Key", headerParam0)
-
-	}
 
 	return req, nil
 }
@@ -8731,6 +9385,134 @@ func NewPutTemplateRequestWithBody(server string, digest Digest, contentType str
 	return req, nil
 }
 
+// NewPostTokenRequest calls the generic PostToken builder with application/json body
+func NewPostTokenRequest(server string, body PostTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostTokenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostTokenRequestWithBody constructs an http.Request for the PostToken method, with any body, and a specified content type
+func NewPostTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/token")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetTokenListRequest constructs an http.Request for the GetTokenList method
+func NewGetTokenListRequest(server string, params *GetTokenListParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/token-list")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.IncludeRevoked != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeRevoked", *params.IncludeRevoked, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteTokenRequest constructs an http.Request for the DeleteToken method
+func NewDeleteTokenRequest(server string, id Id) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/rest/token/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPostWebhookRequest calls the generic PostWebhook builder with application/json body
 func NewPostWebhookRequest(server string, body PostWebhookJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -9228,15 +10010,35 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetEventStreamWithResponse(ctx context.Context, params *GetEventStreamParams, reqEditors ...RequestEditorFn) (*GetEventStreamResponse, error)
 
+	// PostExportWithBodyWithResponse performs a POST /api/rest/export (the `PostExport` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PostExportWithBodyWithResponse(ctx context.Context, params *PostExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostExportResponse, error)
+
+	// PostExportWithResponse performs a POST /api/rest/export (the `PostExport` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PostExportWithResponse(ctx context.Context, params *PostExportParams, body PostExportJSONRequestBody, reqEditors ...RequestEditorFn) (*PostExportResponse, error)
+
 	// GetExportListWithResponse performs a GET /api/rest/export-list (the `GetExportList` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetExportListWithResponse(ctx context.Context, params *GetExportListParams, reqEditors ...RequestEditorFn) (*GetExportListResponse, error)
 
+	// DeleteExportWithResponse performs a DELETE /api/rest/export/{id} (the `DeleteExport` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteExportWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*DeleteExportResponse, error)
+
 	// GetExportWithResponse performs a GET /api/rest/export/{id} (the `GetExport` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetExportWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetExportResponse, error)
+
+	// GetExportArchiveWithResponse performs a GET /api/rest/export/{id}/archive (the `GetExportArchive` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetExportArchiveWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetExportArchiveResponse, error)
 
 	// PostImportWithBodyWithResponse performs a POST /api/rest/import (the `PostImport` operationId) request,
 	// with any type of body and a specified content type.
@@ -9247,6 +10049,12 @@ type ClientWithResponsesInterface interface {
 	// PostImportWithResponse performs a POST /api/rest/import (the `PostImport` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PostImportWithResponse(ctx context.Context, params *PostImportParams, body PostImportJSONRequestBody, reqEditors ...RequestEditorFn) (*PostImportResponse, error)
+
+	// PostImportUploadWithBodyWithResponse performs a POST /api/rest/import/upload (the `PostImportUpload` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PostImportUploadWithBodyWithResponse(ctx context.Context, params *PostImportUploadParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostImportUploadResponse, error)
 
 	// DeleteIngressCredentialWithResponse performs a DELETE /api/rest/ingress-credential/{id} (the `DeleteIngressCredential` operationId) request.
 	//
@@ -9291,7 +10099,7 @@ type ClientWithResponsesInterface interface {
 	// GetLineageListWithResponse performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetLineageListWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLineageListResponse, error)
+	GetLineageListWithResponse(ctx context.Context, params *GetLineageListParams, reqEditors ...RequestEditorFn) (*GetLineageListResponse, error)
 
 	// GetLineageWithResponse performs a GET /api/rest/lineage/{id} (the `GetLineage` operationId) request.
 	//
@@ -9307,16 +10115,6 @@ type ClientWithResponsesInterface interface {
 	// PutLineageWithResponse performs a PUT /api/rest/lineage/{id} (the `PutLineage` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PutLineageWithResponse(ctx context.Context, id Id, body PutLineageJSONRequestBody, reqEditors ...RequestEditorFn) (*PutLineageResponse, error)
-
-	// PostLineageExportWithBodyWithResponse performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request,
-	// with any type of body and a specified content type.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	PostLineageExportWithBodyWithResponse(ctx context.Context, id Id, params *PostLineageExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostLineageExportResponse, error)
-
-	// PostLineageExportWithResponse performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request.
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	PostLineageExportWithResponse(ctx context.Context, id Id, params *PostLineageExportParams, body PostLineageExportJSONRequestBody, reqEditors ...RequestEditorFn) (*PostLineageExportResponse, error)
 
 	// GetOperationListWithResponse performs a GET /api/rest/operation-list (the `GetOperationList` operationId) request.
 	//
@@ -9629,6 +10427,26 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	PutTemplateWithResponse(ctx context.Context, digest Digest, body PutTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTemplateResponse, error)
 
+	// PostTokenWithBodyWithResponse performs a POST /api/rest/token (the `PostToken` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PostTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTokenResponse, error)
+
+	// PostTokenWithResponse performs a POST /api/rest/token (the `PostToken` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	PostTokenWithResponse(ctx context.Context, body PostTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTokenResponse, error)
+
+	// GetTokenListWithResponse performs a GET /api/rest/token-list (the `GetTokenList` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetTokenListWithResponse(ctx context.Context, params *GetTokenListParams, reqEditors ...RequestEditorFn) (*GetTokenListResponse, error)
+
+	// DeleteTokenWithResponse performs a DELETE /api/rest/token/{id} (the `DeleteToken` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteTokenWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*DeleteTokenResponse, error)
+
 	// PostWebhookWithBodyWithResponse performs a POST /api/rest/webhook (the `PostWebhook` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -9704,6 +10522,8 @@ type PostBaseResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
@@ -9725,6 +10545,11 @@ func (r PostBaseResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostBaseResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostBaseResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
@@ -9780,6 +10605,8 @@ type PostBaseBuildResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
 	JSON502 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -9799,6 +10626,11 @@ func (r PostBaseBuildResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostBaseBuildResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostBaseBuildResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON502 returns the response for an HTTP 502 `application/json` response
@@ -9847,6 +10679,8 @@ type DeleteBaseBuildCacheResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
 	JSON502 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -9861,6 +10695,11 @@ func (r DeleteBaseBuildCacheResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteBaseBuildCacheResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteBaseBuildCacheResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON502 returns the response for an HTTP 502 `application/json` response
@@ -9909,6 +10748,8 @@ type GetBaseBuildCacheResponse struct {
 	JSON200 *ResponseBaseBuildCache
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -9921,6 +10762,11 @@ func (r GetBaseBuildCacheResponse) GetJSON200() *ResponseBaseBuildCache {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetBaseBuildCacheResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetBaseBuildCacheResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -9964,6 +10810,8 @@ type GetBaseListResponse struct {
 	JSON200 *ResponseBaseList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -9976,6 +10824,11 @@ func (r GetBaseListResponse) GetJSON200() *ResponseBaseList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetBaseListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetBaseListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10019,6 +10872,8 @@ type DeleteBaseResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -10037,6 +10892,11 @@ func (r DeleteBaseResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteBaseResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteBaseResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10095,6 +10955,8 @@ type GetBaseResponse struct {
 	JSON200 *ResponseBase
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10109,6 +10971,11 @@ func (r GetBaseResponse) GetJSON200() *ResponseBase {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetBaseResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetBaseResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10159,6 +11026,8 @@ type PutBaseResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -10180,6 +11049,11 @@ func (r PutBaseResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutBaseResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutBaseResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10233,6 +11107,8 @@ type GetConnectorListResponse struct {
 	JSON200 *ResponseConnectorList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -10245,6 +11121,11 @@ func (r GetConnectorListResponse) GetJSON200() *ResponseConnectorList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetConnectorListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetConnectorListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10288,6 +11169,8 @@ type GetConnectorResponse struct {
 	JSON200 *ResponseConnector
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10302,6 +11185,11 @@ func (r GetConnectorResponse) GetJSON200() *ResponseConnector {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetConnectorResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetConnectorResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10350,6 +11238,8 @@ type DeleteConnectorCredentialResponse struct {
 	JSON200 *ResponseConnector
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10364,6 +11254,11 @@ func (r DeleteConnectorCredentialResponse) GetJSON200() *ResponseConnector {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteConnectorCredentialResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteConnectorCredentialResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10414,6 +11309,8 @@ type PutConnectorCredentialResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10433,6 +11330,11 @@ func (r PutConnectorCredentialResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutConnectorCredentialResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutConnectorCredentialResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10481,6 +11383,8 @@ type PostConnectorLoginResponse struct {
 	JSON200 *ResponseConnectorLogin
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -10501,6 +11405,11 @@ func (r PostConnectorLoginResponse) GetJSON200() *ResponseConnectorLogin {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostConnectorLoginResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostConnectorLoginResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10566,6 +11475,8 @@ type GetEventListResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -10583,6 +11494,11 @@ func (r GetEventListResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetEventListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetEventListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10626,6 +11542,8 @@ type GetEventStreamResponse struct {
 	JSON200 *ResponseStream
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -10638,6 +11556,11 @@ func (r GetEventStreamResponse) GetJSON200() *ResponseStream {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetEventStreamResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetEventStreamResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10674,6 +11597,96 @@ func (r GetEventStreamResponse) ContentType() string {
 	return ""
 }
 
+type PostExportResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseOperation
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PostExportResponse) GetJSON200() *ResponseOperation {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PostExportResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PostExportResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostExportResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PostExportResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r PostExportResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r PostExportResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PostExportResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PostExportResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PostExportResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostExportResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostExportResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetExportListResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10681,6 +11694,8 @@ type GetExportListResponse struct {
 	JSON200 *ResponseExportList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -10693,6 +11708,11 @@ func (r GetExportListResponse) GetJSON200() *ResponseExportList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetExportListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetExportListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10729,6 +11749,82 @@ func (r GetExportListResponse) ContentType() string {
 	return ""
 }
 
+type DeleteExportResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseSuccess
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeleteExportResponse) GetJSON200() *ResponseSuccess {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteExportResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteExportResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteExportResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DeleteExportResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteExportResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteExportResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteExportResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteExportResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteExportResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetExportResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10736,6 +11832,8 @@ type GetExportResponse struct {
 	JSON200 *ResponseExport
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10750,6 +11848,11 @@ func (r GetExportResponse) GetJSON200() *ResponseExport {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetExportResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetExportResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10791,19 +11894,99 @@ func (r GetExportResponse) ContentType() string {
 	return ""
 }
 
+type GetExportArchiveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseDownload
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetExportArchiveResponse) GetJSON200() *ResponseDownload {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetExportArchiveResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetExportArchiveResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetExportArchiveResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r GetExportArchiveResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetExportArchiveResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetExportArchiveResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetExportArchiveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetExportArchiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetExportArchiveResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PostImportResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *ResponseOperation
+	JSON200 *ResponseSpawn
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Error
-	// JSON501 the response for an HTTP 501 `application/json` response
-	JSON501 *Error
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
 	JSON502 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10811,7 +11994,7 @@ type PostImportResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r PostImportResponse) GetJSON200() *ResponseOperation {
+func (r PostImportResponse) GetJSON200() *ResponseSpawn {
 	return r.JSON200
 }
 
@@ -10825,14 +12008,24 @@ func (r PostImportResponse) GetJSON401() *Error {
 	return r.JSON401
 }
 
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostImportResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PostImportResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
 func (r PostImportResponse) GetJSON409() *Error {
 	return r.JSON409
 }
 
-// GetJSON501 returns the response for an HTTP 501 `application/json` response
-func (r PostImportResponse) GetJSON501() *Error {
-	return r.JSON501
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r PostImportResponse) GetJSON422() *Error {
+	return r.JSON422
 }
 
 // GetJSON502 returns the response for an HTTP 502 `application/json` response
@@ -10874,6 +12067,103 @@ func (r PostImportResponse) ContentType() string {
 	return ""
 }
 
+type PostImportUploadResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseSpawn
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *Error
+	// JSON502 the response for an HTTP 502 `application/json` response
+	JSON502 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PostImportUploadResponse) GetJSON200() *ResponseSpawn {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PostImportUploadResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PostImportUploadResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostImportUploadResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r PostImportUploadResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r PostImportUploadResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r PostImportUploadResponse) GetJSON422() *Error {
+	return r.JSON422
+}
+
+// GetJSON502 returns the response for an HTTP 502 `application/json` response
+func (r PostImportUploadResponse) GetJSON502() *Error {
+	return r.JSON502
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PostImportUploadResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PostImportUploadResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PostImportUploadResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostImportUploadResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostImportUploadResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeleteIngressCredentialResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10881,6 +12171,8 @@ type DeleteIngressCredentialResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10895,6 +12187,11 @@ func (r DeleteIngressCredentialResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteIngressCredentialResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteIngressCredentialResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -10945,6 +12242,8 @@ type PostIntegrationResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -10964,6 +12263,11 @@ func (r PostIntegrationResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostIntegrationResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostIntegrationResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
@@ -11012,6 +12316,8 @@ type GetIntegrationListResponse struct {
 	JSON200 *ResponseIntegrationList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -11024,6 +12330,11 @@ func (r GetIntegrationListResponse) GetJSON200() *ResponseIntegrationList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetIntegrationListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetIntegrationListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -11067,6 +12378,8 @@ type DeleteIntegrationResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -11083,6 +12396,11 @@ func (r DeleteIntegrationResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteIntegrationResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteIntegrationResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11136,6 +12454,8 @@ type GetIntegrationResponse struct {
 	JSON200 *ResponseIntegration
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -11150,6 +12470,11 @@ func (r GetIntegrationResponse) GetJSON200() *ResponseIntegration {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetIntegrationResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetIntegrationResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11200,6 +12525,8 @@ type PutIntegrationResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -11219,6 +12546,11 @@ func (r PutIntegrationResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutIntegrationResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutIntegrationResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11267,6 +12599,8 @@ type GetLineageListResponse struct {
 	JSON200 *ResponseLineageList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -11279,6 +12613,11 @@ func (r GetLineageListResponse) GetJSON200() *ResponseLineageList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetLineageListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetLineageListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -11322,6 +12661,8 @@ type GetLineageResponse struct {
 	JSON200 *ResponseLineage
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -11336,6 +12677,11 @@ func (r GetLineageResponse) GetJSON200() *ResponseLineage {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetLineageResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetLineageResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11384,6 +12730,8 @@ type PutLineageResponse struct {
 	JSON200 *ResponseLineage
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -11398,6 +12746,11 @@ func (r PutLineageResponse) GetJSON200() *ResponseLineage {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutLineageResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutLineageResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11439,89 +12792,6 @@ func (r PutLineageResponse) ContentType() string {
 	return ""
 }
 
-type PostLineageExportResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *ResponseExport
-	// JSON401 the response for an HTTP 401 `application/json` response
-	JSON401 *Error
-	// JSON404 the response for an HTTP 404 `application/json` response
-	JSON404 *Error
-	// JSON409 the response for an HTTP 409 `application/json` response
-	JSON409 *Error
-	// JSON501 the response for an HTTP 501 `application/json` response
-	JSON501 *Error
-	// JSON502 the response for an HTTP 502 `application/json` response
-	JSON502 *Error
-	// JSON503 the response for an HTTP 503 `application/json` response
-	JSON503 *Error
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r PostLineageExportResponse) GetJSON200() *ResponseExport {
-	return r.JSON200
-}
-
-// GetJSON401 returns the response for an HTTP 401 `application/json` response
-func (r PostLineageExportResponse) GetJSON401() *Error {
-	return r.JSON401
-}
-
-// GetJSON404 returns the response for an HTTP 404 `application/json` response
-func (r PostLineageExportResponse) GetJSON404() *Error {
-	return r.JSON404
-}
-
-// GetJSON409 returns the response for an HTTP 409 `application/json` response
-func (r PostLineageExportResponse) GetJSON409() *Error {
-	return r.JSON409
-}
-
-// GetJSON501 returns the response for an HTTP 501 `application/json` response
-func (r PostLineageExportResponse) GetJSON501() *Error {
-	return r.JSON501
-}
-
-// GetJSON502 returns the response for an HTTP 502 `application/json` response
-func (r PostLineageExportResponse) GetJSON502() *Error {
-	return r.JSON502
-}
-
-// GetJSON503 returns the response for an HTTP 503 `application/json` response
-func (r PostLineageExportResponse) GetJSON503() *Error {
-	return r.JSON503
-}
-
-// GetBody returns the raw response body bytes
-func (r PostLineageExportResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r PostLineageExportResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PostLineageExportResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r PostLineageExportResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type GetOperationListResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11529,6 +12799,8 @@ type GetOperationListResponse struct {
 	JSON200 *ResponseOperationList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -11541,6 +12813,11 @@ func (r GetOperationListResponse) GetJSON200() *ResponseOperationList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetOperationListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetOperationListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -11584,6 +12861,8 @@ type GetOperationResponse struct {
 	JSON200 *ResponseOperation
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -11598,6 +12877,11 @@ func (r GetOperationResponse) GetJSON200() *ResponseOperation {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetOperationResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetOperationResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11687,6 +12971,8 @@ type GetQuarantineListResponse struct {
 	JSON200 *ResponseQuarantineList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -11699,6 +12985,11 @@ func (r GetQuarantineListResponse) GetJSON200() *ResponseQuarantineList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetQuarantineListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetQuarantineListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -11742,6 +13033,8 @@ type DeleteQuarantineResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
@@ -11758,6 +13051,11 @@ func (r DeleteQuarantineResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteQuarantineResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteQuarantineResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11813,6 +13111,8 @@ type PostSandboxResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -11838,6 +13138,11 @@ func (r PostSandboxResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -11901,6 +13206,8 @@ type GetSandboxListResponse struct {
 	JSON200 *ResponseSandboxList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -11913,6 +13220,11 @@ func (r GetSandboxListResponse) GetJSON200() *ResponseSandboxList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -11956,6 +13268,8 @@ type DeleteSandboxResponse struct {
 	JSON200 *ResponseOperation
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -11974,6 +13288,11 @@ func (r DeleteSandboxResponse) GetJSON200() *ResponseOperation {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteSandboxResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteSandboxResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12032,6 +13351,8 @@ type GetSandboxResponse struct {
 	JSON200 *ResponseSandbox
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -12046,6 +13367,11 @@ func (r GetSandboxResponse) GetJSON200() *ResponseSandbox {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12096,6 +13422,8 @@ type PutSandboxResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12119,6 +13447,11 @@ func (r PutSandboxResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutSandboxResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutSandboxResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12177,6 +13510,8 @@ type GetSandboxEventListResponse struct {
 	JSON200 *ResponseEventList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -12191,6 +13526,11 @@ func (r GetSandboxEventListResponse) GetJSON200() *ResponseEventList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxEventListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxEventListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12241,6 +13581,8 @@ type PostSandboxExecResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12266,6 +13608,11 @@ func (r PostSandboxExecResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxExecResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxExecResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12329,6 +13676,8 @@ type DeleteSandboxFileResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12349,6 +13698,11 @@ func (r DeleteSandboxFileResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteSandboxFileResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteSandboxFileResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12412,6 +13766,8 @@ type GetSandboxFileResponse struct {
 	JSON200 *ResponseDownload
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12432,6 +13788,11 @@ func (r GetSandboxFileResponse) GetJSON200() *ResponseDownload {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxFileResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxFileResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12497,6 +13858,8 @@ type PutSandboxFileResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12522,6 +13885,11 @@ func (r PutSandboxFileResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutSandboxFileResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutSandboxFileResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12585,6 +13953,8 @@ type GetSandboxFileArchiveResponse struct {
 	JSON200 *ResponseDownload
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12605,6 +13975,11 @@ func (r GetSandboxFileArchiveResponse) GetJSON200() *ResponseDownload {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxFileArchiveResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxFileArchiveResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12668,6 +14043,8 @@ type GetSandboxFileListResponse struct {
 	JSON200 *ResponseFileList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12688,6 +14065,11 @@ func (r GetSandboxFileListResponse) GetJSON200() *ResponseFileList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxFileListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxFileListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12753,6 +14135,8 @@ type PostSandboxForkResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12780,6 +14164,11 @@ func (r PostSandboxForkResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxForkResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxForkResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12850,6 +14239,8 @@ type PostSandboxIngressCredentialResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -12871,6 +14262,11 @@ func (r PostSandboxIngressCredentialResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxIngressCredentialResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxIngressCredentialResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12924,6 +14320,8 @@ type GetSandboxIngressCredentialListResponse struct {
 	JSON200 *ResponseIngressCredentialList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -12938,6 +14336,11 @@ func (r GetSandboxIngressCredentialListResponse) GetJSON200() *ResponseIngressCr
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxIngressCredentialListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxIngressCredentialListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -12988,6 +14391,8 @@ type PostSandboxIntegrationAttachmentResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13009,6 +14414,11 @@ func (r PostSandboxIntegrationAttachmentResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxIntegrationAttachmentResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxIntegrationAttachmentResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13062,6 +14472,8 @@ type GetSandboxIntegrationAttachmentListResponse struct {
 	JSON200 *ResponseIntegrationAttachmentList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13076,6 +14488,11 @@ func (r GetSandboxIntegrationAttachmentListResponse) GetJSON200() *ResponseInteg
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxIntegrationAttachmentListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxIntegrationAttachmentListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13124,6 +14541,8 @@ type DeleteSandboxIntegrationAttachmentResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13138,6 +14557,11 @@ func (r DeleteSandboxIntegrationAttachmentResponse) GetJSON200() *ResponseSucces
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteSandboxIntegrationAttachmentResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteSandboxIntegrationAttachmentResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13186,6 +14610,8 @@ type GetSandboxMetricListResponse struct {
 	JSON200 *ResponseMetricList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13200,6 +14626,11 @@ func (r GetSandboxMetricListResponse) GetJSON200() *ResponseMetricList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxMetricListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxMetricListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13248,6 +14679,8 @@ type PostSandboxParkResponse struct {
 	JSON200 *ResponseOperation
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13266,6 +14699,11 @@ func (r PostSandboxParkResponse) GetJSON200() *ResponseOperation {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxParkResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxParkResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13326,6 +14764,8 @@ type PutSandboxPolicyResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13349,6 +14789,11 @@ func (r PutSandboxPolicyResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutSandboxPolicyResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutSandboxPolicyResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13409,6 +14854,8 @@ type PostSandboxProcessResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13434,6 +14881,11 @@ func (r PostSandboxProcessResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxProcessResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxProcessResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13497,6 +14949,8 @@ type GetSandboxProcessListResponse struct {
 	JSON200 *ResponseProcessList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON502 the response for an HTTP 502 `application/json` response
@@ -13515,6 +14969,11 @@ func (r GetSandboxProcessListResponse) GetJSON200() *ResponseProcessList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxProcessListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxProcessListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13573,6 +15032,8 @@ type GetSandboxSessionListResponse struct {
 	JSON200 *ResponseSessionList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13587,6 +15048,11 @@ func (r GetSandboxSessionListResponse) GetJSON200() *ResponseSessionList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxSessionListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxSessionListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13635,6 +15101,8 @@ type GetSandboxShellResponse struct {
 	JSON200 *ResponseShell
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13655,6 +15123,11 @@ func (r GetSandboxShellResponse) GetJSON200() *ResponseShell {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxShellResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxShellResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13720,6 +15193,8 @@ type PostSandboxSnapshotResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13745,6 +15220,11 @@ func (r PostSandboxSnapshotResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxSnapshotResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxSnapshotResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13808,6 +15288,8 @@ type GetSandboxSnapshotListResponse struct {
 	JSON200 *ResponseSnapshotList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13822,6 +15304,11 @@ func (r GetSandboxSnapshotListResponse) GetJSON200() *ResponseSnapshotList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxSnapshotListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxSnapshotListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13870,6 +15357,8 @@ type GetSandboxSshResponse struct {
 	JSON200 *ResponseSandboxSsh
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -13884,6 +15373,11 @@ func (r GetSandboxSshResponse) GetJSON200() *ResponseSandboxSsh {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxSshResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxSshResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -13934,6 +15428,8 @@ type PostSandboxSshKeyResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -13959,6 +15455,11 @@ func (r PostSandboxSshKeyResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxSshKeyResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxSshKeyResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14022,6 +15523,8 @@ type GetSandboxSshConnectResponse struct {
 	JSON200 *ResponseStream
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14042,6 +15545,11 @@ func (r GetSandboxSshConnectResponse) GetJSON200() *ResponseStream {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSandboxSshConnectResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSandboxSshConnectResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14105,6 +15613,8 @@ type PostSandboxWakeResponse struct {
 	JSON200 *ResponseOperation
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14123,6 +15633,11 @@ func (r PostSandboxWakeResponse) GetJSON200() *ResponseOperation {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSandboxWakeResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSandboxWakeResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14181,6 +15696,8 @@ type GetSessionResponse struct {
 	JSON200 *ResponseGuestSession
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -14195,6 +15712,11 @@ func (r GetSessionResponse) GetJSON200() *ResponseGuestSession {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSessionResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSessionResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14243,6 +15765,8 @@ type PostSessionInterruptResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14263,6 +15787,11 @@ func (r PostSessionInterruptResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSessionInterruptResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSessionInterruptResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14326,6 +15855,8 @@ type GetSessionOutputResponse struct {
 	JSON200 *ResponseDownload
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -14340,6 +15871,11 @@ func (r GetSessionOutputResponse) GetJSON200() *ResponseDownload {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSessionOutputResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSessionOutputResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14388,6 +15924,8 @@ type DeleteSnapshotResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14406,6 +15944,11 @@ func (r DeleteSnapshotResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteSnapshotResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteSnapshotResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14464,6 +16007,8 @@ type GetSnapshotResponse struct {
 	JSON200 *ResponseSnapshot
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -14478,6 +16023,11 @@ func (r GetSnapshotResponse) GetJSON200() *ResponseSnapshot {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetSnapshotResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetSnapshotResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14528,6 +16078,8 @@ type PostSnapshotRestoreResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14555,6 +16107,11 @@ func (r PostSnapshotRestoreResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostSnapshotRestoreResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostSnapshotRestoreResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14625,6 +16182,8 @@ type PostTemplateResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14650,6 +16209,11 @@ func (r PostTemplateResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostTemplateResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostTemplateResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14713,6 +16277,8 @@ type GetTemplateListResponse struct {
 	JSON200 *ResponseTemplateList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -14725,6 +16291,11 @@ func (r GetTemplateListResponse) GetJSON200() *ResponseTemplateList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetTemplateListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetTemplateListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -14768,6 +16339,8 @@ type DeleteTemplateResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14786,6 +16359,11 @@ func (r DeleteTemplateResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteTemplateResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteTemplateResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14844,6 +16422,8 @@ type GetTemplateResponse struct {
 	JSON200 *ResponseTemplate
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -14858,6 +16438,11 @@ func (r GetTemplateResponse) GetJSON200() *ResponseTemplate {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetTemplateResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetTemplateResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14908,6 +16493,8 @@ type PutTemplateResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON409 the response for an HTTP 409 `application/json` response
@@ -14931,6 +16518,11 @@ func (r PutTemplateResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutTemplateResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutTemplateResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -14982,6 +16574,206 @@ func (r PutTemplateResponse) ContentType() string {
 	return ""
 }
 
+type PostTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseTokenIssued
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PostTokenResponse) GetJSON200() *ResponseTokenIssued {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r PostTokenResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PostTokenResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostTokenResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PostTokenResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PostTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PostTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetTokenListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseTokenList
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTokenListResponse) GetJSON200() *ResponseTokenList {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTokenListResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetTokenListResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTokenListResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTokenListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTokenListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTokenListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTokenListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResponseSuccess
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeleteTokenResponse) GetJSON200() *ResponseSuccess {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteTokenResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteTokenResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteTokenResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteTokenResponse) GetJSON503() *Error {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PostWebhookResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -14991,6 +16783,8 @@ type PostWebhookResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -15008,6 +16802,11 @@ func (r PostWebhookResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PostWebhookResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PostWebhookResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -15051,6 +16850,8 @@ type GetWebhookListResponse struct {
 	JSON200 *ResponseWebhookList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -15063,6 +16864,11 @@ func (r GetWebhookListResponse) GetJSON200() *ResponseWebhookList {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetWebhookListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetWebhookListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -15106,6 +16912,8 @@ type DeleteWebhookResponse struct {
 	JSON200 *ResponseSuccess
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -15120,6 +16928,11 @@ func (r DeleteWebhookResponse) GetJSON200() *ResponseSuccess {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DeleteWebhookResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteWebhookResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -15168,6 +16981,8 @@ type GetWebhookResponse struct {
 	JSON200 *ResponseWebhookEndpoint
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -15182,6 +16997,11 @@ func (r GetWebhookResponse) GetJSON200() *ResponseWebhookEndpoint {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetWebhookResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetWebhookResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -15232,6 +17052,8 @@ type PutWebhookResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -15251,6 +17073,11 @@ func (r PutWebhookResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutWebhookResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutWebhookResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -15299,6 +17126,8 @@ type GetWebhookDeliveryListResponse struct {
 	JSON200 *ResponseWebhookDeliveryList
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -15313,6 +17142,11 @@ func (r GetWebhookDeliveryListResponse) GetJSON200() *ResponseWebhookDeliveryLis
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetWebhookDeliveryListResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetWebhookDeliveryListResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
@@ -15418,6 +17252,8 @@ type PutWorkspaceDomainsResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -15435,6 +17271,11 @@ func (r PutWorkspaceDomainsResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutWorkspaceDomainsResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutWorkspaceDomainsResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -15480,6 +17321,8 @@ type PutWorkspacePolicyResponse struct {
 	JSON400 *Error
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Error
 }
@@ -15497,6 +17340,11 @@ func (r PutWorkspacePolicyResponse) GetJSON400() *Error {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r PutWorkspacePolicyResponse) GetJSON401() *Error {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r PutWorkspacePolicyResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -15732,6 +17580,28 @@ func (c *ClientWithResponses) GetEventStreamWithResponse(ctx context.Context, pa
 	return ParseGetEventStreamResponse(rsp)
 }
 
+// PostExportWithBodyWithResponse performs a POST /api/rest/export (the `PostExport` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostExportWithBodyWithResponse(ctx context.Context, params *PostExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostExportResponse, error) {
+	rsp, err := c.PostExportWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostExportResponse(rsp)
+}
+
+// PostExportWithResponse performs a POST /api/rest/export (the `PostExport` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostExportWithResponse(ctx context.Context, params *PostExportParams, body PostExportJSONRequestBody, reqEditors ...RequestEditorFn) (*PostExportResponse, error) {
+	rsp, err := c.PostExport(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostExportResponse(rsp)
+}
+
 // GetExportListWithResponse performs a GET /api/rest/export-list (the `GetExportList` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -15743,6 +17613,17 @@ func (c *ClientWithResponses) GetExportListWithResponse(ctx context.Context, par
 	return ParseGetExportListResponse(rsp)
 }
 
+// DeleteExportWithResponse performs a DELETE /api/rest/export/{id} (the `DeleteExport` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteExportWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*DeleteExportResponse, error) {
+	rsp, err := c.DeleteExport(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteExportResponse(rsp)
+}
+
 // GetExportWithResponse performs a GET /api/rest/export/{id} (the `GetExport` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -15752,6 +17633,17 @@ func (c *ClientWithResponses) GetExportWithResponse(ctx context.Context, id Id, 
 		return nil, err
 	}
 	return ParseGetExportResponse(rsp)
+}
+
+// GetExportArchiveWithResponse performs a GET /api/rest/export/{id}/archive (the `GetExportArchive` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetExportArchiveWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*GetExportArchiveResponse, error) {
+	rsp, err := c.GetExportArchive(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetExportArchiveResponse(rsp)
 }
 
 // PostImportWithBodyWithResponse performs a POST /api/rest/import (the `PostImport` operationId) request,
@@ -15774,6 +17666,18 @@ func (c *ClientWithResponses) PostImportWithResponse(ctx context.Context, params
 		return nil, err
 	}
 	return ParsePostImportResponse(rsp)
+}
+
+// PostImportUploadWithBodyWithResponse performs a POST /api/rest/import/upload (the `PostImportUpload` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostImportUploadWithBodyWithResponse(ctx context.Context, params *PostImportUploadParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostImportUploadResponse, error) {
+	rsp, err := c.PostImportUploadWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostImportUploadResponse(rsp)
 }
 
 // DeleteIngressCredentialWithResponse performs a DELETE /api/rest/ingress-credential/{id} (the `DeleteIngressCredential` operationId) request.
@@ -15867,8 +17771,8 @@ func (c *ClientWithResponses) PutIntegrationWithResponse(ctx context.Context, na
 // GetLineageListWithResponse performs a GET /api/rest/lineage-list (the `GetLineageList` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetLineageListWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLineageListResponse, error) {
-	rsp, err := c.GetLineageList(ctx, reqEditors...)
+func (c *ClientWithResponses) GetLineageListWithResponse(ctx context.Context, params *GetLineageListParams, reqEditors ...RequestEditorFn) (*GetLineageListResponse, error) {
+	rsp, err := c.GetLineageList(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -15906,28 +17810,6 @@ func (c *ClientWithResponses) PutLineageWithResponse(ctx context.Context, id Id,
 		return nil, err
 	}
 	return ParsePutLineageResponse(rsp)
-}
-
-// PostLineageExportWithBodyWithResponse performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request,
-// with any type of body and a specified content type.
-//
-// Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PostLineageExportWithBodyWithResponse(ctx context.Context, id Id, params *PostLineageExportParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostLineageExportResponse, error) {
-	rsp, err := c.PostLineageExportWithBody(ctx, id, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostLineageExportResponse(rsp)
-}
-
-// PostLineageExportWithResponse performs a POST /api/rest/lineage/{id}/export (the `PostLineageExport` operationId) request.
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) PostLineageExportWithResponse(ctx context.Context, id Id, params *PostLineageExportParams, body PostLineageExportJSONRequestBody, reqEditors ...RequestEditorFn) (*PostLineageExportResponse, error) {
-	rsp, err := c.PostLineageExport(ctx, id, params, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostLineageExportResponse(rsp)
 }
 
 // GetOperationListWithResponse performs a GET /api/rest/operation-list (the `GetOperationList` operationId) request.
@@ -16613,6 +18495,50 @@ func (c *ClientWithResponses) PutTemplateWithResponse(ctx context.Context, diges
 	return ParsePutTemplateResponse(rsp)
 }
 
+// PostTokenWithBodyWithResponse performs a POST /api/rest/token (the `PostToken` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTokenResponse, error) {
+	rsp, err := c.PostTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostTokenResponse(rsp)
+}
+
+// PostTokenWithResponse performs a POST /api/rest/token (the `PostToken` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PostTokenWithResponse(ctx context.Context, body PostTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTokenResponse, error) {
+	rsp, err := c.PostToken(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostTokenResponse(rsp)
+}
+
+// GetTokenListWithResponse performs a GET /api/rest/token-list (the `GetTokenList` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetTokenListWithResponse(ctx context.Context, params *GetTokenListParams, reqEditors ...RequestEditorFn) (*GetTokenListResponse, error) {
+	rsp, err := c.GetTokenList(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTokenListResponse(rsp)
+}
+
+// DeleteTokenWithResponse performs a DELETE /api/rest/token/{id} (the `DeleteToken` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteTokenWithResponse(ctx context.Context, id Id, reqEditors ...RequestEditorFn) (*DeleteTokenResponse, error) {
+	rsp, err := c.DeleteToken(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTokenResponse(rsp)
+}
+
 // PostWebhookWithBodyWithResponse performs a POST /api/rest/webhook (the `PostWebhook` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -16791,6 +18717,13 @@ func ParsePostBaseResponse(rsp *http.Response) (*PostBaseResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -16852,6 +18785,13 @@ func ParsePostBaseBuildResponse(rsp *http.Response) (*PostBaseBuildResponse, err
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -16898,6 +18838,13 @@ func ParseDeleteBaseBuildCacheResponse(rsp *http.Response) (*DeleteBaseBuildCach
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
 		var dest Error
@@ -16946,6 +18893,13 @@ func ParseGetBaseBuildCacheResponse(rsp *http.Response) (*GetBaseBuildCacheRespo
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -16986,6 +18940,13 @@ func ParseGetBaseListResponse(rsp *http.Response) (*GetBaseListResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17025,6 +18986,13 @@ func ParseDeleteBaseResponse(rsp *http.Response) (*DeleteBaseResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17087,6 +19055,13 @@ func ParseGetBaseResponse(rsp *http.Response) (*GetBaseResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17140,6 +19115,13 @@ func ParsePutBaseResponse(rsp *http.Response) (*PutBaseResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17195,6 +19177,13 @@ func ParseGetConnectorListResponse(rsp *http.Response) (*GetConnectorListRespons
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17234,6 +19223,13 @@ func ParseGetConnectorResponse(rsp *http.Response) (*GetConnectorResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17281,6 +19277,13 @@ func ParseDeleteConnectorCredentialResponse(rsp *http.Response) (*DeleteConnecto
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17336,6 +19339,13 @@ func ParsePutConnectorCredentialResponse(rsp *http.Response) (*PutConnectorCrede
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17382,6 +19392,13 @@ func ParsePostConnectorLoginResponse(rsp *http.Response) (*PostConnectorLoginRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17458,6 +19475,13 @@ func ParseGetEventListResponse(rsp *http.Response) (*GetEventListResponse, error
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17497,6 +19521,88 @@ func ParseGetEventStreamResponse(rsp *http.Response) (*GetEventStreamResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostExportResponse parses an HTTP response from a PostExportWithResponse call
+func ParsePostExportResponse(rsp *http.Response) (*PostExportResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostExportResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseOperation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
@@ -17538,6 +19644,74 @@ func ParseGetExportListResponse(rsp *http.Response) (*GetExportListResponse, err
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteExportResponse parses an HTTP response from a DeleteExportWithResponse call
+func ParseDeleteExportResponse(rsp *http.Response) (*DeleteExportResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteExportResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSuccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17578,12 +19752,80 @@ func ParseGetExportResponse(rsp *http.Response) (*GetExportResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetExportArchiveResponse parses an HTTP response from a GetExportArchiveWithResponse call
+func ParseGetExportArchiveResponse(rsp *http.Response) (*GetExportArchiveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetExportArchiveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseDownload
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
@@ -17612,7 +19854,7 @@ func ParsePostImportResponse(rsp *http.Response) (*PostImportResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ResponseOperation
+		var dest ResponseSpawn
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -17632,6 +19874,20 @@ func ParsePostImportResponse(rsp *http.Response) (*PostImportResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17639,12 +19895,94 @@ func ParsePostImportResponse(rsp *http.Response) (*PostImportResponse, error) {
 		}
 		response.JSON409 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON501 = &dest
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostImportUploadResponse parses an HTTP response from a PostImportUploadWithResponse call
+func ParsePostImportUploadResponse(rsp *http.Response) (*PostImportUploadResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostImportUploadResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSpawn
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
 		var dest Error
@@ -17692,6 +20030,13 @@ func ParseDeleteIngressCredentialResponse(rsp *http.Response) (*DeleteIngressCre
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17747,6 +20092,13 @@ func ParsePostIntegrationResponse(rsp *http.Response) (*PostIntegrationResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17794,6 +20146,13 @@ func ParseGetIntegrationListResponse(rsp *http.Response) (*GetIntegrationListRes
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17833,6 +20192,13 @@ func ParseDeleteIntegrationResponse(rsp *http.Response) (*DeleteIntegrationRespo
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -17888,6 +20254,13 @@ func ParseGetIntegrationResponse(rsp *http.Response) (*GetIntegrationResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17942,6 +20315,13 @@ func ParsePutIntegrationResponse(rsp *http.Response) (*PutIntegrationResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -17989,6 +20369,13 @@ func ParseGetLineageListResponse(rsp *http.Response) (*GetLineageListResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18028,6 +20415,13 @@ func ParseGetLineageResponse(rsp *http.Response) (*GetLineageResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18076,52 +20470,12 @@ func ParsePutLineageResponse(rsp *http.Response) (*PutLineageResponse, error) {
 		}
 		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParsePostLineageExportResponse parses an HTTP response from a PostLineageExportWithResponse call
-func ParsePostLineageExportResponse(rsp *http.Response) (*PostLineageExportResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PostLineageExportResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ResponseExport
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18129,27 +20483,6 @@ func ParsePostLineageExportResponse(rsp *http.Response) (*PostLineageExportRespo
 			return nil, err
 		}
 		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON501 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON502 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
@@ -18191,6 +20524,13 @@ func ParseGetOperationListResponse(rsp *http.Response) (*GetOperationListRespons
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18230,6 +20570,13 @@ func ParseGetOperationResponse(rsp *http.Response) (*GetOperationResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18304,6 +20651,13 @@ func ParseGetQuarantineListResponse(rsp *http.Response) (*GetQuarantineListRespo
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18343,6 +20697,13 @@ func ParseDeleteQuarantineResponse(rsp *http.Response) (*DeleteQuarantineRespons
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18404,6 +20765,13 @@ func ParsePostSandboxResponse(rsp *http.Response) (*PostSandboxResponse, error) 
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18473,6 +20841,13 @@ func ParseGetSandboxListResponse(rsp *http.Response) (*GetSandboxListResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18512,6 +20887,13 @@ func ParseDeleteSandboxResponse(rsp *http.Response) (*DeleteSandboxResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18574,6 +20956,13 @@ func ParseGetSandboxResponse(rsp *http.Response) (*GetSandboxResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18627,6 +21016,13 @@ func ParsePutSandboxResponse(rsp *http.Response) (*PutSandboxResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18689,6 +21085,13 @@ func ParseGetSandboxEventListResponse(rsp *http.Response) (*GetSandboxEventListR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18742,6 +21145,13 @@ func ParsePostSandboxExecResponse(rsp *http.Response) (*PostSandboxExecResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18811,6 +21221,13 @@ func ParseDeleteSandboxFileResponse(rsp *http.Response) (*DeleteSandboxFileRespo
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -18878,6 +21295,13 @@ func ParseGetSandboxFileResponse(rsp *http.Response) (*GetSandboxFileResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -18954,6 +21378,13 @@ func ParsePutSandboxFileResponse(rsp *http.Response) (*PutSandboxFileResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19022,6 +21453,13 @@ func ParseGetSandboxFileArchiveResponse(rsp *http.Response) (*GetSandboxFileArch
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19089,6 +21527,13 @@ func ParseGetSandboxFileListResponse(rsp *http.Response) (*GetSandboxFileListRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19164,6 +21609,13 @@ func ParsePostSandboxForkResponse(rsp *http.Response) (*PostSandboxForkResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19247,6 +21699,13 @@ func ParsePostSandboxIngressCredentialResponse(rsp *http.Response) (*PostSandbox
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19300,6 +21759,13 @@ func ParseGetSandboxIngressCredentialListResponse(rsp *http.Response) (*GetSandb
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19355,6 +21821,13 @@ func ParsePostSandboxIntegrationAttachmentResponse(rsp *http.Response) (*PostSan
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19409,6 +21882,13 @@ func ParseGetSandboxIntegrationAttachmentListResponse(rsp *http.Response) (*GetS
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19455,6 +21935,13 @@ func ParseDeleteSandboxIntegrationAttachmentResponse(rsp *http.Response) (*Delet
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19503,6 +21990,13 @@ func ParseGetSandboxMetricListResponse(rsp *http.Response) (*GetSandboxMetricLis
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19549,6 +22043,13 @@ func ParsePostSandboxParkResponse(rsp *http.Response) (*PostSandboxParkResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19618,6 +22119,13 @@ func ParsePutSandboxPolicyResponse(rsp *http.Response) (*PutSandboxPolicyRespons
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19685,6 +22193,13 @@ func ParsePostSandboxProcessResponse(rsp *http.Response) (*PostSandboxProcessRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19754,6 +22269,13 @@ func ParseGetSandboxProcessListResponse(rsp *http.Response) (*GetSandboxProcessL
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19815,6 +22337,13 @@ func ParseGetSandboxSessionListResponse(rsp *http.Response) (*GetSandboxSessionL
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19861,6 +22390,13 @@ func ParseGetSandboxShellResponse(rsp *http.Response) (*GetSandboxShellResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -19937,6 +22473,13 @@ func ParsePostSandboxSnapshotResponse(rsp *http.Response) (*PostSandboxSnapshotR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20005,6 +22548,13 @@ func ParseGetSandboxSnapshotListResponse(rsp *http.Response) (*GetSandboxSnapsho
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20051,6 +22601,13 @@ func ParseGetSandboxSshResponse(rsp *http.Response) (*GetSandboxSshResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20105,6 +22662,13 @@ func ParsePostSandboxSshKeyResponse(rsp *http.Response) (*PostSandboxSshKeyRespo
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20174,6 +22738,13 @@ func ParseGetSandboxSshConnectResponse(rsp *http.Response) (*GetSandboxSshConnec
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20242,6 +22813,13 @@ func ParsePostSandboxWakeResponse(rsp *http.Response) (*PostSandboxWakeResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20303,6 +22881,13 @@ func ParseGetSessionResponse(rsp *http.Response) (*GetSessionResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20349,6 +22934,13 @@ func ParsePostSessionInterruptResponse(rsp *http.Response) (*PostSessionInterrup
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20418,6 +23010,13 @@ func ParseGetSessionOutputResponse(rsp *http.Response) (*GetSessionOutputRespons
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20464,6 +23063,13 @@ func ParseDeleteSnapshotResponse(rsp *http.Response) (*DeleteSnapshotResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20526,6 +23132,13 @@ func ParseGetSnapshotResponse(rsp *http.Response) (*GetSnapshotResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20579,6 +23192,13 @@ func ParsePostSnapshotRestoreResponse(rsp *http.Response) (*PostSnapshotRestoreR
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20662,6 +23282,13 @@ func ParsePostTemplateResponse(rsp *http.Response) (*PostTemplateResponse, error
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20730,6 +23357,13 @@ func ParseGetTemplateListResponse(rsp *http.Response) (*GetTemplateListResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20769,6 +23403,13 @@ func ParseDeleteTemplateResponse(rsp *http.Response) (*DeleteTemplateResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -20831,6 +23472,13 @@ func ParseGetTemplateResponse(rsp *http.Response) (*GetTemplateResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20885,6 +23533,13 @@ func ParsePutTemplateResponse(rsp *http.Response) (*PutTemplateResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20905,6 +23560,161 @@ func ParsePutTemplateResponse(rsp *http.Response) (*PutTemplateResponse, error) 
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostTokenResponse parses an HTTP response from a PostTokenWithResponse call
+func ParsePostTokenResponse(rsp *http.Response) (*PostTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseTokenIssued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTokenListResponse parses an HTTP response from a GetTokenListWithResponse call
+func ParseGetTokenListResponse(rsp *http.Response) (*GetTokenListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTokenListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseTokenList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteTokenResponse parses an HTTP response from a DeleteTokenWithResponse call
+func ParseDeleteTokenResponse(rsp *http.Response) (*DeleteTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResponseSuccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
@@ -20953,6 +23763,13 @@ func ParsePostWebhookResponse(rsp *http.Response) (*PostWebhookResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -20993,6 +23810,13 @@ func ParseGetWebhookListResponse(rsp *http.Response) (*GetWebhookListResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -21032,6 +23856,13 @@ func ParseDeleteWebhookResponse(rsp *http.Response) (*DeleteWebhookResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -21079,6 +23910,13 @@ func ParseGetWebhookResponse(rsp *http.Response) (*GetWebhookResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -21134,6 +23972,13 @@ func ParsePutWebhookResponse(rsp *http.Response) (*PutWebhookResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -21180,6 +24025,13 @@ func ParseGetWebhookDeliveryListResponse(rsp *http.Response) (*GetWebhookDeliver
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
@@ -21275,6 +24127,13 @@ func ParsePutWorkspaceDomainsResponse(rsp *http.Response) (*PutWorkspaceDomainsR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -21321,6 +24180,13 @@ func ParsePutWorkspacePolicyResponse(rsp *http.Response) (*PutWorkspacePolicyRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Error

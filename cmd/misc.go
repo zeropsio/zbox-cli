@@ -35,8 +35,10 @@ var credentialCmd = &cobra.Command{
 var credentialIssueCmd = &cobra.Command{
 	Use:   "issue <sandbox-id|name>",
 	Short: "Issue a ticket or a token for a port, the secret is shown once",
+	Long:  "A ticket opens a members or ticket port once, as ?ticket= in the URL, and the router swaps it for a session cookie. A token opens a token port on every request in the X-Zerops-Box-Authorization: Bearer <token> header, or once as ?token= for the cookie. The router passes Authorization to the sandbox untouched, it belongs to the app.",
 	Example: `  zbox cred issue app --port 3000
-  zbox cred issue app --port 3000 --kind token --ttl 1h`,
+  zbox cred issue app --port 3000 --kind token --ttl 1h
+  curl -H "X-Zerops-Box-Authorization: Bearer $token" https://3000-<id>-<domain>/`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagCredPort == 0 {
@@ -358,7 +360,7 @@ var quarantineRmCmd = &cobra.Command{
 }
 
 func init() {
-	credentialIssueCmd.Flags().StringVar(&flagCredKind, "kind", "ticket", "ticket (one use, exchanged for a session cookie; members and ticket ports) or token (bearer; token ports only)")
+	credentialIssueCmd.Flags().StringVar(&flagCredKind, "kind", "ticket", "ticket (one use, exchanged for a session cookie; members and ticket ports) or token (token ports only, sent as X-Zerops-Box-Authorization: Bearer <token>)")
 	credentialIssueCmd.Flags().IntVar(&flagCredPort, "port", 0, "the sandbox port the credential is for")
 	credentialIssueCmd.Flags().DurationVar(&flagCredTtl, "ttl", 0, "validity, for example 1h")
 	credentialIssueCmd.Flags().StringVar(&flagCredName, "name", "", "label")
@@ -367,7 +369,7 @@ func init() {
 
 	for _, c := range []*cobra.Command{webhookCreateCmd, webhookSetCmd} {
 		c.Flags().StringVar(&flagHookUrl, "url", "", "endpoint URL, reachable under the workspace's own egress")
-		c.Flags().StringArrayVar(&flagHookEvents, "event", nil, "event type to deliver, repeatable, none or `all` means every event: created, ready, parked, woke, forked, restored, snapshot_taken, policy_changed, secrets_stale, exported, failed, archived, deleted, session_opened, session_closed, hook_finished")
+		c.Flags().StringArrayVar(&flagHookEvents, "event", nil, "event type to deliver, repeatable, none or `all` means every event: created, ready, parked, woke, forked, restored, snapshot_taken, policy_changed, secrets_stale, exported, failed, operation_failed, archived, deleted, session_opened, session_closed, hook_finished")
 		c.Flags().BoolVar(&flagHookDisabled, "disabled", false, "do not deliver")
 	}
 	webhookSetCmd.Flags().BoolVar(&flagHookEnabled, "enabled", false, "deliver again")

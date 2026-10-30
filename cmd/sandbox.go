@@ -4,7 +4,9 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,8 +20,7 @@ var (
 	flagNewBase        string
 	flagNewTemplate    string
 	flagNewNetwork     string
-	flagNewCpus        int
-	flagNewMemory      string
+	flagNewSize        sizeFlags
 	flagNewIdleTtl     time.Duration
 	flagNewAbsoluteTtl time.Duration
 	flagNewPorts       []string
@@ -39,8 +40,11 @@ var (
 	flagSetIdleTtl     time.Duration
 	flagSetAbsoluteTtl time.Duration
 	flagWakeRedeliver  bool
+	flagWakeSize       sizeFlags
+	flagResizeSize     sizeFlags
 	flagForkCount      int
 	flagForkNames      []string
+	flagForkSize       sizeFlags
 )
 
 var newCmd = &cobra.Command{
@@ -52,7 +56,8 @@ Ports are declared as port[/access], for example 3000, 3000/public, 5432/project
 Arguments after -- replace the image's command.`,
 	Example: `  zbox new app --base ubuntu -- sleep infinity
   zbox new web --template dev -p 3000/public
-  id=$(zbox new -q --template dev)`,
+  id=$(zbox new -q --template dev)
+  zbox new pr42 --secret DATABASE_URL=DB_URL_PR42`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		ws, err := ensureWorkspace(ctx)
@@ -95,13 +100,8 @@ Arguments after -- replace the image's command.`,
 			}
 			req.BaseDigest = &b.Digest
 		}
-		req.Cpus = optionalInt(flagNewCpus)
-		if flagNewMemory != "" {
-			n, err := parseBytes(flagNewMemory)
-			if err != nil {
-				return err
-			}
-			req.MemoryBytes = &n
+		if req.Cpus, req.MemoryBytes, req.DiskBytes, err = flagNewSize.values(); err != nil {
+			return err
 		}
 		req.IdleTtlSeconds = seconds(flagNewIdleTtl)
 		req.AbsoluteTtlSeconds = seconds(flagNewAbsoluteTtl)
@@ -119,20 +119,10 @@ Arguments after -- replace the image's command.`,
 			req.Policy.Ingress.Ports = mergePorts(req.Policy.Ingress.Ports, ports)
 		}
 		if flagNewSecrets != "" || len(flagNewSecretNames) > 0 {
-			mode := flagNewSecrets
-			if mode == "" || (mode == "allowlist" && len(flagNewSecretNames) == 0) {
-				mode = "allowlist"
-			}
-			if mode == "all" {
-				mode = "all_envs"
-			}
 			if req.Policy == nil {
 				req.Policy = &api.BaseSandboxPolicy{}
 			}
-			req.Policy.Secrets = &api.BaseSecrets{Mode: upper[api.BaseSecretsMode](mode)}
-			if len(flagNewSecretNames) > 0 {
-				req.Policy.Secrets.Names = &flagNewSecretNames
-			}
+			req.Policy.Secrets = mergeSecrets(req.Policy.Secrets, flagNewSecrets, flagNewSecretNames)
 		}
 		for _, spec := range flagNewIntegration {
 			att, err := parseAttachment(spec)
@@ -182,9 +172,9 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 		return emit(list, func() {
-			tb := newTable("ID", "NAME", "STATUS", "NETWORK", "BASE", "CPU", "MEMORY", "PORTS", "CREATED")
+			tb := newTable("ID", "NAME", "STATUS", "NETWORK", "BASE", "CPU", "MEMORY", "DISK", "PORTS", "CREATED")
 			for _, s := range list {
-				tb.row(s.Id, dash(str(s.Name)), s.Status, s.NetworkMode, short(s.BaseDigest), s.Cpus, bytesString(s.MemoryBytes), portList(s), when(s.Created))
+				tb.row(s.Id, dash(str(s.Name)), s.Status, s.NetworkMode, short(s.BaseDigest), s.Cpus, bytesString(s.MemoryBytes), bytesString(s.DiskBytes), portList(s), when(s.Created))
 			}
 			if flagLsStatus == nil {
 				tb.ifEmpty("No live sandboxes. `zbox new` creates one, `zbox list --status terminated` lists the ended ones.")
@@ -244,18 +234,34 @@ var getCmd = &cobra.Command{
 }
 
 var setCmd = &cobra.Command{
-	Use:     "set <id|name>",
-	Short:   "Rename a sandbox or change its TTLs",
-	Example: `  zbox set app --name api --idle-ttl 30m`,
-	Args:    cobra.ExactArgs(1),
+	Use:   "set <id|name>",
+	Short: "Rename a sandbox or change its TTLs",
+	Long:  "Only the given flags change, the rest is kept. An empty --name or a TTL of 0 clears it.",
+	Example: `  zbox set app --name api --idle-ttl 30m
+  zbox set app --absolute-ttl 0`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		flags := cmd.Flags()
+		if !flags.Changed("name") && !flags.Changed("idle-ttl") && !flags.Changed("absolute-ttl") {
+			return usagef("nothing to change, give --name, --idle-ttl or --absolute-ttl")
+		}
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		req := api.RequestPutSandbox{Name: optional(flagSetName), IdleTtlSeconds: seconds(flagSetIdleTtl), AbsoluteTtlSeconds: seconds(flagSetAbsoluteTtl)}
-		if req.Name == nil && req.IdleTtlSeconds == nil && req.AbsoluteTtlSeconds == nil {
-			return usagef("nothing to change, give --name, --idle-ttl or --absolute-ttl")
+		current, err := ws.Sandbox(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		req := keptFields(current)
+		if flags.Changed("name") {
+			req.Name = optional(flagSetName)
+		}
+		if flags.Changed("idle-ttl") {
+			req.IdleTtlSeconds = seconds(flagSetIdleTtl)
+		}
+		if flags.Changed("absolute-ttl") {
+			req.AbsoluteTtlSeconds = seconds(flagSetAbsoluteTtl)
 		}
 		s, err := ws.UpdateSandbox(cmd.Context(), args[0], req)
 		if err != nil {
@@ -263,6 +269,11 @@ var setCmd = &cobra.Command{
 		}
 		return emit(s, func() { printSandbox(s) })
 	},
+}
+
+// keptFields is an update that changes nothing: PUT /sandbox/{id} replaces the name and both TTLs together, a field left out is cleared.
+func keptFields(s *api.BaseSandbox) api.RequestPutSandbox {
+	return api.RequestPutSandbox{Name: s.Name, IdleTtlSeconds: s.IdleTtlSeconds, AbsoluteTtlSeconds: s.AbsoluteTtlSeconds}
 }
 
 var renameCmd = &cobra.Command{
@@ -278,7 +289,13 @@ var renameCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		s, err := ws.UpdateSandbox(cmd.Context(), args[0], api.RequestPutSandbox{Name: &args[1]})
+		current, err := ws.Sandbox(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		req := keptFields(current)
+		req.Name = &args[1]
+		s, err := ws.UpdateSandbox(cmd.Context(), args[0], req)
 		if err != nil {
 			return err
 		}
@@ -331,19 +348,54 @@ var parkCmd = &cobra.Command{
 var wakeCmd = &cobra.Command{
 	Use:   "wake <id|name>",
 	Short: "Wake a parked sandbox",
+	Long: `Wakes a parked sandbox. --cpus, --memory and --disk give it another size, which needs a cold boot: a sandbox parked with memory refuses
+them, park it with --no-memory first. On a running sandbox they do what zbox resize does.`,
 	Example: `  zbox wake app
-  zbox wake app --redeliver-secrets`,
+  zbox wake app --redeliver-secrets
+  zbox wake app --memory 2g --disk 20g`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ws, err := workspace()
 		if err != nil {
 			return err
 		}
-		err = runOperation(cmd, ws, "woke", func() (*api.BaseOperation, error) { return ws.Wake(cmd.Context(), args[0], flagWakeRedeliver) })
+		req := api.RequestPostSandboxWake{}
 		if flagWakeRedeliver {
+			req.RedeliverSecrets = &flagWakeRedeliver
+		}
+		if req.Cpus, req.MemoryBytes, req.DiskBytes, err = flagWakeSize.values(); err != nil {
+			return err
+		}
+		err = runOperation(cmd, ws, "woke", func() (*api.BaseOperation, error) { return ws.Wake(cmd.Context(), args[0], req) })
+		if flagWakeRedeliver || flagWakeSize.given() {
 			return err
 		}
 		return already(cmd, ws, args[0], err, api.BaseSandboxStatusRUNNING, "running")
+	},
+}
+
+var resizeCmd = &cobra.Command{
+	Use:   "resize <id|name>",
+	Short: "Give a sandbox another cpu count, memory or disk size",
+	Long: `Changes the size of a sandbox with a cold boot. A running sandbox is parked without memory and booted again in one operation:
+its disk is synced first, everything running inside ends. A sandbox parked without memory boots at the new size. A sandbox parked with
+memory refuses, park it with --no-memory first. A disk shrinks only down to what its files hold, the error names the minimum.`,
+	Example: `  zbox resize app --cpus 2 --memory 2g
+  zbox resize app --disk 20g`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if !flagResizeSize.given() {
+			return usagef("give --cpus, --memory or --disk")
+		}
+		ws, err := workspace()
+		if err != nil {
+			return err
+		}
+		req := api.RequestPostSandboxWake{}
+		if req.Cpus, req.MemoryBytes, req.DiskBytes, err = flagResizeSize.values(); err != nil {
+			return err
+		}
+		return runOperation(cmd, ws, "resized", func() (*api.BaseOperation, error) { return ws.Wake(cmd.Context(), args[0], req) })
 	},
 }
 
@@ -364,8 +416,37 @@ var forkCmd = &cobra.Command{
 				req.Count = optionalInt(len(flagForkNames))
 			}
 		}
+		if flagForkSize.given() {
+			if req, err = sizedForkChildren(req); err != nil {
+				return err
+			}
+		}
 		return runSpawn(cmd, ws, func() (*api.ResponseSpawn, error) { return ws.Fork(cmd.Context(), args[0], req) })
 	},
+}
+
+// sizedForkChildren turns count and names into one child entry each at the --cpus, --memory and --disk size. A child of another size than
+// the parent boots cold from the parent's disk.
+func sizedForkChildren(req api.RequestPostSandboxFork) (api.RequestPostSandboxFork, error) {
+	cpus, memory, disk, err := flagForkSize.values()
+	if err != nil {
+		return req, err
+	}
+	count := 1
+	if req.Count != nil {
+		count = *req.Count
+	}
+	if count < 1 || (req.Names != nil && len(*req.Names) != count) {
+		return req, fmt.Errorf("--count must be at least 1 and match the number of --name flags when names are given")
+	}
+	children := make([]api.InDtoBodyPostSandboxForkChild, count)
+	for i := range children {
+		children[i] = api.InDtoBodyPostSandboxForkChild{Cpus: cpus, MemoryBytes: memory, DiskBytes: disk}
+		if req.Names != nil {
+			children[i].Name = &(*req.Names)[i]
+		}
+	}
+	return api.RequestPostSandboxFork{Children: children}, nil
 }
 
 // runOperation runs a mutation that answers with an operation and, unless --no-wait, waits for it and reports the outcome.
@@ -499,6 +580,9 @@ func printSandbox(s *api.BaseSandbox, extra ...string) {
 	if s.FailedReason != nil {
 		pairs = append(pairs, "Reason", *s.FailedReason)
 	}
+	if s.Operation != nil {
+		pairs = append(pairs, "Operation", fmt.Sprintf("%s %s since %s", lower(s.Operation.Kind), s.Operation.Id, when(s.Operation.Since)))
+	}
 	pairs = append(pairs, extra...)
 	pairs = append(pairs,
 		"Network", string(s.NetworkMode),
@@ -507,7 +591,7 @@ func printSandbox(s *api.BaseSandbox, extra ...string) {
 	if s.TemplateDigest != nil {
 		pairs = append(pairs, "Template", short(*s.TemplateDigest))
 	}
-	pairs = append(pairs, "Resources", fmt.Sprintf("%d cpu, %s", s.Cpus, bytesString(s.MemoryBytes)))
+	pairs = append(pairs, "Resources", fmt.Sprintf("%d cpu, %s memory, %s disk", s.Cpus, bytesString(s.MemoryBytes), bytesString(s.DiskBytes)))
 	if s.ParentId != nil {
 		pairs = append(pairs, "Parent", *s.ParentId)
 	}
@@ -598,6 +682,59 @@ func printPorts(s *api.BaseSandbox) {
 		tb.row(p.Port, lower(p.Protocol), lower(p.Access), yesNo(wakes(p)), dash(strings.Join(portUrls(s, p.Port, p.Access), " ")))
 	}
 	tb.print()
+}
+
+// parseSecrets splits --secret values into the names delivered as they are and the GUEST=NAME aliases, which deliver a workspace env under the guest's name.
+// mergeSecrets adds the --secrets and --secret flags to the secrets block of a -f policy file: --secrets replaces its mode, --secret adds names
+// and aliases to its own. Without --secrets a block that delivers nothing turns ALLOWLIST.
+func mergeSecrets(file *api.BaseSecrets, mode string, specs []string) *api.BaseSecrets {
+	secrets := api.BaseSecrets{}
+	if file != nil {
+		secrets = *file
+	}
+	switch {
+	case mode == "all":
+		secrets.Mode = api.BaseSecretsModeALLENVS
+	case mode != "":
+		secrets.Mode = upper[api.BaseSecretsMode](mode)
+	case secrets.Mode == "" || secrets.Mode == api.BaseSecretsModeNONE:
+		secrets.Mode = api.BaseSecretsModeALLOWLIST
+	}
+	names, aliases := parseSecrets(specs)
+	if len(names) > 0 {
+		var merged []string
+		if secrets.Names != nil {
+			merged = append(merged, *secrets.Names...)
+		}
+		for _, name := range names {
+			if !slices.Contains(merged, name) {
+				merged = append(merged, name)
+			}
+		}
+		secrets.Names = &merged
+	}
+	if len(aliases) > 0 {
+		merged := map[string]any{}
+		if secrets.Aliases != nil {
+			maps.Copy(merged, *secrets.Aliases)
+		}
+		maps.Copy(merged, aliases)
+		secrets.Aliases = &merged
+	}
+	return &secrets
+}
+
+func parseSecrets(specs []string) ([]string, map[string]any) {
+	var names []string
+	aliases := map[string]any{}
+	for _, spec := range specs {
+		if guest, env, found := strings.Cut(spec, "="); found {
+			aliases[guest] = env
+			continue
+		}
+		names = append(names, spec)
+	}
+	return names, aliases
 }
 
 // openUrl is the URL of a port as the user opens it: the router takes a fresh credential once as a query
@@ -722,38 +859,40 @@ func init() {
 	f.StringVar(&flagNewBase, "base", "", "base to boot from: digest, digest prefix or image ref")
 	f.StringVar(&flagNewTemplate, "template", "", "template to spawn from: digest, digest prefix or name")
 	f.StringVar(&flagNewNetwork, "network", "project_internet", "network mode, fixed for the sandbox's life: airgapped, project, internet, project_internet")
-	f.IntVar(&flagNewCpus, "cpus", 0, "cpu count")
-	f.StringVar(&flagNewMemory, "memory", "", "memory cap, for example 512m or 2g, a multiple of 16m from 64m up; the workspace default (512m) when omitted")
+	flagNewSize.add(newCmd, "the template's or the workspace default (1 cpu, 512m, 10g)")
 	f.DurationVar(&flagNewIdleTtl, "idle-ttl", 0, "park after this long without activity, for example 30m")
 	f.DurationVar(&flagNewAbsoluteTtl, "absolute-ttl", 0, "archive after this long no matter what, for example 24h")
 	f.StringArrayVarP(&flagNewPorts, "port", "p", nil, "port to expose as port[/access], repeatable")
 	f.StringArrayVar(&flagNewIntegration, "integration", nil, "integration to attach as name or label=name, repeatable")
 	f.StringVar(&flagNewSecrets, "secrets", "", "which workspace envs to deliver: none, allowlist, all (makes the sandbox secret bearing)")
-	f.StringArrayVar(&flagNewSecretNames, "secret", nil, "env name to deliver, repeatable, implies --secrets allowlist")
+	f.StringArrayVar(&flagNewSecretNames, "secret", nil, "workspace env to deliver as NAME, or as GUEST=NAME under another name in the sandbox, repeatable, added to the -f policy's secrets, implies --secrets allowlist when the policy selects nothing")
 	f.StringVarP(&flagNewPolicy, "policy", "f", "", "JSON file with the full sandbox policy, - for stdin")
 	f.StringVarP(&flagNewWorkdir, "workdir", "w", "", "working directory override")
 	f.StringArrayVarP(&flagNewEnv, "env", "e", nil, "launch env override as KEY=value, repeatable")
 	waits(newCmd, "return right after the create request, with the operation")
 
-	lsCmd.Flags().StringArrayVar(&flagLsStatus, "status", nil, "only sandboxes in any of these statuses, repeatable or comma-separated: creating, running, parking, parked, waking, forking, restoring, failed, terminated, archived (default: the live ones, terminated and archived excluded)")
+	lsCmd.Flags().StringArrayVar(&flagLsStatus, "status", nil, "only sandboxes in any of these statuses, repeatable or comma-separated: creating, running, parking, parked, waking, forking, restoring, terminating, failed, terminated, archived (default: the live ones, terminated and archived excluded)")
 	lsCmd.Flags().StringVar(&flagLsLineage, "lineage", "", "only sandboxes of this lineage")
 	lsCmd.Flags().StringVar(&flagLsParent, "parent", "", "only children of this sandbox")
 	lsCmd.Flags().IntVar(&flagLsLimit, "limit", 0, "at most this many, the newest first; every matching sandbox when omitted")
 	lsCmd.Flags().StringVar(&flagLsBefore, "before", "", "only sandboxes created before this one (the last id of the previous page)")
 
-	setCmd.Flags().StringVar(&flagSetName, "name", "", "new name")
-	setCmd.Flags().DurationVar(&flagSetIdleTtl, "idle-ttl", 0, "new idle TTL")
-	setCmd.Flags().DurationVar(&flagSetAbsoluteTtl, "absolute-ttl", 0, "new absolute TTL")
+	setCmd.Flags().StringVar(&flagSetName, "name", "", "new name, empty clears it")
+	setCmd.Flags().DurationVar(&flagSetIdleTtl, "idle-ttl", 0, "new idle TTL, 0 clears it")
+	setCmd.Flags().DurationVar(&flagSetAbsoluteTtl, "absolute-ttl", 0, "new absolute TTL, 0 clears it")
 
-	for _, c := range []*cobra.Command{rmCmd, parkCmd, wakeCmd, forkCmd} {
+	for _, c := range []*cobra.Command{rmCmd, parkCmd, wakeCmd, resizeCmd, forkCmd} {
 		waits(c, "return the operation without waiting for it")
 	}
 	destructive(rmCmd)
 	wakeCmd.Flags().BoolVar(&flagWakeRedeliver, "redeliver-secrets", false, "deliver the current secret selection to a stale sandbox")
 	forkCmd.Flags().IntVar(&flagForkCount, "count", 0, "number of children, default 1")
 	forkCmd.Flags().StringArrayVar(&flagForkNames, "name", nil, "name of a child, repeatable")
+	flagWakeSize.add(wakeCmd, "the sandbox's")
+	flagResizeSize.add(resizeCmd, "the sandbox's")
+	flagForkSize.add(forkCmd, "the parent's")
 
-	rootCmd.AddCommand(newCmd, lsCmd, getCmd, setCmd, renameCmd, rmCmd, parkCmd, wakeCmd, forkCmd)
+	rootCmd.AddCommand(newCmd, lsCmd, getCmd, setCmd, renameCmd, rmCmd, parkCmd, wakeCmd, resizeCmd, forkCmd)
 }
 
 // waitFor waits for an operation unless --no-wait, bounded by --timeout. A timeout says which operation still runs and how to wait for it again; an operation known only by its id (`operation wait`) has no kind to name.

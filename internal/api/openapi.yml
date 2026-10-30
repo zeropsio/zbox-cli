@@ -12,10 +12,22 @@ components:
             value:
                 code: connectorNotFound
                 message: Connector not found
+        ErrorExportHasNoFile:
+            value:
+                code: exportHasNoFile
+                message: 'The export has no file on this Workspace: it went to a bucket or did not finish'
         ErrorExportNotFound:
             value:
                 code: exportNotFound
                 message: Export not found
+        ErrorExportRunning:
+            value:
+                code: exportRunning
+                message: The export is still running
+        ErrorForbidden:
+            value:
+                code: forbidden
+                message: The token's scopes do not cover this route
         ErrorGuestFailed:
             value:
                 code: guestFailed
@@ -128,14 +140,22 @@ components:
             value:
                 code: templateNotReady
                 message: Template is not ready
+        ErrorTokenNotFound:
+            value:
+                code: tokenNotFound
+                message: Token not found
         ErrorUnauthorized:
             value:
                 code: unauthorized
-                message: Missing or invalid Workspace API key
+                message: Missing or invalid Workspace API key or token
         ErrorWebhookNotFound:
             value:
                 code: webhookNotFound
                 message: Webhook endpoint not found
+        ErrorWorkspaceFull:
+            value:
+                code: workspaceFull
+                message: 'The Workspace has no room left for this: park a sandbox or scale the Workspace'
     parameters:
         IdempotencyKey:
             in: header
@@ -162,11 +182,11 @@ components:
                 nullable: true
                 type: integer
         beforeId:
-            description: 'Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.'
+            description: 'Cursor: the id of the last lineage of the previous page, the answer continues with the lineages created before it.'
             in: query
             name: beforeId
             schema:
-                description: 'Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.'
+                description: 'Cursor: the id of the last lineage of the previous page, the answer continues with the lineages created before it.'
                 nullable: true
                 type: string
         beforeSeq:
@@ -324,6 +344,14 @@ components:
                 format: int
                 nullable: true
                 type: integer
+        withMemory:
+            description: Resume the archive's memory image, the default. Only an archive this Workspace exported resumes, any other boots cold from its disk.
+            in: query
+            name: withMemory
+            schema:
+                description: Resume the archive's memory image, the default. Only an archive this Workspace exported resumes, any other boots cold from its disk.
+                nullable: true
+                type: boolean
     schemas:
         BaseBandwidth:
             properties:
@@ -529,6 +557,7 @@ components:
                         - FORKING
                         - RESTORING
                         - FAILED
+                        - TERMINATING
                         - TERMINATED
                         - ARCHIVED
                     nullable: true
@@ -560,11 +589,13 @@ components:
                         - FORKING
                         - RESTORING
                         - FAILED
+                        - TERMINATING
                         - TERMINATED
                         - ARCHIVED
                     nullable: true
                     type: string
                 type:
+                    description: 'FAILED: the sandbox turned FAILED. OPERATION_FAILED: an operation failed and the sandbox kept a usable status, the payload''s reason says why.'
                     enum:
                         - CREATED
                         - READY
@@ -577,6 +608,7 @@ components:
                         - SECRETS_STALE
                         - EXPORTED
                         - FAILED
+                        - OPERATION_FAILED
                         - ARCHIVED
                         - DELETED
                         - SESSION_OPENED
@@ -590,34 +622,13 @@ components:
                 - type
                 - created
             type: object
-        BaseExecCommand:
-            properties:
-                command:
-                    description: argv, executed without a shell.
-                    format: stringArray
-                    items:
-                        type: string
-                    type: array
-                env:
-                    format: map
-                    nullable: true
-                    type: object
-                timeoutSeconds:
-                    format: int
-                    nullable: true
-                    type: integer
-                workingDir:
-                    nullable: true
-                    type: string
-            required:
-                - command
-            type: object
         BaseExport:
             properties:
                 created:
                     format: dateTime
                     type: string
                 destination:
+                    description: 'The archive: `<url>/<bucket>/<key>` for S3, the download route `/api/rest/export/{id}/archive` of this API for FILE.'
                     type: string
                 error:
                     nullable: true
@@ -626,14 +637,20 @@ components:
                     format: dateTime
                     nullable: true
                     type: string
+                hasMemory:
+                    type: boolean
                 id:
                     type: string
                 kind:
+                    description: UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
                     enum:
                         - FULL
                         - INCREMENTAL
+                        - UPLOADED
                     type: string
                 lineageId:
+                    type: string
+                sandboxId:
                     type: string
                 sinceExportId:
                     nullable: true
@@ -642,6 +659,10 @@ components:
                     format: int64
                     nullable: true
                     type: integer
+                snapshotId:
+                    description: The snapshot that was exported, null for the parked sandbox itself.
+                    nullable: true
+                    type: string
                 snapshotName:
                     type: string
                 status:
@@ -650,11 +671,20 @@ components:
                         - FINISHED
                         - FAILED
                     type: string
+                storage:
+                    description: S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+                    enum:
+                        - S3
+                        - FILE
+                    type: string
             required:
                 - id
                 - lineageId
+                - sandboxId
+                - hasMemory
                 - kind
                 - snapshotName
+                - storage
                 - destination
                 - status
                 - created
@@ -695,7 +725,7 @@ components:
                     nullable: true
                     type: string
                 command:
-                    $ref: '#/components/schemas/BaseExecCommand'
+                    $ref: '#/components/schemas/BaseSessionCommand'
                 created:
                     format: dateTime
                     type: string
@@ -834,7 +864,7 @@ components:
         BaseIngressPort:
             properties:
                 access:
-                    description: Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+                    description: 'Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.'
                     enum:
                         - PROJECT
                         - MEMBERS
@@ -1165,9 +1195,29 @@ components:
                 - requestsPerSecond
                 - burst
             type: object
+        BaseS3Target:
+            properties:
+                accessKeyIdEnv:
+                    description: Name of the Workspace environment variable holding the access key id.
+                    type: string
+                bucket:
+                    type: string
+                secretAccessKeyEnv:
+                    description: Name of the Workspace environment variable holding the secret access key.
+                    type: string
+                url:
+                    description: Endpoint of the S3 API, for example `https://storage-prg1.zerops.io`.
+                    type: string
+            required:
+                - url
+                - bucket
+                - accessKeyIdEnv
+                - secretAccessKeyEnv
+            type: object
         BaseSandbox:
             properties:
                 absoluteDeadline:
+                    description: When the sandbox is archived and destroyed, created plus absoluteTtlSeconds. An ARCHIVED sandbox keeps the deadline that ended it.
                     format: dateTime
                     nullable: true
                     type: string
@@ -1183,6 +1233,10 @@ components:
                 created:
                     format: dateTime
                     type: string
+                diskBytes:
+                    description: 'Size of the writable disk, a cap and not a reservation: blocks the guest never wrote take no space on the Workspace.'
+                    format: int64
+                    type: integer
                 failedReason:
                     nullable: true
                     type: string
@@ -1194,6 +1248,7 @@ components:
                 id:
                     type: string
                 idleDeadline:
+                    description: When the sandbox is parked for idleness, lastActivity plus idleTtlSeconds. Null without an idle TTL and while the sandbox is not running.
                     format: dateTime
                     nullable: true
                     type: string
@@ -1202,10 +1257,11 @@ components:
                     nullable: true
                     type: integer
                 lastActivity:
+                    description: The last boot, call into the guest (exec, process, files, shell, SSH) or ingress request. An open shell or SSH connection counts as activity while it lasts.
                     format: dateTime
                     type: string
                 launchContract:
-                    $ref: '#/components/schemas/BaseLaunchContract'
+                    $ref: '#/components/schemas/BaseSandboxLaunch'
                 lineageId:
                     type: string
                 memoryBytes:
@@ -1222,6 +1278,10 @@ components:
                         - INTERNET
                         - PROJECT_INTERNET
                     type: string
+                operation:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseSandboxOperation'
+                    description: The operation in flight on the sandbox, null when none is. One at a time, every other verb answers operationInFlight meanwhile.
                 parentId:
                     nullable: true
                     type: string
@@ -1248,6 +1308,7 @@ components:
                         - FORKING
                         - RESTORING
                         - FAILED
+                        - TERMINATING
                         - TERMINATED
                         - ARCHIVED
                     type: string
@@ -1268,6 +1329,7 @@ components:
                 - launchContract
                 - memoryBytes
                 - cpus
+                - diskBytes
                 - secretBearing
                 - secretsStale
                 - hosts
@@ -1278,7 +1340,7 @@ components:
         BaseSandboxHost:
             properties:
                 access:
-                    description: Who the router lets through, design §6.2 step 3. Defaults to MEMBERS, the Workspace API key.
+                    description: 'Who the router lets through, design §6.2 step 3. Defaults to MEMBERS. MEMBERS and TICKET take a ticket once as `?ticket=` and then the session cookie. TOKEN takes `X-Zerops-Box-Authorization: Bearer <token>` on every request, or the token once as `?token=` for the session cookie. PROJECT answers the project network only, PUBLIC anyone. The router passes `Authorization` to the sandbox untouched and strips `X-Zerops-Box-Authorization`, the session cookie and both query parameters.'
                     enum:
                         - PROJECT
                         - MEMBERS
@@ -1297,6 +1359,59 @@ components:
                 - access
                 - url
             type: object
+        BaseSandboxLaunch:
+            properties:
+                cmd:
+                    format: stringArray
+                    items:
+                        type: string
+                    nullable: true
+                    type: array
+                entrypoint:
+                    format: stringArray
+                    items:
+                        type: string
+                    nullable: true
+                    type: array
+                envNames:
+                    description: The names of the launch env, sorted. The guest gets the values, the API never answers them.
+                    format: stringArray
+                    items:
+                        type: string
+                    type: array
+                workingDir:
+                    nullable: true
+                    type: string
+            required:
+                - envNames
+            type: object
+        BaseSandboxOperation:
+            properties:
+                id:
+                    type: string
+                kind:
+                    enum:
+                        - CREATE
+                        - PARK
+                        - WAKE
+                        - FORK
+                        - RESTORE
+                        - SNAPSHOT
+                        - EXPORT
+                        - IMPORT
+                        - TERMINATE
+                        - PULL_BASE
+                        - BUILD_BASE
+                        - BUILD_TEMPLATE
+                    type: string
+                since:
+                    format: dateTime
+                    type: string
+            required:
+                - id
+                - kind
+                - since
+            type: object
         BaseSandboxPolicy:
             properties:
                 egress:
@@ -1312,6 +1427,11 @@ components:
             type: object
         BaseSecrets:
             properties:
+                aliases:
+                    description: 'Guest env name to Workspace env name, delivered with ALLOWLIST and ALL_ENVS, for example `{"DATABASE_URL": "DB_URL_SB42"}`. An alias wins over a Workspace env of the same name, staleness covers the mapping.'
+                    format: map
+                    nullable: true
+                    type: object
                 mode:
                     description: Which Workspace environment variables are delivered into the sandbox. Anything but NONE makes the sandbox secret bearing, design §5.9.
                     enum:
@@ -1320,6 +1440,7 @@ components:
                         - ALL_ENVS
                     type: string
                 names:
+                    description: 'ALLOWLIST only: the Workspace env names delivered under their own names.'
                     format: stringArray
                     items:
                         type: string
@@ -1328,11 +1449,61 @@ components:
             required:
                 - mode
             type: object
+        BaseSecretsCeiling:
+            properties:
+                allowedModes:
+                    description: The secrets modes a sandbox policy may take, of NONE, ALLOWLIST and ALL_ENVS. Every mode when absent.
+                    format: stringArray
+                    items:
+                        type: string
+                    nullable: true
+                    type: array
+                allowedNames:
+                    description: The Workspace env names a sandbox policy may select or alias. No limit when absent or empty. ALL_ENVS selects every name, so a list refuses it.
+                    format: stringArray
+                    items:
+                        type: string
+                    nullable: true
+                    type: array
+            type: object
+        BaseSessionCommand:
+            properties:
+                command:
+                    format: stringArray
+                    items:
+                        type: string
+                    type: array
+                envNames:
+                    description: The names of the env the command was given, sorted. The API never answers the values.
+                    format: stringArray
+                    items:
+                        type: string
+                    type: array
+                timeoutSeconds:
+                    format: int
+                    nullable: true
+                    type: integer
+                workingDir:
+                    nullable: true
+                    type: string
+            required:
+                - command
+                - envNames
+            type: object
         BaseSnapshot:
             properties:
+                cpus:
+                    description: Size of the sandbox when the snapshot was taken, null for a snapshot from before the record. A restore with memory keeps it.
+                    format: int
+                    nullable: true
+                    type: integer
                 created:
                     format: dateTime
                     type: string
+                diskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 hasMemory:
                     type: boolean
                 id:
@@ -1345,11 +1516,18 @@ components:
                         - NAMED
                         - PRE_IMPORT
                     type: string
+                memoryBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 name:
                     nullable: true
                     type: string
                 sandboxId:
                     type: string
+                secretBearing:
+                    description: 'The sandbox had received secrets when the snapshot was taken, so its disk may hold them: it does not export, and a restore child is secret bearing.'
+                    type: boolean
                 sizeBytes:
                     format: int64
                     nullable: true
@@ -1359,6 +1537,7 @@ components:
                 - sandboxId
                 - kind
                 - hasMemory
+                - secretBearing
                 - created
             type: object
         BaseSnapshotSchedule:
@@ -1386,6 +1565,10 @@ components:
                     type: string
                 digest:
                     type: string
+                diskBytes:
+                    description: Size of the template's disk, the default of sandboxes spawned from it. A spawn of another disk size boots the template's disk cold.
+                    format: int64
+                    type: integer
                 failedReason:
                     nullable: true
                     type: string
@@ -1422,6 +1605,7 @@ components:
                 - hasMemory
                 - memoryBytes
                 - cpus
+                - diskBytes
                 - created
             type: object
         BaseTemplatePolicy:
@@ -1471,6 +1655,41 @@ components:
                     type: boolean
             required:
                 - defaultPorts
+            type: object
+        BaseToken:
+            properties:
+                created:
+                    format: dateTime
+                    type: string
+                expires:
+                    description: Null for a token that never expires.
+                    format: dateTime
+                    nullable: true
+                    type: string
+                id:
+                    type: string
+                lastUsedAt:
+                    description: Updated at most once a minute.
+                    format: dateTime
+                    nullable: true
+                    type: string
+                name:
+                    type: string
+                revokedAt:
+                    format: dateTime
+                    nullable: true
+                    type: string
+                scopes:
+                    description: 'What the token may call: admin (every route but tokens), sandbox (implies sandbox:read), sandbox:read, base, integration, webhook, workspace. A sandbox token selects secrets within the secrets ceiling of the Workspace policy, and the workspace scope sets that ceiling.'
+                    format: stringArray
+                    items:
+                        type: string
+                    type: array
+            required:
+                - id
+                - name
+                - scopes
+                - created
             type: object
         BaseWebhookDelivery:
             properties:
@@ -1700,6 +1919,11 @@ components:
                     format: float
                     nullable: true
                     type: number
+                defaultDiskBytes:
+                    description: Disk size of a sandbox created from a base without diskBytes, 10 GiB when absent. A sandbox from a template takes the template's.
+                    format: int64
+                    nullable: true
+                    type: integer
                 defaultHoldTimeoutSeconds:
                     format: int
                     nullable: true
@@ -1718,6 +1942,10 @@ components:
                     format: int
                     nullable: true
                     type: integer
+                maxDiskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 maxIdleTtlSeconds:
                     format: int
                     nullable: true
@@ -1728,6 +1956,10 @@ components:
                     type: integer
                 rate:
                     $ref: '#/components/schemas/BaseRate'
+                secrets:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseSecretsCeiling'
+                    description: The ceiling of every sandbox's secrets selection, checked on create, on a policy change and on import. No limit when absent.
                 tcpPortRangeFrom:
                     format: int
                     nullable: true
@@ -1799,6 +2031,25 @@ components:
             required:
                 - name
             type: object
+        InDtoBodyPostSandboxForkChild:
+            properties:
+                cpus:
+                    description: The parent's size when absent. A child of another size boots cold from the parent's disk instead of resuming its memory.
+                    format: int
+                    nullable: true
+                    type: integer
+                diskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
+                memoryBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
+                name:
+                    nullable: true
+                    type: string
+            type: object
         RequestFileUpload:
             format: binary
             type: string
@@ -1839,13 +2090,50 @@ components:
             required:
                 - command
             type: object
+        RequestPostExport:
+            properties:
+                prefix:
+                    description: Key prefix in the bucket. The object is `<prefix><lineageId>/<sandboxId>/<exportId>.tar.zst`.
+                    nullable: true
+                    type: string
+                sandboxId:
+                    description: 'A PARKED sandbox: its disk, and its memory image when the park kept one. Exactly one of sandboxId and snapshotId.'
+                    nullable: true
+                    type: string
+                snapshotId:
+                    description: 'A snapshot: its disk, and its memory image when it has one.'
+                    nullable: true
+                    type: string
+                target:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseS3Target'
+                    description: The caller's bucket. Without it the archive is a file on the Workspace, downloaded through `GET /export/{id}/archive`.
+                withMemory:
+                    description: Carry the memory image when there is one, the default. False exports the disk alone.
+                    nullable: true
+                    type: boolean
+            type: object
         RequestPostImport:
             properties:
-                source:
-                    description: Object storage key of the export.
+                exportId:
+                    description: A finished FILE export of this Workspace, imported from its file.
+                    nullable: true
                     type: string
-            required:
-                - source
+                key:
+                    description: Object key of the archive in the bucket, the key of an export's destination.
+                    nullable: true
+                    type: string
+                name:
+                    nullable: true
+                    type: string
+                source:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseS3Target'
+                    description: The bucket holding the archive, with `key`. Exactly one of source and exportId.
+                withMemory:
+                    description: Resume the archive's memory image, the default. It resumes only on the same Firecracker release, CPU model and base build, otherwise the sandbox boots cold from the disk.
+                    nullable: true
+                    type: boolean
             type: object
         RequestPostIngressCredential:
             properties:
@@ -1907,16 +2195,10 @@ components:
             required:
                 - name
             type: object
-        RequestPostLineageExport:
-            properties:
-                destination:
-                    description: Object storage key prefix, defaults to the Workspace setting.
-                    nullable: true
-                    type: string
-            type: object
         RequestPostSandbox:
             properties:
                 absoluteTtlSeconds:
+                    description: Archive and destroy the sandbox this many seconds after its creation.
                     format: int
                     nullable: true
                     type: integer
@@ -1928,7 +2210,13 @@ components:
                     format: int
                     nullable: true
                     type: integer
+                diskBytes:
+                    description: Size of the writable disk, the template's or the Workspace policy's defaultDiskBytes when absent.
+                    format: int64
+                    nullable: true
+                    type: integer
                 idleTtlSeconds:
+                    description: Park the sandbox after this many seconds without activity.
                     format: int
                     nullable: true
                     type: integer
@@ -1974,6 +2262,12 @@ components:
             type: object
         RequestPostSandboxFork:
             properties:
+                children:
+                    description: One entry per child with its own name and size, instead of count and names. Empty for none.
+                    format: objectArray
+                    items:
+                        $ref: '#/components/schemas/InDtoBodyPostSandboxForkChild'
+                    type: array
                 count:
                     description: Number of children, default 1. One capture, one durable outcome per child.
                     format: int
@@ -1985,6 +2279,8 @@ components:
                         type: string
                     nullable: true
                     type: array
+            required:
+                - children
             type: object
         RequestPostSandboxPark:
             properties:
@@ -2005,13 +2301,40 @@ components:
             type: object
         RequestPostSandboxWake:
             properties:
+                cpus:
+                    description: 'A size that differs from the sandbox''s needs a cold boot: a running sandbox parks without memory and boots again, a sandbox parked with memory refuses it.'
+                    format: int
+                    nullable: true
+                    type: integer
+                diskBytes:
+                    description: Grows or shrinks the disk before the boot. A shrink below what the files hold fails the operation with diskTooSmall and the minimum.
+                    format: int64
+                    nullable: true
+                    type: integer
+                memoryBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 redeliverSecrets:
-                    description: Deliver the current secret selection to a stale sandbox, design §5.9.
+                    description: Deliver the current secret selection to a stale sandbox, design §5.9. On a running sandbox it parks without memory and boots again.
                     nullable: true
                     type: boolean
             type: object
         RequestPostSnapshotRestore:
             properties:
+                cpus:
+                    description: The snapshot's size when absent. A restore with memory refuses another size, a disk restore takes any.
+                    format: int
+                    nullable: true
+                    type: integer
+                diskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
+                memoryBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 name:
                     nullable: true
                     type: string
@@ -2037,6 +2360,11 @@ components:
                     format: int
                     nullable: true
                     type: integer
+                diskBytes:
+                    description: Size of the template's disk and the default of sandboxes spawned from it, the Workspace policy's defaultDiskBytes when absent.
+                    format: int64
+                    nullable: true
+                    type: integer
                 memoryBytes:
                     description: Size of the warmed memory image and the default of sandboxes spawned from the template, the Workspace default when absent.
                     format: int64
@@ -2058,6 +2386,25 @@ components:
                     type: string
             required:
                 - baseDigest
+            type: object
+        RequestPostToken:
+            properties:
+                name:
+                    type: string
+                scopes:
+                    description: One or more of admin, sandbox, sandbox:read, base, integration, webhook, workspace. A sandbox token selects secrets within the secrets ceiling of the Workspace policy, and the workspace scope sets that ceiling.
+                    format: stringArray
+                    items:
+                        type: string
+                    type: array
+                ttlSeconds:
+                    description: Without it the token never expires.
+                    format: int
+                    nullable: true
+                    type: integer
+            required:
+                - name
+                - scopes
             type: object
         RequestPostWebhook:
             properties:
@@ -2124,14 +2471,17 @@ components:
         RequestPutSandbox:
             properties:
                 absoluteTtlSeconds:
+                    description: Archive and destroy the sandbox this many seconds after its creation. Null or left out clears it.
                     format: int
                     nullable: true
                     type: integer
                 idleTtlSeconds:
+                    description: Park the sandbox after this many seconds without activity. Null or left out clears it.
                     format: int
                     nullable: true
                     type: integer
                 name:
+                    description: The three fields are replaced together, null or left out clears one. Send the current values of the fields you keep.
                     nullable: true
                     type: string
             type: object
@@ -2201,6 +2551,11 @@ components:
                     format: float
                     nullable: true
                     type: number
+                defaultDiskBytes:
+                    description: Disk size of a sandbox created from a base without diskBytes, 10 GiB when absent. A sandbox from a template takes the template's.
+                    format: int64
+                    nullable: true
+                    type: integer
                 defaultHoldTimeoutSeconds:
                     format: int
                     nullable: true
@@ -2219,6 +2574,10 @@ components:
                     format: int
                     nullable: true
                     type: integer
+                maxDiskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 maxIdleTtlSeconds:
                     format: int
                     nullable: true
@@ -2229,6 +2588,10 @@ components:
                     type: integer
                 rate:
                     $ref: '#/components/schemas/BaseRate'
+                secrets:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseSecretsCeiling'
+                    description: The ceiling of every sandbox's secrets selection, checked on create, on a policy change and on import. No limit when absent.
                 tcpPortRangeFrom:
                     format: int
                     nullable: true
@@ -2431,6 +2794,7 @@ components:
                     format: dateTime
                     type: string
                 destination:
+                    description: 'The archive: `<url>/<bucket>/<key>` for S3, the download route `/api/rest/export/{id}/archive` of this API for FILE.'
                     type: string
                 error:
                     nullable: true
@@ -2439,14 +2803,20 @@ components:
                     format: dateTime
                     nullable: true
                     type: string
+                hasMemory:
+                    type: boolean
                 id:
                     type: string
                 kind:
+                    description: UPLOADED is an archive uploaded through `POST /import/upload`, its sandboxId and snapshotId are those of the Workspace that exported it.
                     enum:
                         - FULL
                         - INCREMENTAL
+                        - UPLOADED
                     type: string
                 lineageId:
+                    type: string
+                sandboxId:
                     type: string
                 sinceExportId:
                     nullable: true
@@ -2455,6 +2825,10 @@ components:
                     format: int64
                     nullable: true
                     type: integer
+                snapshotId:
+                    description: The snapshot that was exported, null for the parked sandbox itself.
+                    nullable: true
+                    type: string
                 snapshotName:
                     type: string
                 status:
@@ -2463,11 +2837,20 @@ components:
                         - FINISHED
                         - FAILED
                     type: string
+                storage:
+                    description: S3 is an object in the caller's bucket, FILE a file on the Workspace's data volume that `GET /export/{id}/archive` downloads until the file retention removes it with the row.
+                    enum:
+                        - S3
+                        - FILE
+                    type: string
             required:
                 - id
                 - lineageId
+                - sandboxId
+                - hasMemory
                 - kind
                 - snapshotName
+                - storage
                 - destination
                 - status
                 - created
@@ -2510,7 +2893,7 @@ components:
                     nullable: true
                     type: string
                 command:
-                    $ref: '#/components/schemas/BaseExecCommand'
+                    $ref: '#/components/schemas/BaseSessionCommand'
                 created:
                     format: dateTime
                     type: string
@@ -2550,7 +2933,7 @@ components:
                 credential:
                     $ref: '#/components/schemas/BaseIngressCredential'
                 secret:
-                    description: Returned exactly once.
+                    description: 'Returned exactly once. A ticket goes into `?ticket=`, a token into `X-Zerops-Box-Authorization: Bearer <token>` or once into `?token=`.'
                     type: string
             required:
                 - credential
@@ -2758,6 +3141,7 @@ components:
         ResponseSandbox:
             properties:
                 absoluteDeadline:
+                    description: When the sandbox is archived and destroyed, created plus absoluteTtlSeconds. An ARCHIVED sandbox keeps the deadline that ended it.
                     format: dateTime
                     nullable: true
                     type: string
@@ -2773,6 +3157,10 @@ components:
                 created:
                     format: dateTime
                     type: string
+                diskBytes:
+                    description: 'Size of the writable disk, a cap and not a reservation: blocks the guest never wrote take no space on the Workspace.'
+                    format: int64
+                    type: integer
                 failedReason:
                     nullable: true
                     type: string
@@ -2784,6 +3172,7 @@ components:
                 id:
                     type: string
                 idleDeadline:
+                    description: When the sandbox is parked for idleness, lastActivity plus idleTtlSeconds. Null without an idle TTL and while the sandbox is not running.
                     format: dateTime
                     nullable: true
                     type: string
@@ -2792,10 +3181,11 @@ components:
                     nullable: true
                     type: integer
                 lastActivity:
+                    description: The last boot, call into the guest (exec, process, files, shell, SSH) or ingress request. An open shell or SSH connection counts as activity while it lasts.
                     format: dateTime
                     type: string
                 launchContract:
-                    $ref: '#/components/schemas/BaseLaunchContract'
+                    $ref: '#/components/schemas/BaseSandboxLaunch'
                 lineageId:
                     type: string
                 memoryBytes:
@@ -2812,6 +3202,10 @@ components:
                         - INTERNET
                         - PROJECT_INTERNET
                     type: string
+                operation:
+                    allOf:
+                        - $ref: '#/components/schemas/BaseSandboxOperation'
+                    description: The operation in flight on the sandbox, null when none is. One at a time, every other verb answers operationInFlight meanwhile.
                 parentId:
                     nullable: true
                     type: string
@@ -2838,6 +3232,7 @@ components:
                         - FORKING
                         - RESTORING
                         - FAILED
+                        - TERMINATING
                         - TERMINATED
                         - ARCHIVED
                     type: string
@@ -2858,6 +3253,7 @@ components:
                 - launchContract
                 - memoryBytes
                 - cpus
+                - diskBytes
                 - secretBearing
                 - secretsStale
                 - hosts
@@ -2909,9 +3305,18 @@ components:
             type: object
         ResponseSnapshot:
             properties:
+                cpus:
+                    description: Size of the sandbox when the snapshot was taken, null for a snapshot from before the record. A restore with memory keeps it.
+                    format: int
+                    nullable: true
+                    type: integer
                 created:
                     format: dateTime
                     type: string
+                diskBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 hasMemory:
                     type: boolean
                 id:
@@ -2924,11 +3329,18 @@ components:
                         - NAMED
                         - PRE_IMPORT
                     type: string
+                memoryBytes:
+                    format: int64
+                    nullable: true
+                    type: integer
                 name:
                     nullable: true
                     type: string
                 sandboxId:
                     type: string
+                secretBearing:
+                    description: 'The sandbox had received secrets when the snapshot was taken, so its disk may hold them: it does not export, and a restore child is secret bearing.'
+                    type: boolean
                 sizeBytes:
                     format: int64
                     nullable: true
@@ -2938,6 +3350,7 @@ components:
                 - sandboxId
                 - kind
                 - hasMemory
+                - secretBearing
                 - created
             type: object
         ResponseSnapshotList:
@@ -2990,6 +3403,10 @@ components:
                     type: string
                 digest:
                     type: string
+                diskBytes:
+                    description: Size of the template's disk, the default of sandboxes spawned from it. A spawn of another disk size boots the template's disk cold.
+                    format: int64
+                    type: integer
                 failedReason:
                     nullable: true
                     type: string
@@ -3026,6 +3443,7 @@ components:
                 - hasMemory
                 - memoryBytes
                 - cpus
+                - diskBytes
                 - created
             type: object
         ResponseTemplateList:
@@ -3034,6 +3452,27 @@ components:
                     format: objectArray
                     items:
                         $ref: '#/components/schemas/BaseTemplate'
+                    type: array
+            required:
+                - items
+            type: object
+        ResponseTokenIssued:
+            properties:
+                secret:
+                    description: 'Returned exactly once, sent as `Authorization: Bearer <secret>` like the Workspace API key.'
+                    type: string
+                token:
+                    $ref: '#/components/schemas/BaseToken'
+            required:
+                - token
+                - secret
+            type: object
+        ResponseTokenList:
+            properties:
+                items:
+                    format: objectArray
+                    items:
+                        $ref: '#/components/schemas/BaseToken'
                     type: array
             required:
                 - items
@@ -3149,7 +3588,7 @@ info:
         name: Zerops client licence
         url: https://www.zerops.io
     title: zbox-restPublic
-    version: 231be2f3971e6e7766527ae99b9b6979
+    version: 61c5343eee419e0c933d970aae0292c1
 openapi: 3.0.0
 paths:
     /api/rest/base:
@@ -3184,6 +3623,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3253,6 +3701,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "502":
                     content:
                         application/json:
@@ -3291,6 +3748,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3334,6 +3800,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -3363,6 +3838,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3397,6 +3881,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3460,6 +3953,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -3516,6 +4018,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -3566,6 +4077,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -3601,6 +4121,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3648,6 +4177,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3711,6 +4249,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -3755,6 +4302,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -3858,6 +4414,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -3900,6 +4465,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -3913,6 +4487,100 @@ paths:
                 - httpAuthorizationHeaderBearer: []
             tags:
                 - Event
+    /api/rest/export:
+        post:
+            operationId: PostExport
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RequestPostExport'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseOperation'
+                    description: Success response
+                "400":
+                    content:
+                        application/json:
+                            examples:
+                                invalidUserInput:
+                                    $ref: '#/components/examples/ErrorInvalidUserInput'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                SnapshotNotFound:
+                                    $ref: '#/components/examples/ErrorSnapshotNotFound'
+                                sandboxNotFound:
+                                    $ref: '#/components/examples/ErrorSandboxNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "409":
+                    content:
+                        application/json:
+                            examples:
+                                InvalidSandboxStatus:
+                                    $ref: '#/components/examples/ErrorInvalidSandboxStatus'
+                                OperationInFlight:
+                                    $ref: '#/components/examples/ErrorOperationInFlight'
+                                SecretBearing:
+                                    $ref: '#/components/examples/ErrorSecretBearing'
+                                WorkspaceFull:
+                                    $ref: '#/components/examples/ErrorWorkspaceFull'
+                                idempotencyKeyConflict:
+                                    $ref: '#/components/examples/ErrorIdempotencyKeyConflict'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "502":
+                    content:
+                        application/json:
+                            examples:
+                                substrateFailed:
+                                    $ref: '#/components/examples/ErrorSubstrateFailed'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Export
     /api/rest/export-list:
         get:
             operationId: GetExportList
@@ -3934,6 +4602,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -3948,6 +4625,66 @@ paths:
             tags:
                 - Export
     /api/rest/export/{id}:
+        delete:
+            operationId: DeleteExport
+            parameters:
+                - $ref: '#/components/parameters/id'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseSuccess'
+                    description: Success response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                exportNotFound:
+                                    $ref: '#/components/examples/ErrorExportNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "409":
+                    content:
+                        application/json:
+                            examples:
+                                exportRunning:
+                                    $ref: '#/components/examples/ErrorExportRunning'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Export
         get:
             operationId: GetExport
             parameters:
@@ -3968,12 +4705,82 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
                             examples:
                                 exportNotFound:
                                     $ref: '#/components/examples/ErrorExportNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Export
+    /api/rest/export/{id}/archive:
+        get:
+            operationId: GetExportArchive
+            parameters:
+                - $ref: '#/components/parameters/id'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseDownload'
+                    description: Success response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                exportNotFound:
+                                    $ref: '#/components/examples/ErrorExportNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "409":
+                    content:
+                        application/json:
+                            examples:
+                                exportHasNoFile:
+                                    $ref: '#/components/examples/ErrorExportHasNoFile'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4005,7 +4812,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ResponseOperation'
+                                $ref: '#/components/schemas/ResponseSpawn'
                     description: Success response
                 "400":
                     content:
@@ -4025,21 +4832,151 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                BaseNotFound:
+                                    $ref: '#/components/examples/ErrorBaseNotFound'
+                                exportNotFound:
+                                    $ref: '#/components/examples/ErrorExportNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "409":
                     content:
                         application/json:
                             examples:
+                                BaseNotReady:
+                                    $ref: '#/components/examples/ErrorBaseNotReady'
+                                ExportHasNoFile:
+                                    $ref: '#/components/examples/ErrorExportHasNoFile'
+                                NameConflict:
+                                    $ref: '#/components/examples/ErrorNameConflict'
+                                WorkspaceFull:
+                                    $ref: '#/components/examples/ErrorWorkspaceFull'
                                 idempotencyKeyConflict:
                                     $ref: '#/components/examples/ErrorIdempotencyKeyConflict'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
-                "501":
+                "422":
                     content:
                         application/json:
                             examples:
-                                notSupportedBySubstrate:
-                                    $ref: '#/components/examples/ErrorNotSupportedBySubstrate'
+                                policyViolation:
+                                    $ref: '#/components/examples/ErrorPolicyViolation'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "502":
+                    content:
+                        application/json:
+                            examples:
+                                substrateFailed:
+                                    $ref: '#/components/examples/ErrorSubstrateFailed'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Export
+    /api/rest/import/upload:
+        post:
+            operationId: PostImportUpload
+            parameters:
+                - in: query
+                  name: name
+                  schema:
+                    nullable: true
+                    type: string
+                - $ref: '#/components/parameters/withMemory'
+            requestBody:
+                content:
+                    application/octet-stream:
+                        schema:
+                            $ref: '#/components/schemas/RequestFileUpload'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseSpawn'
+                    description: Success response
+                "400":
+                    content:
+                        application/json:
+                            examples:
+                                invalidUserInput:
+                                    $ref: '#/components/examples/ErrorInvalidUserInput'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                baseNotFound:
+                                    $ref: '#/components/examples/ErrorBaseNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "409":
+                    content:
+                        application/json:
+                            examples:
+                                NameConflict:
+                                    $ref: '#/components/examples/ErrorNameConflict'
+                                WorkspaceFull:
+                                    $ref: '#/components/examples/ErrorWorkspaceFull'
+                                baseNotReady:
+                                    $ref: '#/components/examples/ErrorBaseNotReady'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "422":
+                    content:
+                        application/json:
+                            examples:
+                                policyViolation:
+                                    $ref: '#/components/examples/ErrorPolicyViolation'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4083,6 +5020,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4141,6 +5087,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "409":
                     content:
                         application/json:
@@ -4182,6 +5137,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -4217,6 +5181,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4272,6 +5245,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4335,6 +5317,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -4360,6 +5351,16 @@ paths:
     /api/rest/lineage-list:
         get:
             operationId: GetLineageList
+            parameters:
+                - $ref: '#/components/parameters/beforeId'
+                - description: Page size, 1000 at most. Without it the answer holds every lineage. The list is ordered newest first.
+                  in: query
+                  name: limit
+                  schema:
+                    description: Page size, 1000 at most. Without it the answer holds every lineage. The list is ordered newest first.
+                    format: int
+                    nullable: true
+                    type: integer
             responses:
                 "200":
                     content:
@@ -4373,6 +5374,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4407,6 +5417,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4457,52 +5476,12 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
-                "404":
+                "403":
                     content:
                         application/json:
                             examples:
-                                lineageNotFound:
-                                    $ref: '#/components/examples/ErrorLineageNotFound'
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                    description: Error response
-                "503":
-                    content:
-                        application/json:
-                            examples:
-                                internalServerError:
-                                    $ref: '#/components/examples/ErrorInternalServerError'
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                    description: Error response
-            security:
-                - httpAuthorizationHeaderBearer: []
-            tags:
-                - Lineage
-    /api/rest/lineage/{id}/export:
-        post:
-            operationId: PostLineageExport
-            parameters:
-                - $ref: '#/components/parameters/id'
-                - $ref: '#/components/parameters/IdempotencyKey'
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/RequestPostLineageExport'
-            responses:
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ResponseExport'
-                    description: Success response
-                "401":
-                    content:
-                        application/json:
-                            examples:
-                                unauthorized:
-                                    $ref: '#/components/examples/ErrorUnauthorized'
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4512,35 +5491,6 @@ paths:
                             examples:
                                 lineageNotFound:
                                     $ref: '#/components/examples/ErrorLineageNotFound'
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                    description: Error response
-                "409":
-                    content:
-                        application/json:
-                            examples:
-                                InvalidSandboxStatus:
-                                    $ref: '#/components/examples/ErrorInvalidSandboxStatus'
-                                idempotencyKeyConflict:
-                                    $ref: '#/components/examples/ErrorIdempotencyKeyConflict'
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                    description: Error response
-                "501":
-                    content:
-                        application/json:
-                            examples:
-                                notSupportedBySubstrate:
-                                    $ref: '#/components/examples/ErrorNotSupportedBySubstrate'
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                    description: Error response
-                "502":
-                    content:
-                        application/json:
-                            examples:
-                                substrateFailed:
-                                    $ref: '#/components/examples/ErrorSubstrateFailed'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4590,7 +5540,13 @@ paths:
                         - BUILD_TEMPLATE
                     nullable: true
                     type: string
-                - $ref: '#/components/parameters/beforeId'
+                - description: 'Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.'
+                  in: query
+                  name: beforeId
+                  schema:
+                    description: 'Cursor: the id of the last operation of the previous page, the answer continues with the operations older than it.'
+                    nullable: true
+                    type: string
                 - description: Page size, 100 when omitted and 1000 at most. The list is ordered newest first.
                   in: query
                   name: limit
@@ -4612,6 +5568,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4647,6 +5612,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4704,6 +5678,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -4735,6 +5718,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -4804,6 +5796,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -4867,11 +5868,11 @@ paths:
         get:
             operationId: GetSandboxList
             parameters:
-                - description: 'Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.'
+                - description: 'Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATING, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.'
                   in: query
                   name: status
                   schema:
-                    description: 'Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.'
+                    description: 'Repeatable: sandboxes in any of these statuses, one of CREATING, RUNNING, PARKING, PARKED, WAKING, FORKING, RESTORING, FAILED, TERMINATING, TERMINATED, ARCHIVED. Without it the list is the live sandboxes, TERMINATED and ARCHIVED excluded.'
                     format: stringArray
                     items:
                         type: string
@@ -4910,6 +5911,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -4942,6 +5952,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5007,6 +6026,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5060,6 +6088,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5134,6 +6171,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5188,6 +6234,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5264,6 +6319,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5335,6 +6399,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5431,6 +6504,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5506,6 +6588,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5578,6 +6669,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5667,6 +6767,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5771,6 +6880,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5821,6 +6939,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -5881,6 +7008,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5935,6 +7071,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -5980,6 +7125,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6030,6 +7184,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6076,6 +7239,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6158,6 +7330,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6235,6 +7416,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6307,6 +7497,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6370,6 +7569,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6414,6 +7622,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6506,6 +7723,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6584,6 +7810,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6624,6 +7859,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6681,6 +7925,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6753,6 +8006,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -6834,6 +8096,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6901,6 +8172,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -6941,6 +8221,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7014,6 +8303,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7054,6 +8352,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7117,6 +8424,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7172,6 +8488,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7270,6 +8595,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7342,6 +8676,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -7373,6 +8716,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7436,6 +8788,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7492,6 +8853,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7532,6 +8902,162 @@ paths:
                 - httpAuthorizationHeaderBearer: []
             tags:
                 - Template
+    /api/rest/token:
+        post:
+            operationId: PostToken
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RequestPostToken'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseTokenIssued'
+                    description: Success response
+                "400":
+                    content:
+                        application/json:
+                            examples:
+                                invalidUserInput:
+                                    $ref: '#/components/examples/ErrorInvalidUserInput'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                Forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Token
+    /api/rest/token-list:
+        get:
+            operationId: GetTokenList
+            parameters:
+                - $ref: '#/components/parameters/includeRevoked'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseTokenList'
+                    description: Success response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                Forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Token
+    /api/rest/token/{id}:
+        delete:
+            operationId: DeleteToken
+            parameters:
+                - $ref: '#/components/parameters/id'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseSuccess'
+                    description: Success response
+                "401":
+                    content:
+                        application/json:
+                            examples:
+                                unauthorized:
+                                    $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                Forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "404":
+                    content:
+                        application/json:
+                            examples:
+                                tokenNotFound:
+                                    $ref: '#/components/examples/ErrorTokenNotFound'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "503":
+                    content:
+                        application/json:
+                            examples:
+                                internalServerError:
+                                    $ref: '#/components/examples/ErrorInternalServerError'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+            security:
+                - httpAuthorizationHeaderBearer: []
+            tags:
+                - Token
     /api/rest/webhook:
         post:
             operationId: PostWebhook
@@ -7562,6 +9088,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7597,6 +9132,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -7628,6 +9172,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7670,6 +9223,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7729,6 +9291,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "404":
                     content:
                         application/json:
@@ -7779,6 +9350,15 @@ paths:
                             examples:
                                 unauthorized:
                                     $ref: '#/components/examples/ErrorUnauthorized'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
@@ -7869,6 +9449,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -7915,6 +9504,15 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Error response
+                "403":
+                    content:
+                        application/json:
+                            examples:
+                                forbidden:
+                                    $ref: '#/components/examples/ErrorForbidden'
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Error response
                 "503":
                     content:
                         application/json:
@@ -7945,5 +9543,6 @@ tags:
     - name: SandboxShell
     - name: Snapshot
     - name: Template
+    - name: Token
     - name: Webhook
     - name: Workspace

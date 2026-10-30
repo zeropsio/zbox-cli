@@ -189,7 +189,7 @@ func printSession(s *api.BaseGuestSession) {
 	fields("ID", s.Id, "Sandbox", s.SandboxId, "Kind", string(s.Kind), "Status", string(s.Status), "Exit code", intPtr(s.ExitCode), "Output", yesNo(s.HasOutput), "Command", dash(commandString(s.Command)), "Created", when(s.Created), "Closed", whenPtr(s.Closed))
 }
 
-func commandString(c *api.BaseExecCommand) string {
+func commandString(c *api.BaseSessionCommand) string {
 	if c == nil {
 		return ""
 	}

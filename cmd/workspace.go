@@ -152,12 +152,12 @@ var workspacePolicyCmd = &cobra.Command{
 
 var workspaceUseCmd = &cobra.Command{
 	Use:   "use <api-url>",
-	Short: "Point the CLI at a workspace by its API URL and key, outside the Zerops account",
-	Long:  "The escape hatch for a workspace the Zerops login does not reach: a script with the key of its own workspace, another account's service. The orchestrator is called at the URL with the key as the bearer, nothing goes through zproxy. A workspace of the account is stored with `zbox workspace authorize <service-id>` instead and needs no key.",
+	Short: "Point the CLI at a workspace by its API URL and key or token, outside the Zerops account",
+	Long:  "The escape hatch for a workspace the Zerops login does not reach: a script with the key of its own workspace, another account's service, a backend with a scoped token from `zbox token create`. The orchestrator is called at the URL with the key or the token as the bearer, nothing goes through zproxy. A token answers forbidden on every route its scopes do not cover. A workspace of the account is stored with `zbox workspace authorize <service-id>` instead and needs no key.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagWorkspaceKey == "" {
-			return usagef("--api-key is required, it is the ZBOX_WORKSPACE_API_KEY env of the workspace service")
+			return usagef("--api-key is required, the ZBOX_WORKSPACE_API_KEY env of the workspace service or a token from `zbox token create`")
 		}
 		c, err := loadConfig()
 		if err != nil {
@@ -414,7 +414,7 @@ func domainsString(domains []api.BaseWorkspaceDomain) string {
 var workspaceDomainCmd = &cobra.Command{
 	Use:   "domain",
 	Short: "The domains sandbox ports are published under",
-	Long:  "A sandbox port gets one public URL per domain of the workspace, in list order; the first one is what `zbox open` and the console open. The edge routing is Zerops's side: the dash form `{port}-{id}-<domain>` is for the Zerops subdomain of the ingress port (`zbox setup` adds it when subdomain access is on), the dot form `{port}-{id}.<domain>` for an own wildcard domain, `*.<domain>`, routed to the ingress port 8081 in the Zerops GUI with its DNS records (A, AAAA and the ACME CNAME the GUI shows).",
+	Long:  "A sandbox port gets one public URL per domain of the workspace, in list order; the first one is what `zbox open` and the console open. The edge routing is Zerops's side: the dash form `{port}-{id}-<domain>` is for the Zerops subdomain of the ingress port (`zbox setup` adds it when subdomain access is on), the dot form `{port}-{id}.<domain>` for an own wildcard domain, `*.<domain>`, routed to the ingress port 8081 in the Zerops GUI with its DNS records (A, AAAA and the ACME CNAME the GUI shows). A client on the project network needs no domain: it sends the bare `{port}-{id}` as the Host header to `http://<workspace>.zerops:8081/`.",
 }
 
 var workspaceDomainLsCmd = &cobra.Command{
@@ -537,7 +537,7 @@ func domainExample(d api.BaseWorkspaceDomain) string {
 
 func printDomains(domains []api.BaseWorkspaceDomain) {
 	if len(domains) == 0 {
-		note("No domain, so no sandbox port has a public URL. `zbox workspace domain add <domain>` adds one.")
+		note("No domain, so no sandbox port has a public URL. `zbox workspace domain add <domain>` adds one. The project network reaches a port at `http://<workspace>.zerops:8081/` with the Host header `{port}-{id}`.")
 		return
 	}
 	tb := newTable("DOMAIN", "FORM", "SANDBOX PORT")
@@ -576,7 +576,7 @@ var switchCmd = &cobra.Command{
 
 func init() {
 	workspacePolicyCmd.Flags().StringVarP(&flagPolicyFile, "file", "f", "", "JSON file with the new policy, - for stdin")
-	workspaceUseCmd.Flags().StringVar(&flagWorkspaceKey, "api-key", "", "workspace API key")
+	workspaceUseCmd.Flags().StringVar(&flagWorkspaceKey, "api-key", "", "workspace API key, or a token from `zbox token create`")
 	workspaceUseCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox workspace switch`, defaults to the first label of the API host")
 	workspaceAuthorizeCmd.Flags().StringVar(&flagWorkspaceName, "name", "", "name for `zbox workspace switch`, defaults to the service hostname")
 	openCmd.Flags().StringVar(&flagOpenDomain, "domain", "", "open the port under this workspace domain instead of the first one")
@@ -589,7 +589,7 @@ func init() {
 var openCmd = &cobra.Command{
 	Use:   "open <sandbox-id|name> [port]",
 	Short: "Open a port of a sandbox in the browser, signed in",
-	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. The URL is the port's first one, under the first workspace domain, unless --domain names another of them (`zbox workspace domain list`). Scripts talk to a token port with a token from `zbox cred issue`, members ports take no API key. The console is `zbox workspace console`.",
+	Long:  "Opens one of the sandbox's HTTP ports (the only one when the port is left out): a members or ticket port gets a one-time ticket, a token port a token, both valid for 60 s and issued for this opening only, and the port URL opens with it; the router swaps it for a session cookie and redirects to the clean URL. A public port opens bare, a project port is not reachable through the edge. The URL is the port's first one, under the first workspace domain, unless --domain names another of them (`zbox workspace domain list`). Scripts talk to a token port with a token from `zbox cred issue` in the X-Zerops-Box-Authorization: Bearer header, members ports take no API key. The console is `zbox workspace console`.",
 	Example: `  zbox open app
   zbox open app 3000
   zbox open app 3000 --domain sb.example.com`,

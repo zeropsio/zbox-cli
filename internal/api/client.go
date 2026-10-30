@@ -422,11 +422,7 @@ func (c *Workspace) Park(ctx context.Context, id string, memory bool) (*BaseOper
 	return ok[BaseOperation](c.gen.PostSandboxPark(ctx, id, &PostSandboxParkParams{IdempotencyKey: Key()}, body))
 }
 
-func (c *Workspace) Wake(ctx context.Context, id string, redeliverSecrets bool) (*BaseOperation, error) {
-	body := RequestPostSandboxWake{}
-	if redeliverSecrets {
-		body.RedeliverSecrets = ptr(true)
-	}
+func (c *Workspace) Wake(ctx context.Context, id string, body RequestPostSandboxWake) (*BaseOperation, error) {
 	return ok[BaseOperation](c.gen.PostSandboxWake(ctx, id, &PostSandboxWakeParams{IdempotencyKey: Key()}, body))
 }
 
@@ -531,8 +527,8 @@ func (c *Workspace) Restore(ctx context.Context, id string, body RequestPostSnap
 	return ok[ResponseSpawn](c.gen.PostSnapshotRestore(ctx, id, &PostSnapshotRestoreParams{IdempotencyKey: Key()}, body))
 }
 
-func (c *Workspace) Lineages(ctx context.Context) ([]BaseLineage, error) {
-	return items[BaseLineage](c.gen.GetLineageList(ctx))
+func (c *Workspace) Lineages(ctx context.Context, p GetLineageListParams) ([]BaseLineage, error) {
+	return items[BaseLineage](c.gen.GetLineageList(ctx, &p))
 }
 
 func (c *Workspace) Lineage(ctx context.Context, id string) (*BaseLineage, error) {
@@ -543,12 +539,8 @@ func (c *Workspace) UpdateLineage(ctx context.Context, id string, exportEnabled 
 	return ok[BaseLineage](c.gen.PutLineage(ctx, id, RequestPutLineage{ExportEnabled: exportEnabled}))
 }
 
-func (c *Workspace) ExportLineage(ctx context.Context, id string, destination string) (*BaseExport, error) {
-	body := RequestPostLineageExport{}
-	if destination != "" {
-		body.Destination = &destination
-	}
-	return ok[BaseExport](c.gen.PostLineageExport(ctx, id, &PostLineageExportParams{IdempotencyKey: Key()}, body))
+func (c *Workspace) CreateExport(ctx context.Context, body RequestPostExport) (*BaseOperation, error) {
+	return ok[BaseOperation](c.gen.PostExport(ctx, &PostExportParams{IdempotencyKey: Key()}, body))
 }
 
 func (c *Workspace) Exports(ctx context.Context, lineageId string) ([]BaseExport, error) {
@@ -563,8 +555,47 @@ func (c *Workspace) Export(ctx context.Context, id string) (*BaseExport, error) 
 	return ok[BaseExport](c.gen.GetExport(ctx, id))
 }
 
-func (c *Workspace) Import(ctx context.Context, body RequestPostImport) (*BaseOperation, error) {
-	return ok[BaseOperation](c.gen.PostImport(ctx, &PostImportParams{IdempotencyKey: Key()}, body))
+func (c *Workspace) DeleteExport(ctx context.Context, id string) error {
+	return done(c.gen.DeleteExport(ctx, id))
+}
+
+// ExportArchive streams the file of a FILE export and answers its length. It runs without the client's timeout, an archive of many GiB takes what it takes.
+func (c *Workspace) ExportArchive(ctx context.Context, id string) (io.ReadCloser, int64, error) {
+	// The generated client resolves its paths against the base with a trailing slash, the zproxy prefix keeps its last segment that way.
+	req, err := NewGetExportArchiveRequest(c.BaseUrl+"/", id)
+	if err != nil {
+		return nil, 0, err
+	}
+	req = req.WithContext(ctx)
+	c.authorize(req.Header)
+	resp, err := (&http.Client{Transport: c.http.Transport}).Do(req)
+	body, err := stream(resp, err)
+	if err != nil {
+		return nil, 0, err
+	}
+	return body, resp.ContentLength, nil
+}
+
+// ImportUpload sends the archive as the request body and answers the import's Spawn. It runs without the client's timeout, an archive of many
+// GiB takes what it takes, and renews an expired zproxy access first because the body cannot be sent twice.
+func (c *Workspace) ImportUpload(ctx context.Context, p PostImportUploadParams, body io.Reader, size int64) (*ResponseSpawn, error) {
+	if c.Proxied() {
+		if _, err := c.Ping(ctx); err != nil {
+			return nil, err
+		}
+	}
+	req, err := NewPostImportUploadRequestWithBody(c.BaseUrl+"/", &p, "application/octet-stream", body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	req.ContentLength = size
+	c.authorize(req.Header)
+	return ok[ResponseSpawn]((&http.Client{Transport: c.http.Transport}).Do(req))
+}
+
+func (c *Workspace) Import(ctx context.Context, body RequestPostImport) (*ResponseSpawn, error) {
+	return ok[ResponseSpawn](c.gen.PostImport(ctx, &PostImportParams{IdempotencyKey: Key()}, body))
 }
 
 // ---- ingress credentials
@@ -664,6 +695,25 @@ func (c *Workspace) DeleteWebhook(ctx context.Context, id string) error {
 
 func (c *Workspace) WebhookDeliveries(ctx context.Context, id string, p GetWebhookDeliveryListParams) ([]BaseWebhookDelivery, error) {
 	return items[BaseWebhookDelivery](c.gen.GetWebhookDeliveryList(ctx, id, &p))
+}
+
+// ---- tokens
+
+// CreateToken answers the token with its secret, the only time the secret is shown. Only the workspace key or the zproxy access creates one.
+func (c *Workspace) CreateToken(ctx context.Context, body RequestPostToken) (*ResponseTokenIssued, error) {
+	return ok[ResponseTokenIssued](c.gen.PostToken(ctx, body))
+}
+
+func (c *Workspace) Tokens(ctx context.Context, includeRevoked bool) ([]BaseToken, error) {
+	p := GetTokenListParams{}
+	if includeRevoked {
+		p.IncludeRevoked = &includeRevoked
+	}
+	return items[BaseToken](c.gen.GetTokenList(ctx, &p))
+}
+
+func (c *Workspace) RevokeToken(ctx context.Context, id string) error {
+	return done(c.gen.DeleteToken(ctx, id))
 }
 
 // ---- quarantine

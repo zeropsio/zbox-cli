@@ -41,7 +41,7 @@ type Config struct {
 	ServiceId string `json:"serviceId,omitempty"`
 	// WorkspaceUrl is the API host of the workspace, the first of the two subdomains the service publishes, empty on a workspace without subdomain access. The ingress host comes from GET /workspace.
 	WorkspaceUrl string `json:"workspaceUrl,omitempty"`
-	// ApiKey is the workspace API key of a workspace pointed at by hand (`zbox workspace use --api-key`), the generated sensitive env of the service and the whole authority on the orchestrator API. A workspace of the account carries none here, zproxy holds it.
+	// ApiKey is the bearer of a workspace pointed at by hand (`zbox workspace use --api-key`): the workspace API key, the generated sensitive env of the service and the whole authority on the orchestrator API, or a scoped token. A workspace of the account carries none here, zproxy holds the key.
 	ApiKey string `json:"apiKey,omitempty"`
 	// Access is the zproxy access of the workspace in use, see Workspace.Access.
 	Access *Access `json:"access,omitempty"`

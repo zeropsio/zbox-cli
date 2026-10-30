@@ -68,7 +68,7 @@ var portLsCmd = &cobra.Command{
 var portOpenCmd = &cobra.Command{
 	Use:   "open <id|name> <port[/access]>...",
 	Short: "Declare ports on a sandbox, keeping the ones already there",
-	Long:  "A port is port[/access]: 3000, 3000/public, 5432/project. Access is members (default, the workspace API key), project, ticket, token or public. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
+	Long:  "A port is port[/access]: 3000, 3000/public, 5432/project. Access is members (default, opened with zbox open or the console), project, ticket, token or public. A token port takes the X-Zerops-Box-Authorization: Bearer header, Authorization reaches the app on every mode. A request wakes a parked sandbox on every mode but public, wake and no-wake override that. Nothing restarts, the policy change applies on the next request.",
 	Example: `  zbox port open app 3000
   zbox port open app 8080/public 5432/project`,
 	Args: cobra.MinimumNArgs(2),

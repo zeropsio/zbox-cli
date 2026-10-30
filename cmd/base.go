@@ -22,6 +22,7 @@ var (
 	flagTemplateWarm      bool
 	flagTemplateWarmup    string
 	flagTemplateMemory    string
+	flagTemplateDisk      string
 	flagTemplateCpus      int
 	flagTemplatePolicy    string
 )
@@ -286,8 +287,11 @@ var templateCreateCmd = &cobra.Command{
 			return usagef("--warmup runs before the memory image is taken, it needs --warm")
 		}
 		req.Warmup = optional(flagTemplateWarmup)
-		// The size is the one the memory image is taken at and the default of every sandbox spawned from the template; a spawn that names another size cold boots from the base instead.
+		// The size is the one the memory image is taken at and the default of every sandbox spawned from the template; a spawn that names another size cold boots the template's disk instead.
 		req.Cpus = optionalInt(flagTemplateCpus)
+		if req.DiskBytes, err = optionalBytes(flagTemplateDisk); err != nil {
+			return err
+		}
 		if flagTemplateMemory != "" {
 			n, err := parseBytes(flagTemplateMemory)
 			if err != nil {
@@ -374,7 +378,11 @@ var templateSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		req := api.RequestPutTemplate{Name: optional(flagTemplateName)}
+		// The name is replaced on every update, so it is sent as it is unless --name changes it.
+		req := api.RequestPutTemplate{Name: t.Name}
+		if cmd.Flags().Changed("name") {
+			req.Name = optional(flagTemplateName)
+		}
 		if flagTemplatePolicy != "" {
 			req.Policy = &api.BaseTemplatePolicy{}
 			if err := readJson(flagTemplatePolicy, req.Policy); err != nil {
@@ -471,13 +479,13 @@ func printTemplate(t *api.BaseTemplate) {
 	fields(pairs...)
 	section("Policy", t.Policy)
 	if t.HasMemory {
-		note("A sandbox spawned at this size resumes from the memory image, another size cold boots from the base.")
+		note("A sandbox spawned at this size resumes from the memory image, another size cold boots the template's disk.")
 	}
 }
 
 // templateSize is the cpu count and memory the template's memory image is taken at, the default of its spawns.
 func templateSize(t api.BaseTemplate) string {
-	return fmt.Sprintf("%d cpu, %s", t.Cpus, bytesString(t.MemoryBytes))
+	return fmt.Sprintf("%d cpu, %s, %s disk", t.Cpus, bytesString(t.MemoryBytes), bytesString(t.DiskBytes))
 }
 
 func init() {
@@ -496,6 +504,7 @@ func init() {
 	templateCreateCmd.Flags().BoolVar(&flagTemplateWarm, "warm", false, "boot the base once and snapshot its memory so spawns resume instead of cold booting")
 	templateCreateCmd.Flags().StringVar(&flagTemplateWarmup, "warmup", "", "shell command run in the guest before its memory is captured, so what it loads is resident in every spawn, for example 'claude --version'; needs --warm, a non-zero exit fails the build")
 	templateCreateCmd.Flags().StringVar(&flagTemplateMemory, "memory", "", "memory the image is taken at and the default of spawns, for example 1g; the workspace default when omitted")
+	templateCreateCmd.Flags().StringVar(&flagTemplateDisk, "disk", "", "disk size of the template and the default of spawns, for example 4g; the workspace default (10g) when omitted")
 	templateCreateCmd.Flags().IntVar(&flagTemplateCpus, "cpus", 0, "cpu count of the image and the default of spawns")
 	templateCreateCmd.Flags().StringVarP(&flagTemplatePolicy, "policy", "f", "", "JSON file with the template policy, - for stdin")
 	waits(templateCreateCmd, "return right after the build started")

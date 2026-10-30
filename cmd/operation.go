@@ -223,7 +223,7 @@ var eventsCmd = &cobra.Command{
 			}
 			tb := newTable("ID", "SANDBOX", "TYPE", "CHANGE", "OPERATION", "PAYLOAD", "CREATED")
 			for _, ev := range list {
-				tb.row(ev.Id, ev.SandboxId, ev.Type, dash(eventChange(ev)), dash(str(ev.OperationId)), dash(eventPayload(ev)), when(ev.Created))
+				tb.row(ev.Id, dash(ev.SandboxId), ev.Type, dash(eventChange(ev)), dash(str(ev.OperationId)), dash(eventPayload(ev)), when(ev.Created))
 			}
 			tb.ifEmpty("No events.")
 			tb.print()
@@ -240,7 +240,7 @@ func eventLine(ev api.BaseEvent) string {
 	if t := api.Time(ev.Created); pretty() && !t.IsZero() {
 		at = t.Local().Format(time.DateTime)
 	}
-	cells := []string{fmt.Sprint(ev.Id), at, ev.SandboxId, string(ev.Type), dash(eventChange(ev)), dash(str(ev.OperationId)), dash(eventPayload(ev))}
+	cells := []string{fmt.Sprint(ev.Id), at, dash(ev.SandboxId), string(ev.Type), dash(eventChange(ev)), dash(str(ev.OperationId)), dash(eventPayload(ev))}
 	if !pretty() {
 		return plainRow(cells)
 	}

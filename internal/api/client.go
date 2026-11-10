@@ -781,26 +781,6 @@ func (c *Workspace) DeleteFile(ctx context.Context, id, path string) error {
 	return done(c.gen.DeleteSandboxFile(ctx, id, &DeleteSandboxFileParams{Path: path}))
 }
 
-// ---- Console routes
-//
-// The console is served by the orchestrator at / of the API host and its routes are registered by hand on its mux, outside the OpenAPI contract.
-
-// ConsoleTicket is a single-use console sign-in ticket, minted by POST /console/login-ticket. It lives 60 s.
-type ConsoleTicket struct {
-	Ticket  string `json:"ticket"`
-	Expires string `json:"expires"`
-}
-
-// ConsoleLoginTicket mints a single-use ticket for /console/login?ticket=, so the workspace API key never appears in a URL. An older orchestrator has no such route and answers 404.
-func (c *Workspace) ConsoleLoginTicket(ctx context.Context) (*ConsoleTicket, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+"/console/login-ticket", nil)
-	if err != nil {
-		return nil, err
-	}
-	c.authorize(req.Header)
-	return ok[ConsoleTicket](c.http.Do(req))
-}
-
 // ---- WebSocket routes
 
 // wsUrl turns the API base into the WebSocket form of one route with its query.

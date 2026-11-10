@@ -8,6 +8,12 @@ Open items, in no particular order.
 - A two-factor account cannot use `zbox login --email`, which the help says; the device login is the way.
 - Replace the hand-made `zerops.Client.UiAccess` with the SDK call once a `zerops-go` release carries `PostServiceStackUiAccess` and `urlApi`.
 - `zbox workspace status --workspace <name>` drops the stored entry when the service answers not-found (`forgetGoneWorkspace`), which it also does for a workspace of another account; a read-only command should probably not forget anything.
+- The `clientId` of the config is written by `zbox login` and `zbox setup` and read by nothing since `workspace list` walks every organisation; drop it.
+- Users see "zproxy" in help and output (`workspace authorize`, `workspace status`, `setup --no-subdomain`, the README); say "through Zerops". The lines touched with the Zerops Box console already do.
+- The wait note "A port is guarded by the workspace API key unless you say otherwise" in `internal/waiting/notes.go` is stale: a members port is entered with a ticket from `zbox open` or from Zerops Box, not with the key.
+- `zbox workspace start|stop|restart|reload|resize --no-wait` print a Zerops process that no zbox command waits on; `zbox workspace status` only shows the service status. A `workspace wait` (or `operation wait` taking a process id) would close it.
+- A `zbox workspace teardown` right after a resize failed once with the Zerops process `stack.delete FAILED internalServerError` (a lock timeout on the platform side) and succeeded on retry. The CLI now says the service is still there and the command can run again; the failure itself is the platform's.
+- The bare `zbox workspace` shows the orchestrator's capacity but not the size of the Zerops service, which `workspace status` reads from the public API; the bare form calls only the orchestrator.
 
 ## Multi-target deletes
 

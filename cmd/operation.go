@@ -27,16 +27,6 @@ var (
 	flagEvFollow  bool
 )
 
-// sleep waits the given seconds or until the command is interrupted.
-func sleep(cmd *cobra.Command, secs int) error {
-	select {
-	case <-cmd.Context().Done():
-		return cmd.Context().Err()
-	case <-time.After(time.Duration(secs) * time.Second):
-		return nil
-	}
-}
-
 var opCmd = &cobra.Command{
 	Use:     "operation",
 	Aliases: []string{"op"},

@@ -157,8 +157,19 @@ func finishLogin(cmd *cobra.Command, c config.Config) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
-	say("Logged in as %s (%s).", user.Email, user.Account)
+	say("Logged in as %s.", loginLabel(user))
 	return nil
+}
+
+// loginLabel is the user with the organisation a new project goes to, or the first one when none allows it.
+func loginLabel(u zerops.User) string {
+	switch {
+	case u.Account != "":
+		return fmt.Sprintf("%s (%s)", u.Email, u.Account)
+	case len(u.Organizations) > 0:
+		return fmt.Sprintf("%s (%s)", u.Email, u.Organizations[0].Name)
+	}
+	return u.Email
 }
 
 func printLine(s string) {

@@ -22,4 +22,20 @@ func init() {
 	}
 	rootCmd.SetHelpCommandGroupID("account")
 	rootCmd.SetCompletionCommandGroupID("account")
+
+	// `zbox workspace --help` groups its subcommands the way its Long names them.
+	subgroups := []struct {
+		id, title string
+		cmds      []*cobra.Command
+	}{
+		{"known", "Workspaces known here:", []*cobra.Command{workspaceLsCmd, switchCmd, workspaceAuthorizeCmd, workspaceUseCmd, workspaceForgetCmd}},
+		{"current", "The workspace in use:", []*cobra.Command{statusCmd, workspacePolicyCmd, workspaceDomainCmd, workspaceKeyCmd, consoleCmd}},
+		{"life", "Its VM and service:", []*cobra.Command{workspaceStartCmd, workspaceStopCmd, workspaceRestartCmd, workspaceReloadCmd, workspaceResizeCmd, teardownCmd}},
+	}
+	for _, g := range subgroups {
+		workspaceCmd.AddGroup(&cobra.Group{ID: g.id, Title: g.title})
+		for _, c := range g.cmds {
+			c.GroupID = g.id
+		}
+	}
 }

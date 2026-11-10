@@ -40,25 +40,30 @@ go install github.com/zeropsio/zbox-cli/cmd/zbox@latest
 zbox login                    # confirm a code in the Zerops GUI, or: zbox login --token <PAT>, or --email; zbox register creates an account
 zbox setup                    # creates a Zerops project (zbox-<timestamp>, --project names it) with the workspace and pulls the default base
 zbox setup --project-id <id>  # adds a workspace to an existing project instead (--name sets the service hostname, zbox by default)
+zbox setup --organization <id|name>  # the new project goes to this organisation, the first one that allows it by default
 zbox setup --base hello=ubuntu:26.04 --template dev=2:4g@hello  # pulls a base named hello and builds a warm template dev on it (2 cpus, 4 GiB); none are built by default
-zbox setup --cpu 4 --ram 8 --disk 50  # pins the size of the workspace VM, the platform's defaults for the type otherwise (2 cpus, 4 GiB, 10 GiB)
+zbox setup --cpu 4 --ram 8 --disk 50  # pins the size of the workspace VM, the platform's defaults for the type otherwise (2 cpus, 4 GiB, 10 GiB); shared cores unless --cpu-mode dedicated
 zbox setup --warmup dev='claude --version'  # the dev template runs this before its memory is captured, so claude is resident in every spawn
 zbox setup --build app=./app   # builds the Dockerfile context into a base named app on the new workspace (.dockerignore honoured); zbox base build does it later
-zbox workspace status         # the login, the workspace, whether it answers, its capacity and what is in use
+zbox workspace status         # the login, the workspace, its size, whether it answers, its capacity and what is in use
+zbox workspace resize --cpu 4 --ram 16 --disk 50  # resizes the VM, what no flag names stays (--cpu-mode shared|dedicated too, refused again within the platform's block window); the disk only grows and the VM restarts at once
+zbox workspace stop           # stops the VM, the running sandboxes are parked with their memory first; zbox workspace start brings it back
+zbox workspace restart        # reboots the VM, the running sandboxes are parked with their memory first
+zbox workspace reload         # restarts only the orchestrator in the VM, sandboxes keep running; an edited service env or a new orchestrator takes effect
 
-zbox workspace list           # the workspaces of the account, the stored ones are named
+zbox workspace list           # the workspaces in every organisation of the account, the stored ones are named; a project the account cannot reach is left out
 zbox workspace authorize <service-id>      # store one of the account here: it is reached through zproxy with the login, no key involved
 zbox workspace use <url> --api-key <key>   # or point at a workspace outside the account by URL and key (--name names it)
 zbox workspace switch <name>  # make a stored workspace the current one
 zbox list --workspace <name>  # or work on another stored workspace for one run (env ZBOX_WORKSPACE), the current one stays
-zbox workspace console        # the console the workspace serves, signed in through zproxy
+zbox workspace console        # the workspace in Zerops Box (box.zerops.io), signed in with the Zerops login; a `use --api-key` workspace is CLI only
 zbox workspace key            # the workspace API key, read from the service for `use --api-key` on a machine without the login
 zbox setup --no-subdomain     # a workspace without subdomain access: reached through zproxy all the same, but its sandbox ports get no public URL
 zbox workspace domain list    # where sandbox ports are published: the ingress subdomain (dash form, added by setup) and own wildcard domains
 zbox workspace domain add sb.example.com   # *.sb.example.com routed to port 8081 in Zerops gives every port https://<port>-<id>.sb.example.com
 
 zbox base add ubuntu:24.04    # any OCI image becomes a base
-zbox new mybox -p 3000        # sandbox from the only ready base (--base picks one), port 3000 opens only with a one-time ticket (zbox open mybox)
+zbox new mybox -p 3000        # sandbox from the only ready base (--base picks one), port 3000 is a members port: zbox open mybox or Zerops Box opens it
 zbox new app --template dev -p 3000/public --memory 2g --idle-ttl 30m  # resumes the template's memory, a public port
 zbox template create --name node --base ubuntu:24.04 --warm --warmup "node -e \"require('http')\""  # warm template, the runtime loaded before the snapshot
 zbox list                     # or zbox ls: every list, remove and rename command has its short form (ls, rm, mv)
@@ -100,7 +105,7 @@ zbox ssh app -- -L 3000:localhost:3000
 
 `zbox park app` keeps a memory image, the wake resumes the sandbox where it was in under a second. `zbox park app --no-memory` shuts the guest down instead: the disk stays, everything running inside ends, and the next wake is a cold boot that picks up the current secrets, workspace env and policy. A sandbox whose secret selection changed since its last delivery is stale: anything that would wake it implicitly (ssh, the shell, a request) answers `secretsStale`, and only `zbox wake app --redeliver-secrets` boots it with the new selection.
 
-The workspace is a managed Zerops service (`zbox@1`, type "Box Workspace"): nothing is deployed to it, the orchestrator ships with the platform and starts on its own. Bases are registered through the API (`zbox base add` for an image reference or a `docker save` tarball URL, `zbox base build` for a Dockerfile context), `zbox setup` pulls the default image unless `--base` or `--build` name others; templates likewise (`zbox setup --template` once the bases are in, `zbox template create --warm` any time). A service reload keeps the sandboxes up, a restart reboots the VM and parks every sandbox.
+The workspace is a managed Zerops service (`zbox@1`, type "Box Workspace"): nothing is deployed to it, the orchestrator ships with the platform and starts on its own. Bases are registered through the API (`zbox base add` for an image reference or a `docker save` tarball URL, `zbox base build` for a Dockerfile context), `zbox setup` pulls the default image unless `--base` or `--build` name others; templates likewise (`zbox setup --template` once the bases are in, `zbox template create --warm` any time). `zbox workspace reload` restarts the orchestrator inside the VM and keeps the sandboxes running, which is how an edited service env (the API key, a connector credential) or a new orchestrator build takes effect. `zbox workspace stop`, `restart` and `resize` stop or reboot the VM and park every running sandbox with its memory first; one that the 30 s shutdown budget does not reach comes back parked without memory. They ask on a terminal and need `--yes` otherwise, and wait for the Zerops process (and after a restart or resize for the orchestrator) unless `--no-wait`.
 
 State lives in `~/.config/zbox/config.json` (override with `ZBOX_CONFIG`). `ZBOX_TOKEN` overrides the stored Zerops token, `ZBOX_WORKSPACE` (or `--workspace`) picks a stored workspace for one run, `ZBOX_WORKSPACE_URL` and `ZBOX_API_KEY` override the workspace entirely.
 

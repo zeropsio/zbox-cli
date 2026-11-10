@@ -16,6 +16,8 @@ import (
 const (
 	// DefaultApiUrl is the Zerops public API the CLI works against. A stored apiUrl wins, `zbox login --public-api-url` moves a config over to another environment.
 	DefaultApiUrl = "https://api.app-prg1.zerops.io"
+	// DefaultBoxUrl is Zerops Box, the web app that serves the console of every workspace of the account. A stored boxUrl wins, for a dev environment.
+	DefaultBoxUrl = "https://box.zerops.io"
 	// DefaultBaseImage is the image registered as the first base of a new workspace: the saved default sandbox image (ubuntu 26.04 with claude, gh, codex, python3, node 24 and cron) served through the Zerops CDN, which the orchestrator pulls and flattens from the tarball URL. A plain registry reference works as well.
 	DefaultBaseImage = "https://storage.cdn.zerops.app/4ga3k-boxstorage/zbox/zbox-base.tar.gz"
 
@@ -31,6 +33,8 @@ type Config struct {
 	ApiUrl string `json:"apiUrl"`
 	// GuiUrl is a Zerops GUI origin that stands in for the one the API names in the consent page URL of a browser login, for the GUI dev server. Empty keeps the API's; a `zbox login --gui-url` saves the flag here with the login.
 	GuiUrl string `json:"guiUrl,omitempty"`
+	// BoxUrl is a Zerops Box origin that stands in for DefaultBoxUrl, for a dev environment. Empty keeps the default; a `zbox login --box-url` saves the flag here with the login.
+	BoxUrl string `json:"boxUrl,omitempty"`
 	// Session is the login of `zbox login` and `zbox register`, refreshed by the CLI. Token is a personal access token given to `zbox login --token`, stored as is; a login sets one of the two.
 	Session     *Session `json:"session,omitempty"`
 	Token       string   `json:"token,omitempty"`
@@ -50,7 +54,7 @@ type Config struct {
 
 	// pinned is the stored selection while the flat fields show the workspace named for this run (Pin). Save writes it back, so an override never becomes the current workspace.
 	pinned *Workspace
-	// stored holds the apiUrl and guiUrl the file had when a run overrode them with the hidden flags; Save writes them back, so a one-run flag never lands in the file. AdoptOverrides drops it, which is what a login does since storing them is its job.
+	// stored holds the apiUrl, guiUrl and boxUrl the file had when a run overrode them with the hidden flags; Save writes them back, so a one-run flag never lands in the file. AdoptOverrides drops it, which is what a login does since storing them is its job.
 	stored *storedUrls
 }
 
@@ -84,6 +88,12 @@ func (w Workspace) Host() string {
 		return u.Host
 	}
 	return w.WorkspaceUrl
+}
+
+// WithoutSecrets is the entry as listings print it under --json: the API key and the zproxy access are left out, `zbox workspace key` prints the key.
+func (w Workspace) WithoutSecrets() Workspace {
+	w.ApiKey, w.Access = "", nil
+	return w
 }
 
 // Direct says whether the workspace is reached at its own API host with the key, the way `zbox workspace use --api-key` stores one, rather than through zproxy with the account.
@@ -165,21 +175,24 @@ func Load() (Config, error) {
 	return c, nil
 }
 
-type storedUrls struct{ apiUrl, guiUrl string }
+type storedUrls struct{ apiUrl, guiUrl, boxUrl string }
 
-// Override replaces the API and GUI URLs for this run only (a nil guiUrl leaves it), Save keeps writing the stored ones.
-func (c *Config) Override(apiUrl string, guiUrl *string) {
-	if apiUrl == "" && guiUrl == nil {
+// Override replaces the API, GUI and Box URLs for this run only (a nil guiUrl or boxUrl leaves it), Save keeps writing the stored ones.
+func (c *Config) Override(apiUrl string, guiUrl, boxUrl *string) {
+	if apiUrl == "" && guiUrl == nil && boxUrl == nil {
 		return
 	}
 	if c.stored == nil {
-		c.stored = &storedUrls{apiUrl: c.ApiUrl, guiUrl: c.GuiUrl}
+		c.stored = &storedUrls{apiUrl: c.ApiUrl, guiUrl: c.GuiUrl, boxUrl: c.BoxUrl}
 	}
 	if apiUrl != "" {
 		c.ApiUrl = apiUrl
 	}
 	if guiUrl != nil {
 		c.GuiUrl = *guiUrl
+	}
+	if boxUrl != nil {
+		c.BoxUrl = *boxUrl
 	}
 }
 
@@ -199,7 +212,7 @@ func (c Config) Save() error {
 		c.setCurrent(*c.pinned)
 	}
 	if c.stored != nil {
-		c.ApiUrl, c.GuiUrl = c.stored.apiUrl, c.stored.guiUrl
+		c.ApiUrl, c.GuiUrl, c.BoxUrl = c.stored.apiUrl, c.stored.guiUrl, c.stored.boxUrl
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -230,9 +243,33 @@ func (c Config) Pinned() bool {
 	return c.pinned != nil
 }
 
+// PinsAnother says whether the workspace named for this run is another one than the stored selection.
+func (c Config) PinsAnother() bool {
+	return c.pinned != nil && !c.pinned.Same(c.current())
+}
+
 // EffectiveGuiUrl is the stored GUI origin without its trailing slash, empty when the API's consent page URL is to be used as it is.
 func (c Config) EffectiveGuiUrl() string {
 	return strings.TrimSuffix(c.GuiUrl, "/")
+}
+
+// EffectiveBoxUrl is the Zerops Box origin, see BoxOrigin: the stored one, DefaultBoxUrl when none is.
+func (c Config) EffectiveBoxUrl() (string, error) {
+	return BoxOrigin(cmp.Or(c.BoxUrl, DefaultBoxUrl))
+}
+
+// BoxOrigin reads a Zerops Box URL as an origin without a trailing slash. A value without a scheme is taken as https.
+// Anything that is not an http or https origin is refused, so the console never opens a file path or a page under another path.
+func BoxOrigin(raw string) (string, error) {
+	s := strings.TrimSuffix(strings.TrimSpace(raw), "/")
+	if !strings.Contains(s, "://") {
+		s = "https://" + s
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+		return "", fmt.Errorf("the Zerops Box URL %q is not an http(s) origin, for example https://box.zerops.io", raw)
+	}
+	return u.Scheme + "://" + u.Host, nil
 }
 
 // EffectiveToken is the bearer of the public API calls: ZBOX_TOKEN overrides the stored login, which keeps CI and scripts stateless.

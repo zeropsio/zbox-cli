@@ -16,6 +16,49 @@ func TestEffectiveGuiUrl(t *testing.T) {
 	}
 }
 
+// The Box origin is the default unless stored, a stored boxUrl loses its trailing slash.
+func TestEffectiveBoxUrl(t *testing.T) {
+	if got, err := (Config{}).EffectiveBoxUrl(); err != nil || got != DefaultBoxUrl {
+		t.Error(got, err)
+	}
+	if got, err := (Config{BoxUrl: "https://box.dev/"}).EffectiveBoxUrl(); err != nil || got != "https://box.dev" {
+		t.Error(got, err)
+	}
+	if _, err := (Config{BoxUrl: "box.dev/x"}).EffectiveBoxUrl(); err == nil {
+		t.Error("a stored URL with a path is used")
+	}
+}
+
+// A Box URL without a scheme is taken as https, anything else than an http(s) origin is refused.
+func TestBoxOrigin(t *testing.T) {
+	for raw, want := range map[string]string{
+		"box.dev":                "https://box.dev",
+		" box.dev:8443/ ":        "https://box.dev:8443",
+		"http://localhost:5173/": "http://localhost:5173",
+		"https://box.zerops.io":  "https://box.zerops.io",
+	} {
+		if got, err := BoxOrigin(raw); err != nil || got != want {
+			t.Errorf("%q -> %q %v", raw, got, err)
+		}
+	}
+	for _, raw := range []string{"", "ftp://box.dev", "https://", "https://box.dev/app", "box.dev?x=1", "https://u:p@box.dev", "file:///tmp/x", "https://box dev"} {
+		if got, err := BoxOrigin(raw); err == nil {
+			t.Errorf("%q accepted as %q", raw, got)
+		}
+	}
+}
+
+// What a listing prints under --json keeps the identity and drops the key and the access, the stored entry keeps both.
+func TestWithoutSecrets(t *testing.T) {
+	w := Workspace{Name: "byhand", WorkspaceUrl: "https://other", ApiKey: "k", Access: &Access{Url: "u", Token: "t"}}
+	if got := w.WithoutSecrets(); got.ApiKey != "" || got.Access != nil || got.Name != "byhand" || got.WorkspaceUrl != "https://other" {
+		t.Errorf("%+v", got)
+	}
+	if w.ApiKey != "k" || w.Access == nil {
+		t.Errorf("stored entry changed %+v", w)
+	}
+}
+
 // Switching resolves names, hosts, prefixes and service ids, refuses a name that belongs to another workspace, and forget names the others.
 func TestWorkspaces(t *testing.T) {
 	c := Config{Workspaces: []Workspace{
@@ -83,6 +126,12 @@ func TestPin(t *testing.T) {
 	c, err := stored.Pin("bench")
 	if err != nil || !c.Pinned() || stored.Pinned() {
 		t.Fatal(err, c.Pinned(), stored.Pinned())
+	}
+	if !c.PinsAnother() {
+		t.Error("bench is not the stored selection")
+	}
+	if same, err := stored.Pin("mine"); err != nil || !same.Pinned() || same.PinsAnother() {
+		t.Errorf("the current workspace named for one run: %v %v", err, same.PinsAnother())
 	}
 	if w := c.EffectiveWorkspace(); w.WorkspaceUrl != "https://bench" || w.ApiKey != "k2" || c.ServiceId != "svc2" {
 		t.Errorf("pinned %+v %s", w, c.ServiceId)
@@ -209,24 +258,24 @@ func TestHalfEnvPair(t *testing.T) {
 
 func TestOverrideNotSaved(t *testing.T) {
 	t.Setenv(EnvConfigPath, filepath.Join(t.TempDir(), "config.json"))
-	c := Config{ApiUrl: "https://stored", GuiUrl: "https://gui"}
-	empty := ""
-	c.Override("https://flag", &empty)
-	if c.ApiUrl != "https://flag" || c.GuiUrl != "" {
-		t.Fatalf("override not applied: %s %q", c.ApiUrl, c.GuiUrl)
+	c := Config{ApiUrl: "https://stored", GuiUrl: "https://gui", BoxUrl: "https://box.stored"}
+	empty, box := "", "https://box.flag"
+	c.Override("https://flag", &empty, &box)
+	if c.ApiUrl != "https://flag" || c.GuiUrl != "" || c.BoxUrl != "https://box.flag" {
+		t.Fatalf("override not applied: %s %q %s", c.ApiUrl, c.GuiUrl, c.BoxUrl)
 	}
 	if err := c.Save(); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := Load()
-	if err != nil || saved.ApiUrl != "https://stored" || saved.GuiUrl != "https://gui" {
-		t.Errorf("one-run flags saved: %v %s %s", err, saved.ApiUrl, saved.GuiUrl)
+	if err != nil || saved.ApiUrl != "https://stored" || saved.GuiUrl != "https://gui" || saved.BoxUrl != "https://box.stored" {
+		t.Errorf("one-run flags saved: %v %s %s %s", err, saved.ApiUrl, saved.GuiUrl, saved.BoxUrl)
 	}
 	c.AdoptOverrides()
 	if err := c.Save(); err != nil {
 		t.Fatal(err)
 	}
-	if saved, _ = Load(); saved.ApiUrl != "https://flag" || saved.GuiUrl != "" {
-		t.Errorf("login did not adopt the flags: %s %q", saved.ApiUrl, saved.GuiUrl)
+	if saved, _ = Load(); saved.ApiUrl != "https://flag" || saved.GuiUrl != "" || saved.BoxUrl != "https://box.flag" {
+		t.Errorf("login did not adopt the flags: %s %q %s", saved.ApiUrl, saved.GuiUrl, saved.BoxUrl)
 	}
 }

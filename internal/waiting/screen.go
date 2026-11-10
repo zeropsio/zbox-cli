@@ -33,10 +33,11 @@ type Screen struct {
 	done    chan struct{}
 }
 
-func New() *Screen {
+// New takes the host of Zerops Box, which a note names.
+func New(boxHost string) *Screen {
 	out := os.Stderr
 	tty := term.IsTerminal(int(out.Fd()))
-	notes := Notes()
+	notes := Notes(boxHost)
 	return &Screen{
 		out:   out,
 		tty:   tty,

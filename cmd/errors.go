@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/zeropsio/zbox-cli/internal/api"
+	"github.com/zeropsio/zbox-cli/internal/zerops"
 )
 
 // Exit codes, the contract in docs/cli-ux.md. A caller branches on them instead of parsing messages.
@@ -88,7 +90,6 @@ func markUsage(c *cobra.Command) {
 }
 
 func exitCode(err error) int {
-	var apiErr api.ApiError
 	var failed api.OperationFailed
 	switch {
 	case errors.As(err, new(usageError)), isCobraUsage(err):
@@ -105,26 +106,44 @@ func exitCode(err error) int {
 		return exitUnauthorized
 	case errors.As(err, new(unavailable)), errors.Is(err, api.ErrAccessRenewed):
 		return exitUnavailable
-	case errors.As(err, &apiErr):
-		switch {
-		case apiErr.Status == 404 || strings.HasSuffix(apiErr.Code, "NotFound"):
-			return exitNotFound
-		case apiErr.Code == "workspaceFull":
-			// Room comes back when a sandbox is parked or the workspace is scaled, so the answer is retry later, not conflict.
-			return exitUnavailable
-		case apiErr.Status == 400 || apiErr.Status == 422:
-			return exitUsage
-		case apiErr.Status == 401 || apiErr.Status == 403:
-			return exitUnauthorized
-		case apiErr.Status == 409:
-			return exitConflict
-		case apiErr.Status == 504:
-			return exitTimeout
-		case apiErr.Status == 502 || apiErr.Status == 503:
-			return exitUnavailable
-		}
-		return exitFailed
-	case errors.As(err, new(net.Error)):
+	}
+	if e, ok := apiAnswer(err); ok {
+		return apiExitCode(e.Status, e.Code)
+	}
+	if errors.As(err, new(net.Error)) {
+		return exitUnavailable
+	}
+	return exitFailed
+}
+
+// apiAnswer is the error answer of the orchestrator API or of the Zerops public API that err carries, so both get one exit class mapping.
+func apiAnswer(err error) (api.ApiError, bool) {
+	var e api.ApiError
+	if errors.As(err, &e) {
+		return e, true
+	}
+	if pe, ok := zerops.AsError(err); ok {
+		return api.ApiError{Status: pe.Status, Code: pe.Code, Message: pe.Message}, true
+	}
+	return api.ApiError{}, false
+}
+
+func apiExitCode(status int, code string) int {
+	switch {
+	case status == 404 || strings.HasSuffix(code, "NotFound"):
+		return exitNotFound
+	case code == "workspaceFull", code == "serviceStackNoActiveContainer":
+		// Room comes back when a sandbox is parked or the workspace is resized, a container when the service starts, so the answer is retry later, not conflict.
+		return exitUnavailable
+	case status == 400 || status == 422:
+		return exitUsage
+	case status == 401 || status == 403:
+		return exitUnauthorized
+	case status == 409:
+		return exitConflict
+	case status == 504:
+		return exitTimeout
+	case status == 502 || status == 503:
 		return exitUnavailable
 	}
 	return exitFailed
@@ -143,7 +162,7 @@ func readable(err error) string {
 	requested, _ := strconv.ParseInt(api.MetaValue(err, "requested"), 10, 64)
 	free, _ := strconv.ParseInt(api.MetaValue(err, "free"), 10, 64)
 	usable, _ := strconv.ParseInt(api.MetaValue(err, "usable"), 10, 64)
-	return fmt.Sprintf("workspace full: %s %s needed, %s free of %s; park a sandbox or scale the workspace", resource, size(requested), size(free), size(usable))
+	return fmt.Sprintf("workspace full: %s %s needed, %s free of %s; park a sandbox or give the workspace more with `zbox workspace resize`", resource, size(requested), size(free), size(usable))
 }
 
 // isCobraUsage catches the errors cobra raises before any hook of ours runs, an unknown command or flag.
@@ -168,22 +187,17 @@ func reportError(err error, code int) {
 		fmt.Fprintln(os.Stderr, "error:", readable(err))
 		return
 	}
-	out := map[string]any{"message": err.Error(), "exitCode": code}
-	var e api.ApiError
+	class := cmp.Or(map[int]string{exitUsage: "usage", exitNotFound: "notFound", exitTimeout: "timeout", exitUnauthorized: "unauthorized", exitUnavailable: "unavailable", exitInterrupted: "interrupted"}[code], "failed")
+	out := map[string]any{"message": err.Error(), "exitCode": code, "code": class}
 	var failed api.OperationFailed
-	switch {
+	switch e, isApi := apiAnswer(err); {
 	case errors.As(err, &failed):
 		out["code"] = "operationFailed"
 		out["operation"] = failed.Op
-	case errors.As(err, &e):
-		out["code"], out["status"], out["message"] = e.Code, e.Status, e.Message
+	case isApi:
+		out["code"], out["status"], out["message"] = cmp.Or(e.Code, class), e.Status, e.Message
 		if len(e.Meta) > 0 {
 			out["meta"] = e.Meta
-		}
-	default:
-		out["code"] = map[int]string{exitUsage: "usage", exitNotFound: "notFound", exitTimeout: "timeout", exitUnauthorized: "unauthorized", exitUnavailable: "unavailable", exitInterrupted: "interrupted"}[code]
-		if out["code"] == "" {
-			out["code"] = "failed"
 		}
 	}
 	data, _ := json.Marshal(map[string]any{"error": out})

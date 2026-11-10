@@ -8,7 +8,7 @@ import (
 // The YAML of the managed type carries subdomain access and the size pinned as min and max for every resource given, and nothing else: no base
 // (the setup registers them through the API), no containers count, no setup, no zerops.yml, no commands, no key.
 func TestRenderImport(t *testing.T) {
-	out, err := RenderImport(ImportParams{ProjectName: "p", Hostname: "zbox", Cpu: 24, Ram: 128, Disk: 250})
+	out, err := RenderImport(ImportParams{ProjectName: "p", Hostname: "zbox", Cpu: 24, Ram: 128, Disk: 250, CpuMode: CpuDedicated})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +55,28 @@ func TestRenderImportRefuses(t *testing.T) {
 		{Hostname: "zbox", Cpu: 2, Ram: 1, Disk: 50},
 		{Hostname: "zbox", Cpu: 2, Ram: 8, Disk: 9},
 		{Hostname: "zbox", Disk: -1},
+		{Hostname: "zbox", Cpu: 2, CpuMode: "turbo"},
 	} {
 		if out, err := RenderImport(p); err == nil {
 			t.Errorf("%+v rendered:\n%s", p, out)
 		}
+	}
+}
+
+// The cores stay shared unless the mode is asked for: --cpu alone pins the count and leaves the mode to the platform, --cpu-mode alone pins the mode.
+func TestRenderImportCpuMode(t *testing.T) {
+	out, err := RenderImport(ImportParams{Hostname: "zbox", Cpu: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "verticalAutoscaling:\n      minCpu: 4\n      maxCpu: 4\n"; !strings.Contains(out, want) || strings.Contains(out, "cpuMode") {
+		t.Errorf("--cpu alone should pin the count and no mode:\n%s", out)
+	}
+	out, err = RenderImport(ImportParams{Hostname: "zbox", CpuMode: CpuShared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "verticalAutoscaling:\n      cpuMode: SHARED\n"; !strings.HasSuffix(out, want) {
+		t.Errorf("--cpu-mode alone should pin only the mode:\n%s", out)
 	}
 }

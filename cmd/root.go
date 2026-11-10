@@ -24,6 +24,7 @@ import (
 var (
 	flagApiUrl    string
 	flagGuiUrl    string
+	flagBoxUrl    string
 	flagWorkspace string
 	flagJson      bool
 	flagQuiet     bool
@@ -88,8 +89,10 @@ func init() {
 	pf.StringVar(&flagWorkspace, "workspace", "", "work on this known workspace for one run and leave the current one as it is: its name, service id, project name or API host (env "+config.EnvWorkspace+")")
 	pf.StringVar(&flagApiUrl, "public-api-url", "", "Zerops public API base URL, stored by `zbox login`")
 	pf.StringVar(&flagGuiUrl, "gui-url", "", "Zerops GUI origin that serves the login consent page in place of the one the API names, overrides guiUrl from the config")
+	pf.StringVar(&flagBoxUrl, "box-url", "", "Zerops Box origin that `zbox workspace console` opens in place of "+config.DefaultBoxUrl+", https when given without a scheme, stored by `zbox login`")
 	_ = pf.MarkHidden("public-api-url")
 	_ = pf.MarkHidden("gui-url")
+	_ = pf.MarkHidden("box-url")
 }
 
 func loadConfig() (config.Config, error) {
@@ -97,12 +100,22 @@ func loadConfig() (config.Config, error) {
 	if err != nil {
 		return c, err
 	}
-	// The hidden flags hold for this run and are not saved by a refresh or an access mint on the way; `zbox login` adopts them, since storing them is its job. An empty --gui-url is a value too: it brings the API's own consent page back after a spell on the dev server.
-	var guiUrl *string
+	// The hidden flags hold for this run and are not saved by a refresh or an access mint on the way; `zbox login` adopts them, since storing them is its job. An empty --gui-url is a value too: it brings the API's own consent page back after a spell on the dev server, and an empty --box-url brings the default Box back.
+	var guiUrl, boxUrl *string
 	if rootCmd.PersistentFlags().Changed("gui-url") {
 		guiUrl = &flagGuiUrl
 	}
-	c.Override(flagApiUrl, guiUrl)
+	if rootCmd.PersistentFlags().Changed("box-url") {
+		if flagBoxUrl != "" {
+			origin, err := config.BoxOrigin(flagBoxUrl)
+			if err != nil {
+				return c, usagef("--box-url: %v", err)
+			}
+			flagBoxUrl = origin
+		}
+		boxUrl = &flagBoxUrl
+	}
+	c.Override(flagApiUrl, guiUrl, boxUrl)
 	if set, missing := config.HalfEnvPair(); set != "" {
 		return c, usagef("%s is set without %s, the pair names a workspace only as a whole", set, missing)
 	}
@@ -251,7 +264,7 @@ func mintAccess(ctx context.Context, c *config.Config, zc *zerops.Client, w conf
 	if err != nil {
 		switch {
 		case zerops.IsCode(err, "serviceStackNoActiveContainer"):
-			return config.Access{}, unavailable{fmt.Sprintf("workspace %s (%s) is not running, start the service in the Zerops GUI", w.Name, w.Label())}
+			return config.Access{}, unavailable{fmt.Sprintf("workspace %s (%s) is not running, `zbox workspace start` starts it", w.Name, w.Label())}
 		case zerops.IsCode(err, "insufficientPermissions"):
 			return config.Access{}, notAuthorized{fmt.Sprintf("the account has a read-only role on workspace %s (%s), reaching it needs BasicUser or above", w.Name, w.Label())}
 		case zerops.IsNotFound(err):

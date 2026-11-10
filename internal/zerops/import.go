@@ -3,11 +3,12 @@ package zerops
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 )
 
 // The workspace is a Box Workspace service (zbox@1), a managed (STANDARD) service type: an Ubuntu VM in which zsc runs the orchestrator from the image as root (a systemd unit that runs `zerops-zbox-orchestrator prepare` and then `run`), so the import carries no appVersion, no zerops.yml, no commands and nothing is deployed; a new orchestrator build reaches the workspace with the platform. The orchestrator runs Firecracker guests inside that VM, its only substrate, there is no docker.
-// One container of Cpu dedicated cpus, Ram GiB of RAM and a Disk GiB disk, min equal to max so the workspace never scales: the orchestrator holds the sqlite file and the guests, a second container or a resize would not carry them. The CLI sends no size of its own, the platform's defaults for the type apply (2 cpu, 4 GiB, 10 GiB) and `--cpu`, `--ram` and `--disk` pin what they name. The type takes no minContainers or maxContainers, the import refuses them.
+// One container of Cpu cores, Ram GiB of RAM and a Disk GiB disk, min equal to max so the workspace never scales on its own: the orchestrator holds the sqlite file and the guests, a second container would not carry them, and `zbox workspace resize` changes the size on purpose. The CLI sends no size of its own, the platform's defaults for the type apply (2 shared cpu, 4 GiB, 10 GiB) and `--cpu`, `--ram`, `--disk` and `--cpu-mode` pin what they name. The cores stay shared unless CpuMode says DEDICATED, which costs several times more per core. The type takes no minContainers or maxContainers, the import refuses them.
 // The controller publishes the two http ports itself (8080 API, 8081 ingress) and writes zeropsSubdomain as two lines, the API host first.
 // The workspace API key is the service env ZBOX_WORKSPACE_API_KEY, a sensitive system env the controller generates at service create (like the Qdrant apiKey), so the import carries no key of its own. The orchestrator reads no service env: before every start zsc writes the two keys (API, data volume) into /etc/zerops-zbox-orchestrator/config.yml, the only configuration the orchestrator reads; domains and bases are set through its API, the platform sets only the secrets.
 // The import names no base: cmd/setup.go registers every base through the API once the orchestrator answers (builds, then pulls) and creates the templates on them.
@@ -23,8 +24,10 @@ const importTemplate = `{{with .ProjectName}}project:
 {{- end}}
 {{- if .Sized}}
     verticalAutoscaling:
+{{- with .CpuMode}}
+      cpuMode: {{.}}
+{{- end}}
 {{- if .Cpu}}
-      cpuMode: DEDICATED
       minCpu: {{.Cpu}}
       maxCpu: {{.Cpu}}
 {{- end}}
@@ -39,26 +42,54 @@ const importTemplate = `{{with .ProjectName}}project:
 {{- end}}
 `
 
+// The cpu modes of a workspace VM, as the import and the autoscaling endpoint spell them.
+const (
+	CpuShared    = "SHARED"
+	CpuDedicated = "DEDICATED"
+)
+
 type ImportParams struct {
 	ProjectName string
 	Hostname    string
-	// Cpu, Ram and Disk size the one container: dedicated cpus, GiB of RAM, GiB of disk, each pinned as min and max. Zero leaves the resource to the
+	// Cpu, Ram and Disk size the one container: cpu cores, GiB of RAM, GiB of disk, each pinned as min and max. Zero leaves the resource to the
 	// platform's default for the type, the driver floor is 2 cpu, 2 GiB, 10 GiB.
 	Cpu  int
 	Ram  int
 	Disk int
+	// CpuMode is SHARED or DEDICATED, empty leaves the platform's default, SHARED.
+	CpuMode string
 	// NoSubdomain leaves subdomain access off: no API host and no ingress host, so sandbox ports get no public URL until a domain is added. The API is reached through zproxy either way.
 	NoSubdomain bool
 }
 
 // Sized tells whether any resource is pinned, so the template leaves the autoscaling block out otherwise.
 func (p ImportParams) Sized() bool {
-	return p.Cpu > 0 || p.Ram > 0 || p.Disk > 0
+	return p.Cpu > 0 || p.Ram > 0 || p.Disk > 0 || p.CpuMode != ""
+}
+
+// CheckSize refuses a workspace size under the driver floor of 2 cpu, 2 GiB RAM and 10 GiB disk. A zero resource is not given and passes, the message names only the ones given.
+func CheckSize(cpu, ram, disk int) error {
+	var under []string
+	for _, r := range []struct {
+		value, floor int
+		unit         string
+	}{{cpu, 2, "cpu"}, {ram, 2, "GiB RAM"}, {disk, 10, "GiB disk"}} {
+		if r.value != 0 && r.value < r.floor {
+			under = append(under, fmt.Sprintf("%d %s is under the floor of %d %s", r.value, r.unit, r.floor, r.unit))
+		}
+	}
+	if len(under) > 0 {
+		return fmt.Errorf("workspace size: %s", strings.Join(under, ", "))
+	}
+	return nil
 }
 
 func RenderImport(p ImportParams) (string, error) {
-	if p.Cpu < 0 || p.Ram < 0 || p.Disk < 0 || (p.Cpu > 0 && p.Cpu < 2) || (p.Ram > 0 && p.Ram < 2) || (p.Disk > 0 && p.Disk < 10) {
-		return "", fmt.Errorf("workspace size %d cpu, %d GiB RAM, %d GiB disk is under the floor of 2 cpu, 2 GiB RAM, 10 GiB disk", p.Cpu, p.Ram, p.Disk)
+	if err := CheckSize(p.Cpu, p.Ram, p.Disk); err != nil {
+		return "", err
+	}
+	if p.CpuMode != "" && p.CpuMode != CpuShared && p.CpuMode != CpuDedicated {
+		return "", fmt.Errorf("cpu mode %q is neither %s nor %s", p.CpuMode, CpuShared, CpuDedicated)
 	}
 	t, err := template.New("import").Parse(importTemplate)
 	if err != nil {
